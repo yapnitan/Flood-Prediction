@@ -34,9 +34,9 @@ class AuthService {
     );
   }
 
-  Account? login(String email, String password){
-    for (var account in accounts){
-      if(account.email == email && account.password == password){
+  Account? loginValidate(String email, String password) {
+    for (var account in accounts) {
+      if (account.email == email && account.password == password) {
         return account;
       }
     }
