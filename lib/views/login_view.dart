@@ -4,6 +4,8 @@ import '../services/auth_service.dart';
 import 'user_view.dart';
 import 'admin_view.dart';
 import 'helper_view.dart';
+import 'register_view.dart';
+import 'forgot_password_view.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -55,11 +57,17 @@ class _LoginViewState extends State<LoginView> {
   }
 
   void forgotPassword(){
-
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ForgotPasswordPage()),
+    );
   }
 
   void register(){
-
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => RegistrationPage()),
+    );
   }
 
   @override
@@ -95,6 +103,22 @@ class _LoginViewState extends State<LoginView> {
               const SizedBox(height: 20),
               Image.asset("assets/images/logo.png", width: 150, height: 150),
               const SizedBox(height: 30),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  if (errorMessage.isNotEmpty)
+                    Text(
+                      errorMessage,
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                ],
+              ),
+
               TextField(
                 controller: emailController,
 
