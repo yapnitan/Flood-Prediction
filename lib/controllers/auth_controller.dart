@@ -6,8 +6,8 @@ class AuthController {
 
   AuthController(this.authService);
 
-  Account? login(String email, String password) {
-    Account? account = authService.loginValidate(email, password);
+  Future<Account?> login(String email, String password) async {
+    Account? account = await authService.loginValidate(email, password);
 
     return account;
   }

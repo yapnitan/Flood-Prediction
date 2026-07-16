@@ -23,11 +23,12 @@ class _LoginViewState extends State<LoginView> {
 
   String errorMessage = "";
 
-  void login() {
+  Future<void> login() async{
     String email = emailController.text;
     String password = passwordController.text;
 
-    var account = authController.login(email, password);
+    var account = await authController.login(email, password);
+    if (!mounted) return;
     if (account == null) {
       setState(() {
         errorMessage = "Invalid email or password";
