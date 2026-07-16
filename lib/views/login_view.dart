@@ -27,6 +27,22 @@ class _LoginViewState extends State<LoginView> {
     String email = emailController.text;
     String password = passwordController.text;
 
+    // TEMPORARY: hardcoded test accounts, bypasses Supabase
+    if (email == "admin" && password == "123") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => AdminHome()),
+      );
+      return;
+    }
+    if (email == "user" && password == "123") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => UserHome()),
+      );
+      return;
+    }
+
     var account = await authController.login(email, password);
     if (!mounted) return;
     if (account == null) {

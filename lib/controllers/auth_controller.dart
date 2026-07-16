@@ -6,10 +6,8 @@ class AuthController {
 
   AuthController(this.authService);
 
-  Future<Account?> register(String name, String email, String password) async {
-    Account? account = await authService.register(name, email, password);
-
-    return account;
+  Future<Map<String, dynamic>> register(String name, String email, String password) async {
+    return await authService.register(name, email, password);
   }
 
   Future<Account?> login(String email, String password) async {

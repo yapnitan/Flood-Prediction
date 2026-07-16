@@ -1,37 +1,44 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 import '../models/account.dart';
 
 class AuthService {
   final supabase = Supabase.instance.client;
 
-  Future<Account?> register(String name, String email, String password) async {
+  Future<Map<String, dynamic>> register(String name, String email, String password) async {
     try {
       // 1. Create authentication account
       final response = await supabase.auth.signUp(
         email: email,
         password: password,
+        data: {'name': name}, // 👈 ADD THIS LINE — stores name in user_metadata
       );
 
       final user = response.user;
 
       if (user == null) {
-        return null;
+        return {'status': 'error', 'message': 'Registration failed'};
       }
 
-      // 2. Insert profile information
-      final profile = await supabase
-          .from('profiles')
+      // 2. Check if a session exists (it won't if email confirmation is required)
+      if (response.session == null) {
+        return {
+          'status': 'confirm_email',
+          'message': 'Please check your email to confirm your account before logging in.',
+        };
+      }
+
+      // 3. Session exists (auto-confirmed) — safe to insert profile now
+      final account = await supabase
+          .from('account')
           .insert({'id': user.id, 'name': name, 'email': email, 'role': 'user'})
           .select()
           .single();
 
-      // 3. Return Account object
-
-      return Account.fromJson(profile);
+      return {'status': 'success', 'account': Account.fromJson(account)};
     } catch (e) {
-      print("Register error: $e");
-
-      return null;
+      debugPrint("Register error: $e");
+      return {'status': 'error', 'message': e.toString()};
     }
   }
 
@@ -43,20 +50,36 @@ class AuthService {
       );
 
       final user = response.user;
+      if (user == null) return null;
 
-      if (user == null) {
-        return null;
-      }
-
-      final profile = await supabase
-          .from('profiles')
+      // Try to fetch existing profile
+      final existing = await supabase
+          .from('account')
           .select()
           .eq('id', user.id)
+          .maybeSingle();
+
+      if (existing != null) {
+        return Account.fromJson(existing);
+      }
+
+      // No profile yet (first login after email confirmation) — create it now
+      // Note: you'll need to also store 'name' somewhere accessible,
+      // e.g. in user.userMetadata during signUp — see note below
+      final account = await supabase
+          .from('account')
+          .insert({
+            'id': user.id,
+            'name': user.userMetadata?['name'] ?? '',
+            'email': user.email,
+            'role': 'user',
+          })
+          .select()
           .single();
 
-      return Account.fromJson(profile);
+      return Account.fromJson(account);
     } catch (e) {
-      print(e);
+      debugPrint("Login error: $e");
       return null;
     }
   }
