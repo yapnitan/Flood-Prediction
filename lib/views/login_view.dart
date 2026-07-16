@@ -23,7 +23,7 @@ class _LoginViewState extends State<LoginView> {
 
   String errorMessage = "";
 
-  Future<void> login() async{
+  Future<void> login() async {
     String email = emailController.text;
     String password = passwordController.text;
 
@@ -57,14 +57,14 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
-  void forgotPassword(){
+  void forgotPassword() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => ForgotPasswordPage()),
     );
   }
 
-  void register(){
+  void register() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => RegistrationPage()),
@@ -215,10 +215,8 @@ class _LoginViewState extends State<LoginView> {
                 children: [
                   TextButton(
                     onPressed: forgotPassword,
-                    child: const Text(
-                      "Forgot Password?",
-                    ),
-                  )
+                    child: const Text("Forgot Password?"),
+                  ),
                 ],
               ),
 
@@ -253,14 +251,9 @@ class _LoginViewState extends State<LoginView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text("Don't have an account?"),
-                  TextButton(
-                    onPressed: register,
-                    child: const Text(
-                      "Sign Up",
-                    ),
-                  )
+                  TextButton(onPressed: register, child: const Text("Sign Up")),
                 ],
-              )
+              ),
             ],
           ),
         ),
