@@ -27,182 +27,190 @@ class _SubmitReportState extends State<SubmitReportPage> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final gridColumns = screenWidth >= 900 ? 4 : (screenWidth >= 600 ? 3 : 2);
+
     return Scaffold(
       backgroundColor: Colors.white,
 
       body: SafeArea(
-        child: Column(
-          children: [
-            // ---- Step indicator ----
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: _StepIndicator(
-                currentStep: 1,
-                steps: ["Location", "Details", "Photos", "Submit"],
-              ),
-            ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 700),
+            child: Column(
+              children: [
+                // ---- Step indicator ----
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: _StepIndicator(
+                    currentStep: 1,
+                    steps: ["Location", "Details", "Photos", "Submit"],
+                  ),
+                ),
 
-            // ---- Scrollable form content ----
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ---- Location ----
-                    const Text(
-                      "Location",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on,
-                            color: Colors.blue,
-                            size: 20,
+                // ---- Scrollable form content ----
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ---- Location ----
+                        const Text(
+                          "Location",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
-                                Text(
-                                  "Jalan Tun Razak, Kuala Lumpur",
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.location_on,
+                                color: Colors.blue,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: const [
+                                    Text(
+                                      "Jalan Tun Razak, Kuala Lumpur",
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      "5.5041, 101.7128",
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                SizedBox(height: 2),
-                                Text(
-                                  "5.5041, 101.7128",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                              Icon(
+                                Icons.gps_fixed,
+                                color: Colors.grey.shade500,
+                                size: 20,
+                              ),
+                            ],
                           ),
-                          Icon(
-                            Icons.gps_fixed,
-                            color: Colors.grey.shade500,
-                            size: 20,
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // ---- Type of Flooding ----
+                        const Text(
+                          "Type of Flooding",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
                           ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ---- Type of Flooding ----
-                    const Text(
-                      "Type of Flooding",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    GridView.count(
-                      crossAxisCount: 2,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: 2.6,
-                      children: floodTypes.map((type) {
-                        final bool isSelected = selectedFloodType == type;
-                        return _SelectableChip(
-                          label: type,
-                          selected: isSelected,
-                          onTap: () {
-                            setState(() => selectedFloodType = type);
-                          },
-                        );
-                      }).toList(),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ---- Water Level ----
-                    const Text(
-                      "Water Level (Approx.)",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: waterLevels.map((level) {
-                        final bool isSelected =
-                            selectedWaterLevel == level["label"];
-                        return Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 10),
-                            child: _SelectableChip(
-                              label: level["label"]!,
-                              sublabel: level["sub"],
+                        ),
+                        const SizedBox(height: 10),
+                        GridView.count(
+                          crossAxisCount: gridColumns,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 2.6,
+                          children: floodTypes.map((type) {
+                            final bool isSelected = selectedFloodType == type;
+                            return _SelectableChip(
+                              label: type,
                               selected: isSelected,
                               onTap: () {
-                                setState(
-                                      () => selectedWaterLevel = level["label"],
-                                );
+                                setState(() => selectedFloodType = type);
                               },
-                            ),
+                            );
+                          }).toList(),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // ---- Water Level ----
+                        const Text(
+                          "Water Level (Approx.)",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
                           ),
-                        );
-                      }).toList(),
-                    ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: waterLevels.map((level) {
+                            final bool isSelected =
+                                selectedWaterLevel == level["label"];
+                            return Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 10),
+                                child: _SelectableChip(
+                                  label: level["label"]!,
+                                  sublabel: level["sub"],
+                                  selected: isSelected,
+                                  onTap: () {
+                                    setState(
+                                      () => selectedWaterLevel = level["label"],
+                                    );
+                                  },
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
 
-                    const SizedBox(height: 30),
-                  ],
-                ),
-              ),
-            ),
-
-            // ---- Next button ----
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () {
-                    // TODO: navigate to Details step
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    "Next",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                        const SizedBox(height: 30),
+                      ],
                     ),
                   ),
                 ),
-              ),
+
+                // ---- Next button ----
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        // TODO: navigate to Details step
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        "Next",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -342,11 +350,7 @@ class _SelectableChip extends StatelessWidget {
                     color: Colors.blue,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.check,
-                    size: 11,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.check, size: 11, color: Colors.white),
                 ),
               ),
           ],

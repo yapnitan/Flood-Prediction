@@ -17,54 +17,56 @@ class _ProfileState extends State<ProfilePage> {
         padding: EdgeInsets.zero,
         children: [
           // ---- Header with wave background + avatar ----
-          _ProfileHeader(
-            name: "Muhammad Aiman",
-            email: "aiman@example.com",
-          ),
+          _ProfileHeader(name: "Muhammad Aiman", email: "aiman@example.com"),
 
           const SizedBox(height: 20),
 
           // ---- Settings list ----
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              children: [
-                _ProfileTile(
-                  icon: Icons.person_outline,
-                  label: "Personal Information",
-                  onTap: () {},
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: [
+                    _ProfileTile(
+                      icon: Icons.person_outline,
+                      label: "Personal Information",
+                      onTap: () {},
+                    ),
+                    _ProfileTile(
+                      icon: Icons.notifications_none,
+                      label: "Notification Settings",
+                      onTap: () {},
+                    ),
+                    _ProfileTile(
+                      icon: Icons.location_on_outlined,
+                      label: "Saved Locations",
+                      onTap: () {},
+                    ),
+                    _ProfileTile(
+                      icon: Icons.description_outlined,
+                      label: "Report History",
+                      onTap: () {},
+                    ),
+                    _ProfileTile(
+                      icon: Icons.settings_outlined,
+                      label: "App Settings",
+                      onTap: () {},
+                    ),
+                    _ProfileTile(
+                      icon: Icons.help_outline,
+                      label: "Help & Support",
+                      onTap: () {},
+                    ),
+                    _ProfileTile(
+                      icon: Icons.info_outline,
+                      label: "About FloodWatch",
+                      onTap: () {},
+                    ),
+                  ],
                 ),
-                _ProfileTile(
-                  icon: Icons.notifications_none,
-                  label: "Notification Settings",
-                  onTap: () {},
-                ),
-                _ProfileTile(
-                  icon: Icons.location_on_outlined,
-                  label: "Saved Locations",
-                  onTap: () {},
-                ),
-                _ProfileTile(
-                  icon: Icons.description_outlined,
-                  label: "Report History",
-                  onTap: () {},
-                ),
-                _ProfileTile(
-                  icon: Icons.settings_outlined,
-                  label: "App Settings",
-                  onTap: () {},
-                ),
-                _ProfileTile(
-                  icon: Icons.help_outline,
-                  label: "Help & Support",
-                  onTap: () {},
-                ),
-                _ProfileTile(
-                  icon: Icons.info_outline,
-                  label: "About FloodWatch",
-                  onTap: () {},
-                ),
-              ],
+              ),
             ),
           ),
 
@@ -205,19 +207,13 @@ class _ProfileTile extends StatelessWidget {
       ),
       child: ListTile(
         onTap: onTap,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         leading: Icon(icon, color: const Color(0xFF3B82F6)),
         title: Text(
           label,
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
-        trailing: const Icon(
-          Icons.chevron_right,
-          color: Colors.grey,
-          size: 20,
-        ),
+        trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
       ),
     );
   }

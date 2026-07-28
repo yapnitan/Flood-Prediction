@@ -18,132 +18,139 @@ class _UserHomeState extends State<UserHome> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
-      const Padding(
-        padding: EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ---- Flood status + image ----
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _InfoBox(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Flood status",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        SizedBox(height: 6),
-                        Text("xxxxx"),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: _InfoBox(child: Center(child: Text("images"))),
-                ),
-              ],
-            ),
-
-            SizedBox(height: 20),
-
-            // ---- Current location ----
-            _InfoBox(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+      SingleChildScrollView(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 700),
+            child: const Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.location_on, color: Colors.blue),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Current location",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
+                  // ---- Flood status + image ----
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _InfoBox(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Flood status",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text("xxxxx"),
+                            ],
                           ),
                         ),
-                        SizedBox(height: 4),
-                        Text("xxxx"),
+                      ),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: _InfoBox(child: Center(child: Text("images"))),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 20),
+
+                  // ---- Current location ----
+                  _InfoBox(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Icon(Icons.location_on, color: Colors.blue),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Current location",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text("xxxx"),
+                            ],
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Icon(Icons.my_location, color: Colors.blue),
                       ],
                     ),
                   ),
-                  SizedBox(width: 12),
-                  Icon(Icons.my_location, color: Colors.blue),
+
+                  SizedBox(height: 20),
+
+                  // ---- Rainfall / Water level / Risk level ----
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _InfoBox(
+                          child: Column(
+                            children: [
+                              Text(
+                                "Rainfall",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text("xxxx"),
+                            ],
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: _InfoBox(
+                          child: Column(
+                            children: [
+                              Text(
+                                "Water level",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text("xxxx"),
+                            ],
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: _InfoBox(
+                          child: Column(
+                            children: [
+                              Text(
+                                "Risk level",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              SizedBox(height: 6),
+                              Text("xxxx"),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
-
-            SizedBox(height: 20),
-
-            // ---- Rainfall / Water level / Risk level ----
-            Row(
-              children: [
-                Expanded(
-                  child: _InfoBox(
-                    child: Column(
-                      children: [
-                        Text(
-                          "Rainfall",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                        SizedBox(height: 6),
-                        Text("xxxx"),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: _InfoBox(
-                    child: Column(
-                      children: [
-                        Text(
-                          "Water level",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                        SizedBox(height: 6),
-                        Text("xxxx"),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: _InfoBox(
-                    child: Column(
-                      children: [
-                        Text(
-                          "Risk level",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                        SizedBox(height: 6),
-                        Text("xxxx"),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
 
