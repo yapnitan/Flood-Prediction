@@ -1,0 +1,42 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import '../models/weather_data.dart';
+
+/// Current weather/rainfall/temperature/humidity via the Open-Meteo
+/// Forecast API (https://open-meteo.com/en/docs) — free, keyless.
+class WeatherService {
+  static const String _baseUrl = 'https://api.open-meteo.com/v1/forecast';
+
+  Future<WeatherData?> getCurrentWeather({
+    required double latitude,
+    required double longitude,
+  }) async {
+    try {
+      final uri = Uri.parse(
+        '$_baseUrl?latitude=$latitude&longitude=$longitude'
+        '&current=temperature_2m,relative_humidity_2m,precipitation,weather_code'
+        '&timezone=auto',
+      );
+
+      final response = await http.get(uri);
+
+      if (response.statusCode != 200) {
+        debugPrint(
+          'WeatherService.getCurrentWeather HTTP ${response.statusCode}',
+        );
+        return null;
+      }
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      return WeatherData.fromJson(
+        body,
+        latitude: latitude,
+        longitude: longitude,
+      );
+    } catch (e) {
+      debugPrint('WeatherService.getCurrentWeather error: $e');
+      return null;
+    }
+  }
+}

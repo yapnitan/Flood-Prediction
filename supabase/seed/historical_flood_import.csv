@@ -1,0 +1,377 @@
+state,district,flood_date,flood_cause,river_basin,latitude,longitude,source
+Pahang,Rompin,2026-07-24,Air Sungai Melimpah,,2.919460,103.459430,JPS/DID
+Pahang,Maran,2026-07-22,"Longkang Tersumbat, Saliran Dalaman",,3.600550,102.673180,JPS/DID
+Sarawak,Selangau,2026-07-21,Air Sungai Melimpah,Batang Mukah (Sekolah Kebangsaan Sungai Sepiring),2.498055,112.420495,JPS/DID
+Negeri Sembilan,Tampin,2026-07-05,Saliran Dalaman,Sungai Muar (MUARTP0087 - Skim Londah); Sungai Muar (Taman Halacara Baru Londah); Sungai Muar (Desa E-kasih Londah); Sungai Muar (MUARTP0088 - Kg. Bangkahulu),2.547030,102.416770,JPS/DID
+Negeri Sembilan,Seremban,2026-07-05,Air Sungai Melimpah,Sungai Langat (LABUTP0003 - Kg. Kubang),2.755985,101.908985,JPS/DID
+Negeri Sembilan,Tampin,2026-07-05,Air Sungai Melimpah,Sungai Muar (MUARTP0090 - Kg. Seri Gemas),2.547030,102.416770,JPS/DID
+Pahang,Bentong,2026-07-04,"Lain-lain, Longkang Tersumbat, Saliran Dalaman",Sungai Pahang (TRNGTP0110 - Kg. Semerting),3.416345,102.050275,JPS/DID
+Kedah,Yan,2026-06-29,Air Sungai Melimpah,,5.847800,100.370420,JPS/DID
+Pahang,Lipis,2026-06-24,"Air Sungai Melimpah, Hujan Lebat / Berterusan, Lain-lain",Sungai Pahang (CEKATP0009 - Kg. Limau Purut),4.342810,101.879390,JPS/DID
+Kedah,Kuala Muda,2026-06-23,Air Sungai Melimpah,Sungai Muda (Kg. Keduak),5.715575,100.501505,JPS/DID
+WP Labuan,Labuan,2026-06-20,"Hujan Lebat / Berterusan, Saliran Dalaman",,5.289335,115.225540,JPS/DID
+Pahang,Temerloh,2026-06-19,"Longkang Tersumbat, Pembangunan / Pembukaan Tanah / Sampah Sarap, Saliran Dalaman",Sungai Pahang (PHNGTP0253 - Kg. Bukit Tingkat),3.606815,102.259125,JPS/DID
+Pulau Pinang,Seberang Perai Tengah,2026-06-19,"Air Sungai Melimpah, Saliran Dalaman",Sungai Juru (KLMTP00063 - Taman Guar Perahu); Sungai Juru (PRWTP0001 - Kg. Tanah Liat),5.364500,100.449120,JPS/DID
+Kedah,Kulim,2026-06-19,"Air Sungai Melimpah, Longkang Tersumbat, Saliran Dalaman",Sungai Perai (JRKTP00026 - Kg. Sungai Seluang Bawah),5.403050,100.696095,JPS/DID
+Sabah,Penampang,2026-06-18,"Pembangunan / Pembukaan Tanah / Sampah Sarap, Saliran Dalaman",Sungai Monyog (MYOGTP0025 - Kg. Kibabaig); Sungai Monyog (MYOGTP0030 - Kg. Mahandoi); Sungai Monyog (MYOGTP0005 - Kg. Tanaki); Sungai Monyog (Jalan Panglima Banting); Sungai Monyog (Taman Graceland); Sungai Monyog (Beverly Bundusan),5.839580,116.195620,JPS/DID
+Sarawak,Sibu,2026-06-17,Air Sungai Melimpah,Batang Rajang (Jalan Menuju Kampung Melayu Kedada/TR Maltalu/TR G),2.292280,111.866555,JPS/DID
+Sarawak,Miri,2026-06-16,Air Sungai Melimpah,"Batang Baram (TNJRTP0024 - Rh Takang); Batang Baram (TNJRTP0020 - SK Pengarah Entri); Batang Baram (Rh Rendah,Kampung Matek,Ulu Teru)",3.787580,114.729625,JPS/DID
+Sarawak,Miri,2026-06-15,Air Sungai Melimpah,"Batang Baram (TNJRTP0018 - Long Jegan); Batang Baram (Long Tisam); Batang Baram (TNJRTP0010 - Long Loyang, Tinjar)",3.787580,114.729625,JPS/DID
+Sarawak,Miri,2026-06-15,Air Sungai Melimpah,Batang Baram (TUTOTP0005 - Long Bemang); Batang Baram (BRAMTP0008 - Klinik Long Bemang),3.787580,114.729625,JPS/DID
+Sarawak,Bintulu,2026-06-11,Saliran Dalaman,Batang Kemena (KMNATP0024 - Perumahan Bukit Orang); Batang Kemena (Jalan Utama SK One); Batang Kemena (Balai Polis Trafik); Batang Kemena (Jalan Utama Gem Park); Batang Kemena (Ing Ling Residence); Batang Kemena (KMNATP0013 - Jalan Siong Boon); Batang Kemena (KMNATP0010 - Jalan Sibiew),3.313910,113.201905,JPS/DID
+Perlis,Perlis,2026-06-08,"Longkang Tersumbat, Saliran Dalaman",Sungai Perlis (Kampung Behor Kurung Ayam),6.491355,100.245825,JPS/DID
+Sabah,Tawau,2026-05-29,"Air Laut Pasang, Air Sungai Melimpah, Longkang Tersumbat, Saliran Dalaman",Sungai Tawau (TWAUTP0011 - Kampung Sadani); Sungai Tawau (Kg. Tg. Batu Keramat); Sungai Tawau (TWAUTP0022 - Taman Villa); Sungai Tawau (TWAUTP0030 - Jln Sin On); Sungai Tawau (Kg. Baru); Sungai Tawau (TWAUTP0023 - Taman Green); Sungai Tawau (Jalan Timur Simpang 5),4.434365,118.027905,JPS/DID
+Pahang,Maran,2026-05-25,"Pembangunan / Pembukaan Tanah / Sampah Sarap, Saliran Dalaman",Sungai Pontian (LUITTP0012 - Sri Jaya),3.600550,102.673180,JPS/DID
+Pulau Pinang,Timur Laut Pulau Pinang,2026-05-20,"Lain-lain, Saliran Dalaman",,5.393060,100.290555,JPS/DID
+Pulau Pinang,Timur Laut Pulau Pinang,2026-05-20,"Air Sungai Melimpah, Saliran Dalaman",,5.393060,100.290555,JPS/DID
+Pulau Pinang,Timur Laut Pulau Pinang,2026-05-20,Pembangunan / Pembukaan Tanah / Sampah Sarap,,5.393060,100.290555,JPS/DID
+Sarawak,Selangau,2026-05-19,Air Sungai Melimpah,Batang Oya (Jalan Tabau (Jalan Menuju Ke Nanga Tajam & Nanga T); Batang Oya (Jalan Tajam Menuju Ke Tabalong),2.498055,112.420495,JPS/DID
+Sabah,Tenom,2026-05-18,"Lain-lain, Longkang Tersumbat",Sungai Padas (Kampung Bahagia); Sungai Padas (Perumahan Taman Bahagia); Sungai Padas (Pekan Tenom),4.910710,115.943365,JPS/DID
+Kedah,Kuala Muda,2026-05-18,"Air Laut Pasang, Air Sungai Melimpah",Sungai Merbok (Kg. Bukit Kechik),5.715575,100.501505,JPS/DID
+Sarawak,Selangau,2026-05-18,Air Sungai Melimpah,Batang Oya (Jalan Tabalong (Menuju Ke Sungai Alat)); Batang Oya (Jalan Sekara (Menuju Ke Nanga Tamin)),2.498055,112.420495,JPS/DID
+Pulau Pinang,Timur Laut Pulau Pinang,2026-05-18,Air Laut Pasang,,5.393060,100.290555,JPS/DID
+Pulau Pinang,Timur Laut Pulau Pinang,2026-05-18,Air Laut Pasang,,5.393060,100.290555,JPS/DID
+Pulau Pinang,Barat Daya Pulau Pinang,2026-05-18,Air Laut Pasang,,5.362050,100.245650,JPS/DID
+Sabah,Beaufort,2026-05-18,"Air Laut Pasang, Air Sungai Melimpah",Sungai Padas (PADSTP0018 - Kg. Bakalau); Sungai Padas (PADSTP0036 - Kg. Binunuk); Sungai Padas (PADSTP0035 - Kg. Balibata); Sungai Padas (PADSTP0051 - Kg. Suasa); Sungai Padas (PADSTP0074 - Kg. Lago); Sungai Padas (PADSTP0041 - Kg. Lubak); Sungai Padas (PADSTP0019 - Kg. Bingkul); Sungai Padas (PADSTP0022 - Kg. Limbawang); Sungai Padas (PADSTP0082 - Kg. Lumatai); Sungai Padas (Kg. Kaundo); Sungai Padas (PADSTP0005 - Kg. Batu 60),5.291295,115.704555,JPS/DID
+Sarawak,Selangau,2026-05-18,Air Sungai Melimpah,Batang Oya (Jalan Ulu Sungai Pakoh),2.498055,112.420495,JPS/DID
+Sarawak,Selangau,2026-05-18,Air Sungai Melimpah,"Batang Mukah (Jalan Menuju Ke RH Nyarapong, Nanga Kalai); Batang Mukah (Jalan Menuju Ke RH Balang, Melinau Salin); Batang Mukah (Jalan Menuju Ke RH Awa, Nanga Sebatu)",2.498055,112.420495,JPS/DID
+Sabah,Keningau,2026-05-18,Air Sungai Melimpah,Sungai Padas (Kg.Dalit Stesen Sook); Sungai Padas (Kg.Sanang Sook); Sungai Padas (Kg. Rancangan Belia Tiulon); Sungai Padas (Kg.Mempulut Sook); Sungai Padas (Kg.Kuala Punteh),5.220590,116.330635,JPS/DID
+Sabah,Tenom,2026-05-18,Air Sungai Melimpah,Sungai Padas (PADSTP0095 - Kg. Tumantalik); Sungai Padas (PADSTP0098 - Kg. Ponontomon); Sungai Padas (Kg. Binsilon); Sungai Padas (PADSTP0097 - Kg. Binaei); Sungai Padas (Kg. Bunut),4.910710,115.943365,JPS/DID
+Sabah,Tenom,2026-05-18,Air Sungai Melimpah,Sungai Padas (Kg. Enubai (Jalan Labut)); Sungai Padas (PADSTP0096 - Kg. Pantongan Sapong),4.910710,115.943365,JPS/DID
+Sarawak,Selangau,2026-05-17,Air Sungai Melimpah,"Batang Mukah (RH Magdeline Entayang, Kampung Melinau Baru); Batang Mukah (RH Silvester, Kampung Kara); Batang Mukah (Kampung Engkabang, Selangau); Batang Mukah (SK Nanga Kua)",2.498055,112.420495,JPS/DID
+Perak,Kerian,2026-05-17,Air Laut Pasang,Sungai Kurau (Kampung Raja Bashah); Sungai Kurau (Pekan Kuala Kurau),4.988310,100.548990,JPS/DID
+Pulau Pinang,Timur Laut Pulau Pinang,2026-05-17,Air Laut Pasang,,5.393060,100.290555,JPS/DID
+Perak,Hilir Perak,2026-05-16,"Air Laut Pasang, Air Sungai Melimpah",Sungai Perak (Sri Jaya Potteries Batu 7),4.018080,101.062485,JPS/DID
+Kedah,Kota Setar,2026-05-16,"Air Laut Pasang, Longkang Tersumbat",Sungai Kedah (KDAHTP0010 - Jeti Feri Kuala Kedah); Sungai Kedah (Port Padang Garam),6.101370,100.366610,JPS/DID
+Pulau Pinang,Barat Daya Pulau Pinang,2026-05-16,"Air Laut Pasang, Air Sungai Melimpah, Saliran Dalaman",,5.362050,100.245650,JPS/DID
+Kedah,Yan,2026-05-16,Air Sungai Melimpah,Sungai Kedah (Kampung Singkir Laut),5.847800,100.370420,JPS/DID
+Kedah,Kuala Muda,2026-05-16,Air Laut Pasang,Sungai Muda (Kg. Huma),5.715575,100.501505,JPS/DID
+Kedah,Langkawi,2026-05-16,Air Laut Pasang,,6.315365,99.792935,JPS/DID
+WP Labuan,Labuan,2026-05-16,Air Sungai Melimpah,,5.289335,115.225540,JPS/DID
+Perak,Hilir Perak,2026-05-15,Air Sungai Melimpah,Sungai Perak (BDRTP0025 - Kg. Sg. Kerawai),4.018080,101.062485,JPS/DID
+Perak,Kerian,2026-05-15,"Air Laut Pasang, Saliran Dalaman","Sungai Kurau (Kampung Teluk Pulai, Kampung Keramat)",4.988310,100.548990,JPS/DID
+Sabah,Membakut,2026-05-14,Air Sungai Melimpah,Sungai Membakut (Kg. Sinoko); Sungai Membakut (Kg. Bambangan); Sungai Membakut (Kg. Baitam Laut); Sungai Membakut (Kg. Ulu Baitam); Sungai Membakut (Kg. Jambatan Baru); Sungai Membakut (Kg. Papas); Sungai Membakut (Kg. Kayai); Sungai Membakut (Kg. Lumantak); Sungai Membakut (Kg. Limpayau); Sungai Membakut (Kg. Lembah Poring); Sungai Membakut (Jalan Balai Polis),5.714110,117.300765,JPS/DID
+Kedah,Kota Setar,2026-05-12,Saliran Dalaman,"Sungai Kedah (Lorong Pendekar); Sungai Kedah (Taman Alor Setar); Sungai Kedah (KDAHTP0012 - Jalan Telok Wanjah); Sungai Kedah (Persimpangan FT258 Jalan Langgar-K135 JalanDatuk K); Sungai Kedah (Lorong Seri); Sungai Kedah (PDGTP02106 - SMK Sultanah Asma); Sungai Kedah (Taman Putra Jaya, Jalan Tanjung Bendahara)",6.101370,100.366610,JPS/DID
+Pulau Pinang,Seberang Perai Selatan,2026-05-10,"Air Sungai Melimpah, Saliran Dalaman",Sungai Jawi (JJGTP00022 - Kg. Sepulau),5.210425,100.468350,JPS/DID
+Pulau Pinang,Seberang Perai Tengah,2026-05-10,"Air Sungai Melimpah, Saliran Dalaman",Sungai Jawi (JJGTP00056 - Kg. Tok Konan); Sungai Jawi (JJGTP00087 - Kg. Bukit Teh); Sungai Jawi (JJGTP00097 - Kg. Berangan Sembilan); Sungai Jawi (Kg. Tok Musa); Sungai Jawi (JJGTP00073 - Tasek Junjung),5.364500,100.449120,JPS/DID
+Kedah,Kota Setar,2026-05-08,Air Sungai Melimpah,Sungai Kedah (Lorong Pendekar),6.101370,100.366610,JPS/DID
+Kedah,Kulim,2026-05-08,Air Sungai Melimpah,Sungai Muda (PRAITP0055 - Kg. Padang Limau),5.403050,100.696095,JPS/DID
+Kedah,Pokok Sena,2026-05-08,"Longkang Tersumbat, Saliran Dalaman",Sungai Kedah (Jalan Gurun-Kepala Batas FT175Sek142.5 (Berhampira),6.167260,100.540445,JPS/DID
+Kedah,Bandar Baharu,2026-05-08,Air Sungai Melimpah,Sungai Kerian (KRANTP0059 - Kg. Bukit Buluh); Sungai Kerian (KRANTP0060 - Kg. Sg. Punti); Sungai Kerian (DGNTP00002 - Kg. Charok Meranti); Sungai Kerian (Kg. Sg. Tengas Hilir); Sungai Kerian (DGNTP00002 - Kg. Charok Meranti); Sungai Kerian (Kg Sg Itam Dalam),5.207200,100.616525,JPS/DID
+Negeri Sembilan,Seremban,2026-05-08,Saliran Dalaman,Sungai Linggi (BPNRTP0004 - Pekan Pantai),2.755985,101.908985,JPS/DID
+Melaka,Alor Gajah,2026-05-08,Air Sungai Melimpah,Sungai Melaka (Tebong Stesyen); Sungai Melaka (DRTGTP0006 - Kg. Bukit Tambun); Sungai Melaka (MLKTP00168 - Kg. Bukit Balai); Sungai Melaka (MLKATP0005 - Kg. Pulau),2.383510,102.106500,JPS/DID
+Sabah,Kota Kinabalu,2026-05-08,"Hujan Lebat / Berterusan, Saliran Dalaman",Sungai Inanam (Kg Muhibbah),5.999865,116.104395,JPS/DID
+Negeri Sembilan,Jelebu,2026-05-08,Air Sungai Melimpah,Sungai Pahang (KNBOTP0003 - Kg. Chennah),3.059975,102.134185,JPS/DID
+Kedah,Kubang Pasu,2026-05-07,Air Sungai Melimpah,Sungai Kedah (KDHTP00335 - Kg. Tok Jalai),6.362560,100.399740,JPS/DID
+Kedah,Kota Setar,2026-05-07,Saliran Dalaman,Sungai Kedah (KDHTP01315 - SK Bukit Pinang); Sungai Kedah (Jalan Kampung Baru Bukit Pinang),6.101370,100.366610,JPS/DID
+Sarawak,Kabong,2026-05-07,Saliran Dalaman,Batang Kerian (Kg.Hulu); Batang Kerian (Kg.Baru),1.875910,111.260235,JPS/DID
+Selangor,Petaling,2026-05-06,Air Sungai Melimpah,Sungai Klang (PCHLTP0001 - Jalan 222 & Jalan 51A/221),3.104900,101.579100,JPS/DID
+Negeri Sembilan,Seremban,2026-05-04,Air Sungai Melimpah,Sungai Linggi (NKARTP0001 - Kg. Gadong Jaya),2.755985,101.908985,JPS/DID
+Melaka,Jasin,2026-04-29,Air Sungai Melimpah,Sungai Duyong (GAPMTP0001 - Kg. Gapam),2.293300,102.452615,JPS/DID
+Melaka,Melaka Tengah,2026-04-27,"Longkang Tersumbat, Saliran Dalaman",Sungai Melaka (MLKTP00172 - Kg. Tanah Merah); Sungai Melaka (MLKATP0035 - Taman Merdeka/Taman Angkasa Nuri),2.192180,102.243470,JPS/DID
+Pahang,Bentong,2026-04-25,"Air Sungai Melimpah, Lain-lain, Pembangunan / Pembukaan Tanah / Sampah Sarap",Sungai Pahang (BTNGTP0107 - Kg. Gementi & Kg. Ketari),3.416345,102.050275,JPS/DID
+Perak,Batang Padang,2026-04-23,Air Sungai Melimpah,Sungai Perak (BDRTP0004 - Kg. Bikam),4.118290,101.290910,JPS/DID
+Sarawak,Lundu,2026-04-21,Air Sungai Melimpah,Sungai Sematan (Jalan Kg. Temaga Dayak),1.749525,109.864880,JPS/DID
+Pahang,Bera,2026-04-20,"Longkang Tersumbat, Saliran Dalaman",Sungai Pahang (TRNGTP0125 - Kg. Paya Tateh),3.136035,102.538165,JPS/DID
+Pahang,Cameron Highlands,2026-04-20,"Air Sungai Melimpah, Longkang Tersumbat, Pembangunan / Pembukaan Tanah / Sampah Sarap, Saliran Dalaman",Sungai Pahang (HABU HEIGHT); Sungai Pahang (BRTMTP0012 - SMK Ringlet),4.468675,101.469035,JPS/DID
+WP Kuala Lumpur,WP Kuala Lumpur,2026-04-19,"Air Sungai Melimpah, Saliran Dalaman",,3.142075,101.686095,JPS/DID
+Selangor,Petaling,2026-04-18,"Air Sungai Melimpah, Saliran Dalaman",Sungai Klang (KYARTP0002 - Kg. Cempaka (Sg. Kayu Ara)),3.104900,101.579100,JPS/DID
+Johor,Johor Bahru,2026-04-18,"Longkang Tersumbat, Saliran Dalaman",Sungai Tebrau (TBRATP0004 - Kg. Kangkar Tebrau); Sungai Tebrau (Kampung Ubi); Sungai Tebrau (Kg Ulu Pandan); Sungai Tebrau (TBRATP0010 - Kg. Bunga Ros); Sungai Tebrau (TBRATP0003 - Kg. Paya Kenangan),1.480505,103.782305,JPS/DID
+Selangor,Hulu Langat,2026-04-14,Saliran Dalaman,Sungai Langat (REKOTP0001 - Klinik Kesihatan Kajang); Sungai Langat (LGATTP0022 - Kg. Pasir),3.074900,101.845620,JPS/DID
+Kedah,Baling,2026-04-09,Air Sungai Melimpah,Sungai Muda (KG BENDANG PECAH); Sungai Muda (KG SEDIM),5.723155,100.862395,JPS/DID
+Pulau Pinang,Seberang Perai Selatan,2026-04-08,Saliran Dalaman,Sungai Kerian (KRANTP0046 - Taman Nibong Tebal); Sungai Kerian (Taman Sri Maju Nibong Tebal); Sungai Kerian (Kampung Tong Hai),5.210425,100.468350,JPS/DID
+Sabah,Keningau,2026-04-07,"Air Sungai Melimpah, Longkang Tersumbat, Saliran Dalaman",Sungai Padas (Kg. Toboh Baru); Sungai Padas (Kg Jaya Baru); Sungai Padas (Kg Beribi),5.220590,116.330635,JPS/DID
+Pahang,Raub,2026-04-06,Air Sungai Melimpah,Sungai Pahang (LIPSTP0208 - Kg. Batu Talam),3.872660,101.832000,JPS/DID
+Pahang,Lipis,2026-04-06,Air Sungai Melimpah,Sungai Pahang (JLAITP0008 - Pos Sinderut),4.342810,101.879390,JPS/DID
+Sabah,Sipitang,2026-04-05,Air Sungai Melimpah,Sungai Mengalong (Kg Tanjung Nipis); Sungai Mengalong (Kg Masjid Pantai); Sungai Mengalong (Kg Kawang Taliair); Sungai Mengalong (Kg Luagan); Sungai Mengalong (Kg Sindumin Baru); Sungai Mengalong (Kg Siputol); Sungai Mengalong (Pekan Sindumin); Sungai Mengalong (Kg Skim Sindumin); Sungai Mengalong (Kg Kawang Baru); Sungai Mengalong (Kg Sri Menanti),4.633510,115.650535,JPS/DID
+Sabah,Tenom,2026-04-05,Air Sungai Melimpah,Sungai Padas (Kampung Kuala Tomani); Sungai Padas (Kampung Marais); Sungai Padas (Kampung Kalamatoi); Sungai Padas (Kampung Paal Sebrang); Sungai Padas (Kampung Paal),4.910710,115.943365,JPS/DID
+Selangor,Petaling,2026-03-31,Saliran Dalaman,,3.104900,101.579100,JPS/DID
+Selangor,Kuala Selangor,2026-03-29,Saliran Dalaman,,3.379540,101.297520,JPS/DID
+Selangor,Gombak,2026-03-29,Saliran Dalaman,Sungai Klang (BATUTP0018 - Jalan 23 21 & 62 Selayang Baru),3.277000,101.641260,JPS/DID
+Sabah,Kudat,2026-03-10,Air Sungai Melimpah,,7.003630,117.129360,JPS/DID
+Sabah,Beluran,2026-03-10,Air Sungai Melimpah,Sungai Paitan (Kampung Batangon Darat); Sungai Paitan (Kampung Kabuluh); Sungai Paitan (kampung Batangon Laut); Sungai Paitan (SK Simpangan Paitan); Sungai Paitan (Kampung Lubang Buaya); Sungai Paitan (Kampung Dalamas),6.199915,117.313095,JPS/DID
+Sarawak,Lundu,2026-03-10,Air Sungai Melimpah,Batang Kayan (Kampung Sebat Melayu); Batang Kayan (Kampung Sebat Baru),1.749525,109.864880,JPS/DID
+Sarawak,Lundu,2026-03-10,Air Sungai Melimpah,"Batang Kayan (Akses Jalan ke Kpg Pasir Tengah, Lundu)",1.749525,109.864880,JPS/DID
+Sarawak,Lundu,2026-03-10,Air Sungai Melimpah,Batang Kayan (Kampung Sileng Melayu); Batang Kayan (Kampung Seketi Melayu),1.749525,109.864880,JPS/DID
+Sabah,Kota Marudu,2026-03-10,"Air Laut Pasang, Air Sungai Melimpah",Sungai Bongon (Kg.Asin-Asin); Sungai Bongon (Kg.Taritipan); Sungai Bongon (Kg.Beliajung); Sungai Bongon (Kg.Tingkalanon); Sungai Bongon (Kg.Morion); Sungai Bongon (Kg.Slimandut); Sungai Tandek (RSAKTP0001 - Kg. Longob); Sungai Tandek (RSAKTP0002 - Kg. Masolog),6.449675,116.836480,JPS/DID
+Sarawak,Samarahan,2026-03-10,"Longkang Tersumbat, Saliran Dalaman",Batang Samarahan (Taman Sri Tuang),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-03-10,"Air Laut Pasang, Air Sungai Melimpah",Batang Samarahan (Kampung Tanjung Bundong Fasa 3); Batang Samarahan (Kampung Muara Tuang); Batang Samarahan (SAMATP0015 - Kg. Rembus); Batang Samarahan (SAMATP0003 - Kg. Baru); Batang Samarahan (Kampung Jegoi); Batang Samarahan (Kampung Plaie),1.438020,110.476780,JPS/DID
+Sarawak,Bau,2026-03-10,Air Sungai Melimpah,Sungai Sarawak (KAMPUNG SEGONG),1.383520,110.101050,JPS/DID
+Sarawak,Samarahan,2026-03-10,Saliran Dalaman,"Sungai Sarawak (Taman Samarindah Lrg 21, 28 & 29); Sungai Sarawak (Taman Punan); Sungai Sarawak (Taman Unimedia); Sungai Sarawak (Kampung Bukit Berangan); Sungai Sarawak (SK Muara Tuang); Sungai Sarawak (Kampung Sungai Empit Lrg 3); Sungai Sarawak (Taman Univista Lrg 1 -3); Sungai Sarawak (Taman Muara Tuang Park)",1.438020,110.476780,JPS/DID
+Sarawak,Bau,2026-03-10,Air Sungai Melimpah,Sungai Sarawak (KAMPUNG ATAS),1.383520,110.101050,JPS/DID
+Sarawak,Limbang,2026-03-08,Air Sungai Melimpah,Sungai Limbang (LIMBTP0067 - Hujung Jalan Nanga Medamit),4.352435,115.147090,JPS/DID
+Sarawak,Kuching,2026-03-07,"Longkang Tersumbat, Saliran Dalaman",Sungai Santubong (Bandar Baru Samariang fasa 5); Sungai Santubong (Bandar Baru Samariang Fasa 2); Sungai Santubong (Bandar Baru Samariang Fasa 3),1.428430,110.320230,JPS/DID
+Sarawak,Asajaya,2026-03-07,"Air Laut Pasang, Air Sungai Melimpah, Saliran Dalaman",Batang Sadong (SADONG JAYA),1.531625,110.610110,JPS/DID
+Sarawak,Limbang,2026-03-06,"Longkang Tersumbat, Saliran Dalaman",Sungai Limbang (LIMBTP0026 - Bandar Limbang); Sungai Limbang (Perumahan IPD Limbang); Sungai Limbang (Jalan Pandaruan - Hospital Limbang); Sungai Limbang (LIMBTP0041 - Jalan Simpang Kubong); Sungai Limbang (Batu 3); Sungai Limbang (LIMBTP0023 - Kg. Malanggai); Sungai Limbang (Taman Damai); Sungai Limbang (Taman Orkid); Sungai Limbang (Kawasan Sungai Kaban); Sungai Limbang (Kampung Nauran),4.352435,115.147090,JPS/DID
+Selangor,Sepang,2026-03-06,"Longkang Tersumbat, Saliran Dalaman","Sungai Langat (Jalan Sg. Merab, Kg. Sg. Merab)",2.805410,101.681090,JPS/DID
+Sarawak,Limbang,2026-03-06,"Longkang Tersumbat, Saliran Dalaman",Sungai Limbang (LIMBTP0040 - Kg. Tegarai),4.352435,115.147090,JPS/DID
+Selangor,Hulu Langat,2026-03-05,"Longkang Tersumbat, Saliran Dalaman",Sungai Langat (SMYHTP0009 - Taman Semenyih Indah),3.074900,101.845620,JPS/DID
+Negeri Sembilan,Seremban,2026-03-05,Air Sungai Melimpah,Sungai Langat (pekan nilai lama),2.755985,101.908985,JPS/DID
+Negeri Sembilan,Port Dickson,2026-03-05,"Air Laut Pasang, Air Sungai Melimpah, Saliran Dalaman",Sungai Lukut Besar (LUKTTP0002 - Kg. Batu 7),2.556845,101.866430,JPS/DID
+Negeri Sembilan,Seremban,2026-03-05,"Air Sungai Melimpah, Pembangunan / Pembukaan Tanah / Sampah Sarap",Sungai Langat (Lebuhraya PLUS KM 287),2.755985,101.908985,JPS/DID
+Selangor,Kuala Selangor,2026-03-04,Saliran Dalaman,,3.379540,101.297520,JPS/DID
+Selangor,Hulu Langat,2026-03-02,"Longkang Tersumbat, Saliran Dalaman",Sungai Langat (SMYHTP0009 - Taman Semenyih Indah),3.074900,101.845620,JPS/DID
+Sarawak,Bintulu,2026-02-27,Air Sungai Melimpah,Batang Kemena (PANDTP0003 - SK Genaan); Batang Kemena (PANDTP0001 - SK Kuala Sigu); Batang Kemena (Rumah Eran anak Badi),3.313910,113.201905,JPS/DID
+Sarawak,Selangau,2026-02-26,"Air Sungai Melimpah, Hujan Lebat / Berterusan","Batang Mukah (Rumah Magdeline Entayang, Kampung Baru Melinau)",2.498055,112.420495,JPS/DID
+Sarawak,Miri,2026-02-26,Air Sungai Melimpah,Batang Baram (SK Pengarah Entri); Batang Baram (SK Long Ikang),3.787580,114.729625,JPS/DID
+Sarawak,Bintulu,2026-02-26,Air Sungai Melimpah,"Batang Kemena (Rumah Usah, Sungai Sebungan)",3.313910,113.201905,JPS/DID
+Sarawak,Kanowit,2026-02-26,"Air Sungai Melimpah, Hujan Lebat / Berterusan",Batang Rajang (SK Ulu Bawan); Batang Rajang (SK Nanga Balingiau); Batang Rajang (Rumah Awin Sungai Mapai),1.933875,112.216625,JPS/DID
+Sarawak,Bintulu,2026-02-26,Air Sungai Melimpah,Batang Kemena (Rumah Jeffery Sulau); Batang Kemena (Rumah Mawan anak Ressa),3.313910,113.201905,JPS/DID
+Perak,Batang Padang,2026-02-26,Air Sungai Melimpah,Sungai Perak (KG. BULUH TELUR),4.118290,101.290910,JPS/DID
+Sarawak,Samarahan,2026-02-25,"Air Laut Pasang, Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (SAMATP0003 - Kg. Baru); Batang Samarahan (Kampung Sg. Batu),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-02-25,"Longkang Tersumbat, Saliran Dalaman",Sungai Sarawak (Taman Samarindah Lrg 29F),1.438020,110.476780,JPS/DID
+Selangor,Sepang,2026-02-25,"Longkang Tersumbat, Saliran Dalaman","Sungai Langat (Terowong Flyover PLUS, Jalan Ayer Hitam B13)",2.805410,101.681090,JPS/DID
+Johor,Johor Bahru,2026-02-25,"Air Laut Pasang, Air Sungai Melimpah, Longkang Tersumbat, Saliran Dalaman",Sungai Tebrau (PLTGTP0002 - Kg. Plentong Baru),1.480505,103.782305,JPS/DID
+Johor,Johor Bahru,2026-02-25,"Air Laut Pasang, Longkang Tersumbat, Saliran Dalaman",Sungai Tebrau (TBRATP0004 - Kg. Kangkar Tebrau),1.480505,103.782305,JPS/DID
+Sabah,Membakut,2026-02-25,"Air Laut Pasang, Air Sungai Melimpah",Sungai Membakut (Kg. Sinoko); Sungai Membakut (Kg. Bambangan); Sungai Membakut (Kg.Baitam Laut); Sungai Membakut (Kg. Ulu Baitam); Sungai Membakut (Kg. Jambatan Baru); Sungai Membakut (Kg.Kayai); Sungai Membakut (Kg. Limpayau); Sungai Membakut (Kg. Lampijas); Sungai Membakut (Kg. Lumantak); Sungai Membakut (Kg. Sindok); Sungai Membakut (Kg Takapan); Sungai Membakut (Kg Mandangin); Sungai Membakut (Kg. Labak); Sungai Membakut (Kg. Limadang); Sungai Membakut (Kg. Brunei); Sungai Membakut (Kg Papas); Sungai Membakut (Kg Biau); Sungai Membakut (Kg. Pelalai); Sungai Membakut (Kg Ganggas); Sungai Membakut (Kg Pimping); Sungai Membakut (Kg Bandau); Sungai Membakut (Kg Bingkulas),5.714110,117.300765,JPS/DID
+Sabah,Sipitang,2026-02-25,Air Sungai Melimpah,Sungai Lakutan (Kg Mesapol Lama); Sungai Lakutan (Kg Naluyan); Sungai Lakutan (Kg Bebangkong); Sungai Mengalong (Kg Tanjung Nipis); Sungai Mengalong (Kg Pantai); Sungai Mengalong (Kg Kawang Baru); Sungai Mengalong (Kg Kawang Lama); Sungai Mengalong (Kg Kawang Taliair); Sungai Mengalong (Kg Sri Menanti); Sungai Mengalong (Kg Sindumin); Sungai Mengalong (Kg Sindumin Baru); Sungai Mengalong (Kg Petarikan Sindumin); Sungai Mengalong (Kg Skim Sindumin); Sungai Mengalong (Kg Siputol); Sungai Mengalong (Kg Banting); Sungai Mengalong (Kg Luagan); Sungai Mengalong (Kg Kelangsat); Sungai Mengalong (Kg Ranau-Ranau); Sungai Mengalong (Kg Bahagia); Sungai Padas (Kg Long Pasia),4.633510,115.650535,JPS/DID
+Sabah,Keningau,2026-02-25,Air Sungai Melimpah,Sungai Padas (Kg.Kahaba Sook),5.220590,116.330635,JPS/DID
+Sabah,Tenom,2026-02-25,Air Sungai Melimpah,Sungai Padas (PADSTP0097 - Kg. Binaei); Sungai Padas (Kg. Paguokon Laut); Sungai Padas (Kg. Bunut); Sungai Padas (Kg. Binsilon); Sungai Padas (Kg. Kalang Kanar); Sungai Padas (PADSTP0104 - Kg. Mandalom Lama); Sungai Padas (PADSTP0095 - Kg. Tumantalik); Sungai Padas (Kg. Saga Laut); Sungai Padas (Kg. Tenom Lama),4.910710,115.943365,JPS/DID
+Sabah,Nabawan,2026-02-24,"Air Sungai Melimpah, Pembangunan / Pembukaan Tanah / Sampah Sarap",,4.693030,116.464165,JPS/DID
+Sabah,Tenom,2026-02-24,"Air Sungai Melimpah, Hujan Lebat / Berterusan",Sungai Padas (Kg. Kuala Tomani); Sungai Padas (Kg. Marais); Sungai Padas (Kg. Kalamatoi); Sungai Padas (PADSTP0102 - Kg. Belumbung Seberang); Sungai Padas (PADSTP0102 - Kg. Belumbung Seberang); Sungai Padas (PADSTP0101 - Kg. Enubai); Sungai Padas (PADSTP0096 - Kg. Pantongan Sapong); Sungai Padas (Kg. Paal Sebrang); Sungai Padas (Kg Batu-batu); Sungai Padas (Kg. Kemabong Lama); Sungai Padas (Kg. Sugiang Lama); Sungai Padas (Kg. Gumisi); Sungai Padas (Kg. Belumbung); Sungai Padas (Kg. Pamaluyan); Sungai Padas (Kg. Akar Hidup); Sungai Padas (Kg. Pulongan Sapong); Sungai Padas (PADSTP0094 - Kg. Batu Lapan); Sungai Padas (Kg. Bangkulin Lama); Sungai Padas (Kg. Kalasasan); Sungai Padas (Kg. Batu 14); Sungai Padas (Kg. Angalor),4.910710,115.943365,JPS/DID
+Selangor,Hulu Langat,2026-02-24,Saliran Dalaman,Sungai Langat (SMYHTP0009 - Taman Semenyih Indah),3.074900,101.845620,JPS/DID
+Sarawak,Selangau,2026-02-24,"Air Sungai Melimpah, Hujan Lebat / Berterusan",Batang Oya (Jalan Tabalong (Menuju ke Sungai Alat)),2.498055,112.420495,JPS/DID
+Sarawak,Sibu,2026-02-24,"Air Sungai Melimpah, Hujan Lebat / Berterusan",Batang Rajang (Rumah Eshter); Batang Rajang (Rumah Menai); Batang Rajang (Rumah Suri Sebansu); Batang Rajang (Rumah Bobo); Batang Rajang (Rumah Raddy Anak Maxswell); Batang Rajang (Rumah Beriak),2.292280,111.866555,JPS/DID
+Sabah,Beaufort,2026-02-22,"Air Laut Pasang, Air Sungai Melimpah",Sungai Padas (PADSTP0018 - Kg. Bakalau); Sungai Padas (PADSTP0036 - Kg. Binunuk); Sungai Padas (PADSTP0035 - Kg. Balibata); Sungai Padas (PADSTP0051 - Kg. Suasa); Sungai Padas (PADSTP0074 - Kg. Lago); Sungai Padas (PADSTP0005 - Kg. Batu 60); Sungai Padas (Simpang 4 Chan Furniture); Sungai Padas (PADSTP0019 - Kg. Bingkul); Sungai Padas (PADSTP0082 - Kg. Lumatai); Sungai Padas (PADSTP0021 - Kg. Mempagar (SK)); Sungai Padas (PADSTP0020 - Kg. Melulugus); Sungai Padas (PADSTP0084 - Kg. Luagan (SK)); Sungai Padas (PADSTP0022 - Kg. Limbawang); Sungai Padas (PADSTP0041 - Kg. Lubak); Sungai Padas (PADSTP0043 - Kg. Poring); Sungai Padas (PADSTP0076 - Kg. Lupak Tuhu); Sungai Padas (PADSTP0038 - Kg. Beringin); Sungai Padas (PADSTP0052 - Kg. Kukop); Sungai Padas (PADSTP0055 - Kg. Jabang); Sungai Padas (Kg Kangsa); Sungai Padas (PADSTP0054 - Kg. Bangkalalak); Sungai Padas (PADSTP0056 - Kg. Berumbai); Sungai Padas (PADSTP0048 - Kg. Lawa); Sungai Padas (PADSTP0078 - Kg. Kebajang Ulu); Sungai Padas (PADSTP0057 - Kg. Mentulud); Sungai Padas (Kg Indulibai); Sungai Padas (Kg Gumarit); Sungai Padas (PADSTP0060 - Kg. Pancung / Melabau); Sungai Padas (PADSTP0063 - Kg. Rancangan Klias); Sungai Padas (PADSTP0032 - Kg. Pintas Kubu); Sungai Padas (Kg Lumadan); Sungai Padas (PADSTP0044 - Kg. Batandok); Sungai Padas (PADSTP0047 - Kg. Garama); Sungai Padas (PADSTP0045 - Kg. Gadong 2); Sungai Padas (Kg Gelila); Sungai Padas (Kg Sungkadan); Sungai Padas (PADSTP0083 - Kg. Melati); Sungai Padas (Kuarters SESB Beaufort); Sungai Padas (Kuarters Kereta Api); Sungai Padas (Kg Batu 58); Sungai Padas (Kg Jempangah); Sungai Padas (Kg Kitalabak); Sungai Padas (Kg Luagan Sanginan); Sungai Padas (Kg Laboi); Sungai Padas (Kg Mapait); Sungai Padas (PADSTP0031 - Kg. Lajau); Sungai Padas (Kg Tuhu); Sungai Padas (Kg Selinsing); Sungai Padas (Kg Kuala Balik); Sungai Padas (PADSTP0010 - Kg. Batu 65); Sungai Padas (Kg Jaya Baru); Sungai Padas (PADSTP0085 - Kg. Lupak Seberang.); Sungai Padas (PADSTP0002 - Kg. Cina); Sungai Padas (Kg Kurian Padas Damit); Sungai Padas (Kg Klias Baru 54); Sungai Padas (PADSTP0080 - Kg. Bukau (SK)); Sungai Padas (PADSTP0081 - Kg. Tamalang Along); Sungai Padas (PADSTP0030 - Kg. Kebulu Petani); Sungai Padas (PADSTP0028 - Kg. Mananjung); Sungai Padas (PADSTP0046 - Kg. Kuridak); Sungai Padas (PADSTP0033 - Kg. Pintas (SK)); Sungai Padas (PADSTP0001 - Pekan Beaufort); Sungai Padas (PADSTP0063 - Kg. Rancangan Klias); Sungai Padas (Kg Pilajau); Sungai Padas (Kg Kubu),5.291295,115.704555,JPS/DID
+Sabah,Tenom,2026-02-21,Air Sungai Melimpah,Sungai Padas (Kg. Marais); Sungai Padas (Kg. Kuala Tomani); Sungai Padas (Kg. Mamaitom),4.910710,115.943365,JPS/DID
+Sabah,Tawau,2026-02-21,"Air Laut Pasang, Air Sungai Melimpah, Longkang Tersumbat, Saliran Dalaman",Sungai Tawau (Kg.Tg.Batu Keramat); Sungai Tawau (TWAUTP0030 - Jln Sin On); Sungai Tawau (Jalan Timur Simpang 5); Sungai Tawau (Kg.Bakau),4.434365,118.027905,JPS/DID
+Sarawak,Selangau,2026-02-21,"Air Sungai Melimpah, Hujan Lebat / Berterusan","Batang Mukah (SK Nanga Selangau); Batang Mukah (Jalan Menuju Ke Rumah Nyarapong, Nanga Kalai); Batang Mukah (Rumah Maran, Nanga Selangau); Batang Mukah (Jalan Menuju ke Rumah Balang, Melinau Salin); Batang Mukah (Jalan menuju ke Rumah Awa, Nanga Sebatu)",2.498055,112.420495,JPS/DID
+Sarawak,Kuching,2026-02-21,"Air Laut Pasang, Hujan Lebat / Berterusan","Sungai Santubong (Kampung Sungai Batu); Sungai Sarawak (SRWKTP0055 - Kg. Sg. Lumut, Santubong)",1.428430,110.320230,JPS/DID
+Sarawak,Lundu,2026-02-21,Air Sungai Melimpah,Batang Kayan (Kpg Bitokan 2); Batang Kayan (Kpg Selampit),1.749525,109.864880,JPS/DID
+Sarawak,Selangau,2026-02-21,"Air Sungai Melimpah, Hujan Lebat / Berterusan","Batang Mukah (Rumah Magdeline Entayang, Kampung Baru Melinau); Batang Mukah (Rumah Silvester, Kampung Kara); Batang Mukah (Kampung Engkabang, Selangau); Batang Mukah (SK Nanga Kua)",2.498055,112.420495,JPS/DID
+Sarawak,Serian,2026-02-20,Air Sungai Melimpah,Batang Samarahan (SRINTP0003 - Kg. Betong Kenawit); Batang Samarahan (SRINTP0002 - Kg. Lintang Baru Panchor),1.113690,110.636760,JPS/DID
+Sarawak,Selangau,2026-02-20,"Air Sungai Melimpah, Hujan Lebat / Berterusan","Batang Mukah (Rumah Senabong,Sungai Serintong,Selangau)",2.498055,112.420495,JPS/DID
+Sarawak,Kuching,2026-02-20,Air Sungai Melimpah,Sungai Sarawak (SRKRTP0014 - Kg. Bawang),1.428430,110.320230,JPS/DID
+Sarawak,Sibu,2026-02-20,Hujan Lebat / Berterusan,Batang Rajang (Lorong Kampung Jeriah Utara 2B); Batang Rajang (Lorong Kampung Jeriah Utara 2); Batang Rajang (Lorong Jeriah Barat 4),2.292280,111.866555,JPS/DID
+Sarawak,Sibu,2026-02-20,Hujan Lebat / Berterusan,Batang Rajang (Lorong Satria Timur),2.292280,111.866555,JPS/DID
+Sarawak,Samarahan,2026-02-20,"Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (TUAGTP0002 - Kg. Endap),1.438020,110.476780,JPS/DID
+Sabah,Telupid,2026-02-20,"Air Sungai Melimpah, Saliran Dalaman",Sungai Labuk (Kg sualok); Sungai Labuk (Sk Sualok); Sungai Labuk (Kg Perancangan); Sungai Labuk (Kg Bakong- Bakong),5.784615,117.133115,JPS/DID
+Sabah,Kota Marudu,2026-02-20,"Air Laut Pasang, Air Sungai Melimpah",Sungai Bongon (Kg.Boruol); Sungai Bandau (TNDKTP0001 - Kg. Tandek); Sungai Bongon (Kg.Sasayapon); Sungai Bongon (Kg.Morion); Sungai Bongon (Kg.Beliajung); Sungai Bongon (RSAKTP0002 - Kg. Masolog); Sungai Bongon (BGONTP0011 - Kg. Kuranji); Sungai Bongon (BGONTP0005 - Kg. Rakit); Sungai Bongon (Kg.Batition); Sungai Bongon (Kg.Asin-Asin),6.449675,116.836480,JPS/DID
+Sabah,Pitas,2026-02-20,Air Laut Pasang,Sungai Sinsilog (BGKKTP0024 - Kg. Rukom Laut); Sungai Sinsilog (BGKKTP0006 - Kg. Kalumpang); Sungai Sinsilog (BGKKTP0029 - Kg. Bilangau Besar); Sungai Kanibongan (BGKKTP0025 - Kg. Kanibongan); Sungai Kanibongan (Kg.Desa Seberang),6.730620,117.071975,JPS/DID
+Sarawak,Lundu,2026-02-20,Air Sungai Melimpah,Batang Kayan (Kpg Sileng Melayu); Batang Kayan (Jalan Satu Kpg.Sileng Melayu); Batang Kayan (Taman Mawar); Batang Kayan (Jalan Lundu-Sekambal),1.749525,109.864880,JPS/DID
+Sabah,Sandakan,2026-02-20,Air Sungai Melimpah,"Sungai Segaliud (Kampung Garinono, Batu 25, Sandakan); Sungai Samawang (Kampung Sungai Memanjang, Batu 36, Sandakan)",5.809575,117.980665,JPS/DID
+Sarawak,Lundu,2026-02-20,Air Sungai Melimpah,Batang Kayan (Akses Jalan ke Kpg Pasir Tengah); Batang Kayan (Akses Jalan ke Kpg Pasir Hilir),1.749525,109.864880,JPS/DID
+Sabah,Sandakan,2026-02-20,Air Sungai Melimpah,,5.809575,117.980665,JPS/DID
+Sabah,Sandakan,2026-02-20,Air Sungai Melimpah,,5.809575,117.980665,JPS/DID
+Sabah,Sandakan,2026-02-20,Air Sungai Melimpah,,5.809575,117.980665,JPS/DID
+Sarawak,Lundu,2026-02-20,Air Sungai Melimpah,"Batang Kayan (SK Bokah, Lundu)",1.749525,109.864880,JPS/DID
+Sarawak,Lundu,2026-02-20,Air Sungai Melimpah,Batang Kayan (Kpg Selampit),1.749525,109.864880,JPS/DID
+Sabah,Sandakan,2026-02-20,Air Sungai Melimpah,,5.809575,117.980665,JPS/DID
+Sabah,Kudat,2026-02-19,"Air Sungai Melimpah, Hujan Lebat / Berterusan",,7.003630,117.129360,JPS/DID
+Sarawak,Bau,2026-02-19,Air Sungai Melimpah,Sungai Sarawak (Kampung Segong),1.383520,110.101050,JPS/DID
+Sabah,Beluran,2026-02-19,Air Sungai Melimpah,Sungai Paitan (Kg. Batangon Darat); Sungai Paitan (Kg. Dalamas); Sungai Paitan (Kg. Kabuluh); Sungai Paitan (Kg. Kaindangan); Sungai Paitan (Kg. Tanjung nipis); Sungai Paitan (Kg. Simpangan); Sungai Paitan (Kg. Lubang Buaya); Sungai Paitan (Kg. Puru Batu),6.199915,117.313095,JPS/DID
+Johor,Johor Bahru,2026-02-18,"Longkang Tersumbat, Pembangunan / Pembukaan Tanah / Sampah Sarap, Saliran Dalaman",Sungai Skudai (DNGATP0002 - Kg. Tuah Jaya),1.480505,103.782305,JPS/DID
+Melaka,Alor Gajah,2026-02-17,"Air Sungai Melimpah, Hujan Lebat / Berterusan",Sungai Melaka (Gadek Luar),2.383510,102.106500,JPS/DID
+Melaka,Alor Gajah,2026-02-17,"Hujan Lebat / Berterusan, Saliran Dalaman",Sungai Melaka (Melaka Pindah),2.383510,102.106500,JPS/DID
+Perak,Muallim,2026-02-17,Air Sungai Melimpah,Sungai Bernam (Kampung Orang Asli Sg Lembing); Sungai Bernam (Kampung Orang Asli Chenain),3.897530,101.435130,JPS/DID
+Melaka,Melaka Tengah,2026-02-17,"Air Laut Pasang, Hujan Lebat / Berterusan, Longkang Tersumbat, Saliran Dalaman",Sungai Melaka (MLKTP00027 - Pengkalan Rama Tengah); Sungai Melaka (MLKTP02021 - SK (P) Durian Daun); Sungai Duyong (DYNGTP0008 - Kg. Padang Semabok),2.192180,102.243470,JPS/DID
+Melaka,Melaka Tengah,2026-02-17,"Hujan Lebat / Berterusan, Saliran Dalaman",Sungai Duyong (PCNATP0004 - Bukit Pulau),2.192180,102.243470,JPS/DID
+Melaka,Melaka Tengah,2026-02-17,"Hujan Lebat / Berterusan, Saliran Dalaman",Sungai Duyong (MLKTP00136 - Jln. Ayer Keroh),2.192180,102.243470,JPS/DID
+Selangor,Kuala Selangor,2026-02-17,Saliran Dalaman,,3.379540,101.297520,JPS/DID
+Selangor,Klang,2026-02-17,Saliran Dalaman,"Sungai Klang (Taman Melawis (Jalan Tanjung, Jalan Emas) Klang); Sungai Klang (Kg Bukit Kapar (Jalan Bukit Payung, Jalan Kempas, )",3.037315,101.395560,JPS/DID
+Selangor,Klang,2026-02-16,Saliran Dalaman,"Sungai Klang (Taman Rashna dan Kawasan Perindustrian Sg Rasau); Sungai Klang (Taman Mutiara, Bukit Raja dan Jalan Meru Batu 3)",3.037315,101.395560,JPS/DID
+Perak,Kinta,2026-02-16,Air Sungai Melimpah,Sungai Perak (KINTTP0030 - Kg. Tengku Hussin); Sungai Perak (Jalan Datok); Sungai Perak (Jalan Raja (Pintu Gerbang)),4.515585,101.160745,JPS/DID
+Perak,Kinta,2026-02-16,Air Sungai Melimpah,Sungai Perak (Taman Birch); Sungai Perak (PRITP00015 - Taman Cherry); Sungai Perak (SMK Sg Pari dan SMK Seri Puteri); Sungai Perak (KINTTP0033 - Kg Taili); Sungai Perak (Jalan Coldstream),4.515585,101.160745,JPS/DID
+Selangor,Petaling,2026-02-16,Saliran Dalaman,Sungai Klang (DMSRTP0001 - Kg. Melayu Subang); Sungai Klang (I-City Shah Alam); Sungai Klang (Subang Perantau),3.104900,101.579100,JPS/DID
+Perak,Kinta,2026-02-16,Saliran Dalaman,"Sungai Perak (KINTTP0036 - Kg. Seri Kinta, Lorong 5 dan 1)",4.515585,101.160745,JPS/DID
+Perak,Kinta,2026-02-16,"Air Sungai Melimpah, Pembangunan / Pembukaan Tanah / Sampah Sarap, Saliran Dalaman","Sungai Perak (Arena Kepayang Putra, Fair Park); Sungai Perak (FRU Sungai Senam)",4.515585,101.160745,JPS/DID
+Perak,Kinta,2026-02-16,Saliran Dalaman,Sungai Perak (Taman Hock Aun),4.515585,101.160745,JPS/DID
+Melaka,Melaka Tengah,2026-02-15,"Hujan Lebat / Berterusan, Saliran Dalaman","Sungai Melaka (MLKTP00112 - Tmn Seri Jati, Tmn Ara)",2.192180,102.243470,JPS/DID
+Sabah,Sipitang,2026-02-11,Air Sungai Melimpah,Sungai Mengalong (Kg Luagan); Sungai Mengalong (Kg Tanjung Nipis); Sungai Mengalong (Kg Kawang Lama); Sungai Mengalong (Kg Kawang Baru); Sungai Mengalong (Kg Sindumin Baru); Sungai Mengalong (Kg Ranau-Ranau); Sungai Mengalong (Kg Siputol); Sungai Mengalong (Kg Pantai Lama); Sungai Mengalong (Kg Sindumin); Sungai Mengalong (Kg Banting),4.633510,115.650535,JPS/DID
+Sabah,Beaufort,2026-02-11,Air Sungai Melimpah,Sungai Padas (PADSTP0018 - Kg. Bakalau); Sungai Padas (PADSTP0036 - Kg. Binunuk); Sungai Padas (PADSTP0035 - Kg. Balibata); Sungai Padas (PADSTP0019 - Kg. Bingkul); Sungai Padas (PADSTP0051 - Kg. Suasa); Sungai Padas (PADSTP0074 - Kg. Lago); Sungai Padas (PADSTP0041 - Kg. Lubak); Sungai Padas (Kg. Koundu); Sungai Padas (PADSTP0052 - Kg. Kukop); Sungai Padas (PADSTP0005 - Kg. Batu 60); Sungai Padas (Kg. Kangsa); Sungai Padas (PADSTP0054 - Kg. Bangkalalak); Sungai Padas (Kg. Gumarit); Sungai Padas (PADSTP0021 - Kg. Mempagar (SK)); Sungai Padas (PADSTP0020 - Kg. Melulugus); Sungai Padas (PADSTP0056 - Kg. Berumbai); Sungai Padas (PADSTP0048 - Kg. Lawa); Sungai Padas (Simpang 4 Jalan Chan Furniture); Sungai Padas (PADSTP0082 - Kg. Lumatai); Sungai Padas (Kg. Sungkadan); Sungai Padas (PADSTP0080 - Kg. Bukau (SK)); Sungai Padas (Kg. Lumadan); Sungai Padas (PADSTP0084 - Kg. Luagan (SK)),5.291295,115.704555,JPS/DID
+Sabah,Keningau,2026-02-11,Air Sungai Melimpah,Sungai Padas (Kg.Dalit Stesen Sook),5.220590,116.330635,JPS/DID
+Sabah,Tenom,2026-02-11,Air Sungai Melimpah,Sungai Padas (Kg Saga Laut); Sungai Padas (PADSTP0098 - Kg. Ponontomon); Sungai Padas (Kg. Pantungon Saga); Sungai Padas (PADSTP0104 - Kg. Mandalom Lama); Sungai Padas (PADSTP0095 - Kg. Tumantalik); Sungai Padas (PADSTP0097 - Kg. Binaei); Sungai Padas (Kg. Batu-Batu),4.910710,115.943365,JPS/DID
+Sabah,Tenom,2026-02-11,Air Sungai Melimpah,Sungai Padas (PADSTP0101 - Kg. Enubai); Sungai Padas (PADSTP0096 - Kg. Pantongan Sapong),4.910710,115.943365,JPS/DID
+Sabah,Keningau,2026-02-10,Air Sungai Melimpah,Sungai Padas (Kg.Kauran); Sungai Padas (Jalan Kg.Kitung),5.220590,116.330635,JPS/DID
+Sabah,Tenom,2026-02-10,Air Sungai Melimpah,,4.910710,115.943365,JPS/DID
+Sabah,Keningau,2026-02-04,"Air Sungai Melimpah, Longkang Tersumbat, Saliran Dalaman",Sungai Padas (Kg Kauran),5.220590,116.330635,JPS/DID
+Sabah,Lahad Datu,2026-02-04,"Air Sungai Melimpah, Longkang Tersumbat, Saliran Dalaman",Sungai Segama (Jalan Singamata); Sungai Segama (Jalan Segama),5.118435,118.366545,JPS/DID
+Sarawak,Samarahan,2026-02-03,"Longkang Tersumbat, Saliran Dalaman",Batang Lupar (KAMPUNG BAJONG); Batang Lupar (Kampung Sg Tambai),1.438020,110.476780,JPS/DID
+Sabah,Keningau,2026-02-02,"Air Sungai Melimpah, Longkang Tersumbat, Saliran Dalaman",Sungai Padas (Kampung Tuntumulud); Sungai Padas (Kampung Buang Sayang); Sungai Padas (Kg Minansut),5.220590,116.330635,JPS/DID
+Sarawak,Selangau,2026-01-26,"Air Sungai Melimpah, Hujan Lebat / Berterusan","Batang Balingian (Jalan Ulu Sungai Arip); Batang Balingian (Rumah Lanting, Jalan Nanga Gun); Batang Balingian (Rumah Tony, Jalan Lubok Achong); Batang Balingian (Rumah Joseph, Jalan Ulu Sungai Arip); Batang Balingian (SK Ulu Sungai Arip)",2.498055,112.420495,JPS/DID
+Sarawak,Samarahan,2026-01-26,"Air Laut Pasang, Saliran Dalaman",Batang Sadong (SMJNTP0003 - Kg. Seruyuk),1.438020,110.476780,JPS/DID
+Sarawak,Lundu,2026-01-25,Air Sungai Melimpah,Batang Kayan (SK Bokah),1.749525,109.864880,JPS/DID
+Sarawak,Samarahan,2026-01-25,"Lain-lain, Saliran Dalaman",Sungai Sarawak (Taman Samarindah Lrg 29); Sungai Sarawak (Taman Unimedia Lrg 1D - 1B),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-25,Saliran Dalaman,Batang Samarahan (Kampung Plaie); Batang Samarahan (SAMATP0003 - Kg. Baru); Batang Samarahan (Kampung Jegoi); Batang Samarahan (TUAGTP0008 - Kg. Tanjung Bundong),1.438020,110.476780,JPS/DID
+Sabah,Membakut,2026-01-17,"Air Laut Pasang, Air Sungai Melimpah",Sungai Membakut (Kg. Lumantak); Sungai Membakut (Kg. Baitam Baru); Sungai Membakut (Kg. Jambatan Baru); Sungai Membakut (Kg.Takapan); Sungai Membakut (Kg. Kayai); Sungai Membakut (Kg. Lampijas); Sungai Membakut (Kg. Brunei); Sungai Membakut (Kg. Ulu Baitam); Sungai Membakut (Kg.Papas); Sungai Membakut (Kg.Poring); Sungai Membakut (Jalan Bandau); Sungai Membakut (Jalan Balai Polis); Sungai Membakut (Pekan Lama Membakut); Sungai Membakut (Kg. Limadang); Sungai Membakut (Kg. Pimping); Sungai Membakut (Kg.Bingkulas); Sungai Membakut (Kg. Sinoko); Sungai Membakut (Kg. Bambangan),5.714110,117.300765,JPS/DID
+Sarawak,Selangau,2026-01-17,"Air Sungai Melimpah, Hujan Lebat / Berterusan","Batang Balingian (Rumah Langut, Tanjung Taroh); Batang Balingian (Rumah Enjup, Tanjung Taroh); Batang Balingian (SK Kuala Lemai)",2.498055,112.420495,JPS/DID
+Sabah,Tuaran,2026-01-16,"Air Sungai Melimpah, Saliran Dalaman",,6.063480,116.311815,JPS/DID
+Sarawak,Miri,2026-01-15,Air Sungai Melimpah,Batang Suai (TR Ningkan); Batang Suai (TR Ansie); Batang Suai (TR Derit); Batang Suai (TR Thomas); Batang Suai (TR kalom); Batang Suai (Tr jalang); Batang Suai (TR Jesus); Batang Suai (TR Juan),3.787580,114.729625,JPS/DID
+WP Labuan,Labuan,2026-01-15,"Air Sungai Melimpah, Hujan Lebat / Berterusan, Saliran Dalaman",,5.289335,115.225540,JPS/DID
+Sarawak,Sibu,2026-01-15,"Air Sungai Melimpah, Hujan Lebat / Berterusan",Batang Rajang (Jalan Utama Sungai Assan),2.292280,111.866555,JPS/DID
+Sarawak,Selangau,2026-01-14,Air Sungai Melimpah,"Batang Balingian (Jalan Ulu Sungai Arip); Batang Balingian (Rumah Tony, Jalan Lubok Achong); Batang Balingian (Rumah Lagat, Jalan Sepulau)",2.498055,112.420495,JPS/DID
+Sarawak,Selangau,2026-01-14,Air Sungai Melimpah,Batang Balingian (SK Kuala Pelugau),2.498055,112.420495,JPS/DID
+Sarawak,Selangau,2026-01-14,"Air Sungai Melimpah, Hujan Lebat / Berterusan",Batang Mukah (Jambatan Sungai Luam); Batang Mukah (Jambatan Sungai Mejat); Batang Mukah (SK Nanga Kua),2.498055,112.420495,JPS/DID
+Sarawak,Saratok,2026-01-13,"Air Laut Pasang, Longkang Tersumbat, Saliran Dalaman",Batang Kerian (Pasar Saratok),1.765515,111.398360,JPS/DID
+Sarawak,Selangau,2026-01-13,"Air Sungai Melimpah, Hujan Lebat / Berterusan","Batang Oya (Jeti Nanga Tamin); Batang Oya (Rumah Ansa, Nanga Tamin); Batang Oya (Rumah Alice, Nanga Tamin); Batang Oya (Klinik Desa, Nanga Tamin); Batang Oya (Rumah Dali, Pasir Terabai); Batang Oya (SK Saint Mark)",2.498055,112.420495,JPS/DID
+Sarawak,Selangau,2026-01-13,Air Sungai Melimpah,"Batang Balingian (Jeti Lubuk Bukut); Batang Balingian (Rumah Annie, Lubuk Bukut); Batang Balingian (Rumah Suli, Lubuk Bukut)",2.498055,112.420495,JPS/DID
+Sarawak,Pusa,2026-01-12,Saliran Dalaman,Batang Saribas (Jalan Darat Pusa),1.548285,111.159030,JPS/DID
+Sarawak,Saratok,2026-01-12,Saliran Dalaman,Batang Kerian (Jalan Perhubungan Sg Nyiar Roban); Batang Kerian (Rh. Anta Jelupang Roban),1.765515,111.398360,JPS/DID
+Sarawak,Betong,2026-01-12,"Air Laut Pasang, Air Sungai Melimpah, Saliran Dalaman",Batang Saribas (SPK MALUDAM); Batang Saribas (Rh. Tg. Baru),1.481830,111.483500,JPS/DID
+Sarawak,Bintulu,2026-01-11,"Air Sungai Melimpah, Saliran Dalaman",Batang Kemena (KMNATP0024 - Perumahan Bukit Orang); Batang Kemena (Taman Jason),3.313910,113.201905,JPS/DID
+Sarawak,Sri Aman,2026-01-11,Air Sungai Melimpah,"Batang Lupar (STRPTP0002 - Jalan menuju ke Semawa); Batang Lupar (Jalan Utama Kampung Jenguk Pantu, Sri Aman)",1.212715,111.300160,JPS/DID
+Sarawak,Selangau,2026-01-11,"Air Sungai Melimpah, Hujan Lebat / Berterusan","Batang Balingian (Jalan Menuju Ke Rumah Lapok Dan Rumah Gamang); Batang Balingian (Rumah Banyoi, Lubuk Besai Pelugau)",2.498055,112.420495,JPS/DID
+Sarawak,Miri,2026-01-11,Air Sungai Melimpah,Sungai Niah (Rh Richard Pilet); Sungai Niah (Rh Ayai dan Rh Nelson); Sungai Niah (Rh Wiley Fernandez); Sungai Niah (Sk Rumah Mentali); Sungai Niah (Jalan ke Kampung Lajong); Sungai Niah (Rh Nomi ak Sikun); Sungai Niah (Rh Jelanie); Sungai Niah (Rh Edward Asnan),3.787580,114.729625,JPS/DID
+Sarawak,Serian,2026-01-10,Air Sungai Melimpah,Batang Sadong (SADOTP0034 - Kg. Hilir Serian); Batang Sadong (SADOTP0035 - Kg. Hulu); Batang Sadong (SADOTP0043 - Kg. Tanah Puteh),1.113690,110.636760,JPS/DID
+Sarawak,Miri,2026-01-10,Air Sungai Melimpah,"Batang Suai (Rh.Sebuang Sg Tajan Suai); Batang Suai (Kampung Iran,Suai)",3.787580,114.729625,JPS/DID
+Sarawak,Bintulu,2026-01-10,Air Sungai Melimpah,Batang Kemena (Gem Park),3.313910,113.201905,JPS/DID
+Sarawak,Bintulu,2026-01-10,Air Sungai Melimpah,"Batang Kemena (Rumah Roselind); Batang Kemena (Kampung Muhibbah, Batu 9)",3.313910,113.201905,JPS/DID
+Sarawak,Bintulu,2026-01-10,"Air Laut Pasang, Air Sungai Melimpah, Saliran Dalaman",Sungai Similajau (SUAITP0002 - SK Nyalau),3.313910,113.201905,JPS/DID
+Sarawak,Bintulu,2026-01-10,Air Sungai Melimpah,"Batang Kemena (KMNATP0027 - SK Bukit Balai Tubau); Batang Kemena (KMNATP0028 - SK Kebulu); Batang Kemena (Rumah Joseph Gawing,Jelalong)",3.313910,113.201905,JPS/DID
+Sarawak,Bintulu,2026-01-10,Air Sungai Melimpah,Batang Kemena (Rumah Olen (Eloh)); Batang Kemena (Rumah Selanjat); Batang Kemena (Rumah Andi),3.313910,113.201905,JPS/DID
+Sarawak,Bintulu,2026-01-10,Air Sungai Melimpah,Batang Kemena (Rumah Jambai@Kamarudin); Batang Kemena (Rumah Usah); Batang Kemena (Rumah Teban Ulu); Batang Kemena (Rumah Nura Buling); Batang Kemena (PANDTP0001 - SK Kuala Sigu); Batang Kemena (SK Sebauh); Batang Kemena (Rumah Patrick Andin); Batang Kemena (Rumah Emperan); Batang Kemena (Pekan Sebauh); Batang Kemena (Rumah Raymond Plen); Batang Kemena (Pekan Labang),3.313910,113.201905,JPS/DID
+Sarawak,Bintulu,2026-01-10,Air Sungai Melimpah,Batang Tatau (TATATP0001 - Kg. Dagang); Batang Tatau (Pekan Tatau); Batang Tatau (Perpustakaan dan Pejabat BDA Tatau); Batang Tatau (SJK Chung Hua Tatau); Batang Tatau (Taman Kim Soon Tatau),3.313910,113.201905,JPS/DID
+Sarawak,Bintulu,2026-01-10,Air Sungai Melimpah,"Batang Kemena (Rumah Fabian Jembu); Batang Kemena (SK Sungai Setiam); Batang Kemena (RH Sureng Ank Baba); Batang Kemena (Rh Sumping Anak Limban); Batang Kemena (Kpg Semadang Jaya, Jalan Persisiran Kuala Tatau); Batang Kemena (Rh. Dunggat Sg. Mas, Jalan Pesisiran Pantai , Kual); Batang Kemena (Rh. Ningkan Ak Bungkong, Jalan Pesisiran Pantai , )",3.313910,113.201905,JPS/DID
+Sarawak,Selangau,2026-01-10,"Air Sungai Melimpah, Hujan Lebat / Berterusan","Batang Oya (Jalan Utama Igu dan Dijih Tamin); Batang Oya (Rumah Mathew Nanga Tamin); Batang Oya (Rumah Tamat, Nanga Tabau); Batang Oya (Jalan Ensurai Menuju ke Tabalong dan Nanga Tamin)",2.498055,112.420495,JPS/DID
+Sarawak,Betong,2026-01-09,"Air Laut Pasang, Air Sungai Melimpah",Batang Saribas (SRKETP000 - Kg. Lalang); Batang Saribas (Kampung Bungey); Batang Saribas (SRKETP001 - Kg. Babu),1.481830,111.483500,JPS/DID
+Sabah,Putatan,2026-01-09,"Longkang Tersumbat, Saliran Dalaman",Sungai Monyog (PTTNTP0003 - Kg. Tombovo),5.881470,116.060495,JPS/DID
+Sabah,Papar,2026-01-09,Air Sungai Melimpah,,5.602560,116.042275,JPS/DID
+Sabah,Kota Kinabalu,2026-01-09,"Air Laut Pasang, Saliran Dalaman",Sungai Inanam (MGKBTP0001 - Kg. Rampayan),5.999865,116.104395,JPS/DID
+Sarawak,Serian,2026-01-09,Air Sungai Melimpah,Batang Samarahan (Jalan Perumahan Tapah),1.113690,110.636760,JPS/DID
+Sarawak,Selangau,2026-01-09,"Air Sungai Melimpah, Hujan Lebat / Berterusan","Batang Balingian (Rumah Janting, Sungai Arip); Batang Balingian (Rumah Jambai anak Yabang)",2.498055,112.420495,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Laut Pasang, Air Sungai Melimpah",Batang Sadong (Ulu Benat); Batang Sadong (Kampung Sabang),1.438020,110.476780,JPS/DID
+Sarawak,Miri,2026-01-09,"Longkang Tersumbat, Saliran Dalaman",Sungai Miri (Piasau Jaya); Sungai Miri (Jalan Krokop 7); Sungai Miri (Jalan Miri-Pujut),3.787580,114.729625,JPS/DID
+Sarawak,Miri,2026-01-09,"Longkang Tersumbat, Saliran Dalaman",Sungai Miri (Emart Tudan); Sungai Miri (Desa Senadin); Sungai Miri (Pasar Lutong Lama); Sungai Miri (Jalan Ilmu); Sungai Miri (Kampung Pujut Tanjung Batu); Sungai Miri (Kampung Unan & Kampung 1 Malaysia By Pass); Sungai Miri (Bulatan Pujut Boulevard); Sungai Miri (Kampung Lereng Bukit); Sungai Miri (Jalan Miri Pujut); Sungai Miri (Pujut 7); Sungai Miri (Kampung Sealine/MCOT),3.787580,114.729625,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Laut Pasang, Air Sungai Melimpah",Batang Sadong (Kampung Sabang),1.438020,110.476780,JPS/DID
+Sarawak,Selangau,2026-01-09,"Air Sungai Melimpah, Hujan Lebat / Berterusan","Batang Mukah (Rumah Chandu, Kampung Keranji Madu); Batang Mukah (Rumah Magdeline Entayang, Kampung Baru Melinau); Batang Mukah (Rumah Silvester, Kampung Kara); Batang Mukah (Jalan Menuju ke Rumah Awa, Nanga Sebatu); Batang Mukah (Rumah Nyarapong, Nanga Kalai); Batang Mukah (Rumah Maran, Nanga Selangau); Batang Mukah (SK Nanga Selangau); Batang Mukah (Rumah Bernadette, Emperan Ubah); Batang Mukah (Jalan Menuju ke Rumah Balang)",2.498055,112.420495,JPS/DID
+Sarawak,Sarikei,2026-01-09,Air Sungai Melimpah,Batang Rajang (Jalan Ulu Sarikei),2.067190,111.416450,JPS/DID
+Sarawak,Serian,2026-01-09,Air Sungai Melimpah,Batang Sadong (Kpg Merakai),1.113690,110.636760,JPS/DID
+Sarawak,Saratok,2026-01-09,Air Sungai Melimpah,"Batang Kerian (Rh Ason Tembawai Kapok, Awik Saratok); Batang Kerian (Sk Kabo Hilir, Saratok); Batang Kerian (Rh Jimmy ak Unchi, Nanga Ingu Kabo); Batang Kerian (Sk Nanga Atoi); Batang Kerian (Jalan amsuk Krangan Rusa Ulu dan Hilir); Batang Kerian (Rh Simon Tabau)",1.765515,111.398360,JPS/DID
+Sarawak,Sarikei,2026-01-09,Air Sungai Melimpah,Batang Rajang (Rh. Micheal); Batang Rajang (Jalan Lemayong); Batang Rajang (SK Nanga Strass); Batang Rajang (Jalan Sg.Belepong),2.067190,111.416450,JPS/DID
+Sarawak,Sarikei,2026-01-09,Air Sungai Melimpah,Batang Rajang (SK Nanga Kedup); Batang Rajang (Jalan Nanga Kedup); Batang Rajang (Jalan Ulu Wak); Batang Rajang (Rh. Lidam); Batang Rajang (Jalan Rh. Lidam); Batang Rajang (SK Nanga Wak),2.067190,111.416450,JPS/DID
+Sarawak,Sri Aman,2026-01-09,Air Sungai Melimpah,Batang Lupar (Jalan Utama Lachau),1.212715,111.300160,JPS/DID
+Sarawak,Sri Aman,2026-01-09,Air Sungai Melimpah,"Batang Lupar (Tr Tinjan Jaong Sungai Batu); Batang Lupar (Laluan utama ke Kpg Jaong dan Kpg Sebemban Pantu); Batang Lupar (Jalan Utama ke Kampung Munggu Ridan & Sungai Mansa); Batang Lupar (Laluan Utama Kampung Tekuyong,Kampung Empaling dan)",1.212715,111.300160,JPS/DID
+Sarawak,Sibu,2026-01-09,Hujan Lebat / Berterusan,Batang Rajang (Lot 482 Kampung Seduan Jaya); Batang Rajang (Kampung Seduan Jaya); Batang Rajang (Lorong Jeriah Barat 4); Batang Rajang (Lorong Jeriah Utara 2B),2.292280,111.866555,JPS/DID
+Sarawak,Serian,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Batang Sadong (Kampung Krusen Siu); Batang Sadong (Kampung Krusen Kranji); Batang Sadong (Kampung Krusen Mawang),1.113690,110.636760,JPS/DID
+Sarawak,Serian,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Batang Sadong (SADOTP0010 - Tebakang); Batang Sadong (SADOTP0046 - Kg.Slabi Entukuh),1.113690,110.636760,JPS/DID
+Sarawak,Sibu,2026-01-09,"Air Sungai Melimpah, Hujan Lebat / Berterusan",Batang Rajang (Lot 3015 Jalan Bahagia Tengah); Batang Rajang (Lot 2986 Lorong Bahagia Tengah 16); Batang Rajang (Lot 2991 Jalan Bahagia Tengah); Batang Rajang (Lorong Bahagia 19A); Batang Rajang (Lorong Bahagia Tengah 1); Batang Rajang (Lot 1927 Lorong Bahagia Jaya 6); Batang Rajang (Lorong Bahagia Tengah 4),2.292280,111.866555,JPS/DID
+Sarawak,Samarahan,2026-01-09,Saliran Dalaman,Batang Sadong (SMJNTP0002 - Kg. Simunjan Jaya); Batang Sadong (SMJNTP0006 - Kg. Hijrah); Batang Sadong (Kg. Nanas); Batang Sadong (Kg. Lot Lintang); Batang Sadong (Kg. Jln Tun Openg); Batang Sadong (Kg. Sg. Lingkau); Batang Sadong (Kg. Tanjung Harapan); Batang Sadong (Kg. Sekendu); Batang Sadong (SMJNTP0004 - Kg. Sabun); Batang Sadong (Kg. Sg. Raya); Batang Sadong (Kg Kelka),1.438020,110.476780,JPS/DID
+Sarawak,Sibu,2026-01-09,Hujan Lebat / Berterusan,Batang Rajang (Lot 429A Lorong Sentosa Timur 4); Batang Rajang (Lot 429B Lorong Sentosa Timur 4); Batang Rajang (Lot 452 Lorong Sentosa Timur 4); Batang Rajang (Lot 451 Lorong Sentosa Timur 4); Batang Rajang (Lot 428 Lorong Sentosa Timur 4); Batang Rajang (Lot 450 Lorong Sentosa Timur 4); Batang Rajang (Lot 449 Lorong Sentosa Timur 4); Batang Rajang (Lot 426 Lorong Sentosa Timur 4); Batang Rajang (Jalan Lorong Sentosa Timur 4); Batang Rajang (Lot 448A Lorong Sentosa Timur 4); Batang Rajang (Lot 448B Lorong Sentosa Timur 4); Batang Rajang (Lot 425 Lorong Sentosa Timur 4); Batang Rajang (Lot 447 Lorong Sentosa Timur 4); Batang Rajang (Lot 424 Lorong Sentosa Timur 4); Batang Rajang (Lot 423 Lorong Sentosa Timur 4); Batang Rajang (Lot 446 Lorong Sentosa Timur 4); Batang Rajang (Lorong Saujana 1); Batang Rajang (Jalan Saujana 2); Batang Rajang (Lorong Saujana 1A); Batang Rajang (Lorong Saujana 1B); Batang Rajang (Lot 707 Sentosa 8); Batang Rajang (Lot 682 Sentosa 8); Batang Rajang (Jalan Sentosa 8); Batang Rajang (Lot 683 Sentosa 8); Batang Rajang (Lot 684 Sentosa 8); Batang Rajang (Lot 686 Sentosa 8); Batang Rajang (Lot 687 Sentosa 8); Batang Rajang (Lot 688 Sentosa 8); Batang Rajang (Lorong Sentosa 6); Batang Rajang (Lot 680 Sentosa 6); Batang Rajang (Lot 678 Sentosa 6); Batang Rajang (Lot 540 Sentosa 7); Batang Rajang (Lorong Sentosa 7); Batang Rajang (Lot 539 Lorong Sentosa 7); Batang Rajang (Jalan Pulau Dudong),2.292280,111.866555,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Longkang Tersumbat",Sungai Sebuyau (Kampung Sagu),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Longkang Tersumbat, Saliran Dalaman",Batang Sadong (Kampung Trusan),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Sungai Sarawak (Taman Paradise),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Sungai Sebuyau (Kampung Sagu),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Longkang Tersumbat, Saliran Dalaman",Batang Sadong (Kampung Trusan),1.438020,110.476780,JPS/DID
+Sarawak,Bintulu,2026-01-09,Air Sungai Melimpah,Batang Kemena (SK Sungai Genaan); Batang Kemena (Jln Sebauh-Pandan); Batang Kemena (Rh. Sta anak Liban); Batang Kemena (Rh. Eyus anak Isek); Batang Kemena (SK Hermanus Assan),3.313910,113.201905,JPS/DID
+Sarawak,Serian,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Batang Sadong (Kampung Ensebang Padang Bilon); Batang Sadong (Kampung Ensebang Plaie),1.113690,110.636760,JPS/DID
+Sarawak,Bintulu,2026-01-09,Air Sungai Melimpah,Batang Kemena (SK Sungai Silas); Batang Kemena (Rumah Peter anak Suring); Batang Kemena (Rumah Anthony); Batang Kemena (Rumah Lawang),3.313910,113.201905,JPS/DID
+Sarawak,Sri Aman,2026-01-09,Air Sungai Melimpah,"Batang Lupar (Tr Akin anak Esek Kampung Rapak Tekalong, Sri Aman); Batang Lupar (Rh. Larry Tukang, Kampung Sebemban Ibol, Pantu)",1.212715,111.300160,JPS/DID
+Sarawak,Serian,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Batang Sadong (Kampung Tubih Behem); Batang Kayan (Kampung Tema Mawang); Batang Sadong (Kampung Tema Saan); Batang Sadong (Kampung Tema Penggal),1.113690,110.636760,JPS/DID
+Sarawak,Serian,2026-01-09,Air Sungai Melimpah,Batang Samarahan (SRINTP0008 - Kg. Rimba Padi); Batang Samarahan (SRINTP0018 - Kg. Siniawan Serian),1.113690,110.636760,JPS/DID
+Sarawak,Bau,2026-01-09,Air Sungai Melimpah,Sungai Sarawak (Kampung Skiat),1.383520,110.101050,JPS/DID
+Sarawak,Selangau,2026-01-09,"Air Sungai Melimpah, Hujan Lebat / Berterusan","Batang Mukah (Rumah Senabong,Sungai Serintong, Selangau); Batang Mukah (Rumah Judan,Sungai Kua)",2.498055,112.420495,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Longkang Tersumbat, Saliran Dalaman",Batang Sadong (SADOTP0017 - Kg. Ladong),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Batang Sadong (SADOTP0017 - Kg. Ladong),1.438020,110.476780,JPS/DID
+Sarawak,Serian,2026-01-09,"Air Laut Pasang, Air Sungai Melimpah",Batang Samarahan (TUAGTP0009 - Taman Duranda Mas),1.113690,110.636760,JPS/DID
+Sarawak,Serian,2026-01-09,"Air Laut Pasang, Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (SRINTP0015 - Kg. Maang); Batang Samarahan (SRINTP0014 - Jalan Kuching-Serian Lama (Kawasan Jl); Batang Samarahan (SRINTP0013 - Jalan Simpang Kg. Maang),1.113690,110.636760,JPS/DID
+Sarawak,Bau,2026-01-09,Air Sungai Melimpah,Sungai Sarawak (Kampung Suba Buan),1.383520,110.101050,JPS/DID
+Sabah,Tawau,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Sungai Tawau (Kg.Tg.Batu Keramat),4.434365,118.027905,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Sungai Sarawak (Taman Samarindah Lrg 29); Sungai Sarawak (Taman Samarindah Lrg 30); Sungai Sarawak (Jalan Taman Samarax),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (TUAGTP0008 - Kg. Tanjung Bundong),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (SAMATP0003 - Kg. Baru); Batang Samarahan (Kpg Jegoi),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (Kpg Niup),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Longkang Tersumbat, Saliran Dalaman",Batang Samarahan (Kpg Tanjung Tuang); Batang Samarahan (Taman Sri Tuang),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (TUAGTP0004 - Kg. Pinang),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (Jalan Plaie),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (TUAGTP0003 - Kg. Entingan); Batang Samarahan (TUAGTP0006 - Kg. Nangka),1.438020,110.476780,JPS/DID
+Sarawak,Bau,2026-01-09,Air Sungai Melimpah,Sungai Sarawak (Kampung Sogo),1.383520,110.101050,JPS/DID
+Sarawak,Bau,2026-01-09,Air Sungai Melimpah,Sungai Sarawak (Kampung Skio),1.383520,110.101050,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (Kpg Bangka Semong),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Hujan Lebat / Berterusan, Longkang Tersumbat, Saliran Dalaman",Batang Sadong (SMJNTP0003 - Kg. Seruyuk),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Laut Pasang, Air Sungai Melimpah",Batang Sadong (Kampung Sungai Girang); Batang Sadong (Kampung Lubok Buntin),1.438020,110.476780,JPS/DID
+Sarawak,Asajaya,2026-01-09,"Air Laut Pasang, Air Sungai Melimpah",Batang Sadong (KAMPUNG SADONG JAYA),1.531625,110.610110,JPS/DID
+Sarawak,Asajaya,2026-01-09,"Air Laut Pasang, Air Sungai Melimpah",Batang Samarahan (KAMPUNG ASAJAYA LAUT & ASAJAYA LOT),1.531625,110.610110,JPS/DID
+Sarawak,Asajaya,2026-01-09,"Air Laut Pasang, Air Sungai Melimpah",Batang Samarahan (KAMPUNG SAMPUN),1.531625,110.610110,JPS/DID
+Sarawak,Asajaya,2026-01-09,"Air Laut Pasang, Air Sungai Melimpah",Batang Samarahan (KAMPUNG SERPAN),1.531625,110.610110,JPS/DID
+Sarawak,Asajaya,2026-01-09,"Air Laut Pasang, Air Sungai Melimpah",Batang Sadong (KAMPUNG SEMERA),1.531625,110.610110,JPS/DID
+Sarawak,Asajaya,2026-01-09,"Air Laut Pasang, Air Sungai Melimpah",Batang Sadong (KAMPUNG JEMUKAN CINA),1.531625,110.610110,JPS/DID
+Sarawak,Asajaya,2026-01-09,"Air Laut Pasang, Air Sungai Melimpah",Batang Sadong (KAMPUNG TERASI),1.531625,110.610110,JPS/DID
+Sarawak,Serian,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Batang Sadong (Kampung Sabal Tapang),1.113690,110.636760,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (Kpg Seniawan Jepon),1.438020,110.476780,JPS/DID
+Sarawak,Serian,2026-01-09,Air Sungai Melimpah,Batang Samarahan (Kampung Sira),1.113690,110.636760,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (SRINTP0006 - Kg. Mang),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Sungai Melimpah, Longkang Tersumbat, Saliran Dalaman",Batang Sadong (SMJNTP0003 - Kg. Seruyuk),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Laut Pasang, Air Sungai Melimpah",Batang Sadong (Kampung Sungai Girang),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-09,"Air Laut Pasang, Air Sungai Melimpah",Batang Sadong (Kampung Lubok Buntin); Batang Sadong (Ulu Benat),1.438020,110.476780,JPS/DID
+Sarawak,Bau,2026-01-08,Air Sungai Melimpah,Sungai Sarawak (Kampung Bijuray),1.383520,110.101050,JPS/DID
+Sarawak,Serian,2026-01-08,"Air Laut Pasang, Air Sungai Melimpah, Hujan Lebat / Berterusan",Batang Samarahan (SRINTP0002 - Kg. Lintang Baru Panchor); Batang Samarahan (SRINTP0003 - Kg. Betong Kenawit); Batang Samarahan (SRINTP0004 - Kg. Sg. Turong); Batang Samarahan (SRINTP0007 - Kg. Segenam); Batang Samarahan (SRINTP0019 - Kg. Soh); Batang Samarahan (SRINTP0004 - Kg. Sg. Turong),1.113690,110.636760,JPS/DID
+Sarawak,Samarahan,2026-01-08,"Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (TUAGTP0002 - Kg. Endap); Batang Samarahan (Kpg Sinaran Jaya),1.438020,110.476780,JPS/DID
+Sarawak,Kuching,2026-01-08,Air Sungai Melimpah,"Sungai Sarawak (Taman Sri Muhibah, Taman Beverly); Sungai Sarawak (Kampung Jawa Semenggoh)",1.428430,110.320230,JPS/DID
+Sarawak,Kuching,2026-01-08,Air Sungai Melimpah,Sungai Sarawak (Kpg Sumur Bunuk Lorong 10); Sungai Sarawak (Kpg Bawang); Sungai Sarawak (Kpg Emperoh Jambu),1.428430,110.320230,JPS/DID
+Sarawak,Bau,2026-01-08,Air Sungai Melimpah,Sungai Sarawak (Kampung Blimbin),1.383520,110.101050,JPS/DID
+Sarawak,Samarahan,2026-01-08,"Air Sungai Melimpah, Saliran Dalaman",Sungai Sarawak (KUAPTP0010 - SK. Muara Tuang),1.438020,110.476780,JPS/DID
+Sarawak,Betong,2026-01-08,Air Sungai Melimpah,Batang Saribas (Kampung Manggut),1.481830,111.483500,JPS/DID
+Sarawak,Lawas,2026-01-08,"Longkang Tersumbat, Saliran Dalaman",Batang Terusan (Kampung Siang-Siang); Batang Terusan (Kampung Batu 4); Batang Terusan (Kampung Bangkiyai),4.454645,115.410590,JPS/DID
+Sabah,Lahad Datu,2026-01-08,Air Sungai Melimpah,Sungai Segama (Sg. Sepagaya),5.118435,118.366545,JPS/DID
+Sarawak,Sri Aman,2026-01-08,Longkang Tersumbat,Batang Lupar (LUPRTP0045 - Taman Alamanda),1.212715,111.300160,JPS/DID
+WP Labuan,Labuan,2026-01-08,"Air Sungai Melimpah, Longkang Tersumbat, Saliran Dalaman",,5.289335,115.225540,JPS/DID
+Sarawak,Serian,2026-01-08,"Air Sungai Melimpah, Hujan Lebat / Berterusan",Batang Sadong (Kampung Rasau),1.113690,110.636760,JPS/DID
+Sarawak,Samarahan,2026-01-08,"Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (Kampung Muara Tuang),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-08,"Air Laut Pasang, Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (TUAGTP0008 - Kg. Tanjung Bundong); Batang Samarahan (SAMATP0003 - Kg. Baru); Batang Samarahan (SAMATP0015 - Kg. Rembus),1.438020,110.476780,JPS/DID
+Sarawak,Serian,2026-01-08,"Air Laut Pasang, Air Sungai Melimpah, Hujan Lebat / Berterusan",Batang Samarahan (TUAGTP0009 - Taman Duranda Mas),1.113690,110.636760,JPS/DID
+Sarawak,Serian,2026-01-08,Air Sungai Melimpah,Batang Samarahan (Kg. Kerumboi),1.113690,110.636760,JPS/DID
+Sarawak,Samarahan,2026-01-08,"Air Sungai Melimpah, Saliran Dalaman",Sungai Sarawak (Taman I-Mas),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-08,"Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (TUAGTP0005 - Taman Desa Ilmu),1.438020,110.476780,JPS/DID
+Sarawak,Serian,2026-01-08,Air Sungai Melimpah,Batang Sadong (Kpg Rasau),1.113690,110.636760,JPS/DID
+Sarawak,Betong,2026-01-07,Air Sungai Melimpah,Batang Saribas (Kampung Manggut),1.481830,111.483500,JPS/DID
+Sarawak,Sri Aman,2026-01-07,Air Sungai Melimpah,Batang Lupar (Kampung Tuba),1.212715,111.300160,JPS/DID
+Sarawak,Sarikei,2026-01-06,"Air Laut Pasang, Air Sungai Melimpah",Batang Rajang (NYLGTP0005 - Jalan Layang-layang); Batang Rajang (NYLGTP0002 - Jalan Meranti),2.067190,111.416450,JPS/DID
+Sarawak,Sarikei,2026-01-06,"Air Laut Pasang, Air Sungai Melimpah",Batang Rajang (Jalan Ixora); Batang Rajang (Jalan Bunga Raya); Batang Rajang (Jalan Melor),2.067190,111.416450,JPS/DID
+Sarawak,Betong,2026-01-06,Air Sungai Melimpah,Batang Saribas (Kampung Hulu Manggut),1.481830,111.483500,JPS/DID
+Sarawak,Sarikei,2026-01-05,"Air Laut Pasang, Air Sungai Melimpah",Batang Rajang (Jalan Wharf); Batang Rajang (NYLGTP0005 - Jalan Layang-layang); Batang Rajang (NYLGTP0002 - Jalan Meranti),2.067190,111.416450,JPS/DID
+Sarawak,Sarikei,2026-01-05,"Air Laut Pasang, Air Sungai Melimpah",Batang Rajang (Jalan Ixora); Batang Rajang (Jalan Bunga Raya); Batang Rajang (Jalan Melor),2.067190,111.416450,JPS/DID
+Sarawak,Betong,2026-01-05,Air Sungai Melimpah,Batang Saribas (Kampung Manggut),1.481830,111.483500,JPS/DID
+Johor,Pontian,2026-01-05,Air Laut Pasang,,1.514265,103.383510,JPS/DID
+Sarawak,Mukah,2026-01-05,"Air Laut Pasang, Air Sungai Melimpah",Batang Mukah (Jalan Tingkas Sebakong),2.812545,112.350970,JPS/DID
+Sarawak,Betong,2026-01-05,"Air Laut Pasang, Air Sungai Melimpah",Batang Saribas (Rh Tg. Baru); Batang Saribas (SPK Maludam),1.481830,111.483500,JPS/DID
+Sabah,Putatan,2026-01-04,"Air Laut Pasang, Saliran Dalaman",Sungai Monyog (PTTNTP0006 - Kg. Tebongon); Sungai Monyog (KAMPUNG SAILAN),5.881470,116.060495,JPS/DID
+WP Labuan,Labuan,2026-01-04,"Air Sungai Melimpah, Hujan Lebat / Berterusan, Saliran Dalaman",,5.289335,115.225540,JPS/DID
+Sarawak,Sibu,2026-01-04,"Hujan Lebat / Berterusan, Longkang Tersumbat",Batang Rajang (Lorong Sentosa Timur 4); Batang Rajang (Lorong Sentosa 8),2.292280,111.866555,JPS/DID
+Sabah,Tenom,2026-01-04,"Air Sungai Melimpah, Hujan Lebat / Berterusan",Sungai Padas (PADSTP0098 - Kg. Ponontomon); Sungai Padas (Kg. Ponontomon Tanjung); Sungai Padas (PADSTP0095 - Kg. Tumantalik); Sungai Padas (Kg. Pantongan Saga); Sungai Padas (PADSTP0104 - Kg. Mandalom Lama); Sungai Padas (PADSTP0096 - Kg. Pantongan Sapong); Sungai Padas (Kg. Pantongan Maul); Sungai Padas (Kg. Binsilon); Sungai Padas (PADSTP0097 - Kg. Binaei); Sungai Padas (Kg. Tenom Lama),4.910710,115.943365,JPS/DID
+Sabah,Tenom,2026-01-04,"Air Sungai Melimpah, Hujan Lebat / Berterusan",Sungai Padas (PADSTP0101 - Kg. Enubai); Sungai Padas (PADSTP0106 - Kg. Lalandang); Sungai Padas (PADSTP0099 - Kg. Labut 1); Sungai Padas (Kampung Pada); Sungai Padas (PADSTP0105 - Kg. Maugus); Sungai Padas (PADSTP0102 - Kg. Belumbung Seberang); Sungai Padas (Kampung Gumisi); Sungai Padas (Kampung Tinura); Sungai Padas (Kampung Magunsop); Sungai Padas (Kampung Bakuku); Sungai Padas (Kampung Paal Seberang); Sungai Padas (PADSTP0094 - Kg. Batu Lapan),4.910710,115.943365,JPS/DID
+Sarawak,Betong,2026-01-04,"Air Laut Pasang, Air Sungai Melimpah",Batang Saribas (RH Tg Baru); Batang Saribas (RH Sg Daun); Batang Saribas (Kg Sg Meranti),1.481830,111.483500,JPS/DID
+Sabah,Kota Marudu,2026-01-04,"Air Laut Pasang, Air Sungai Melimpah",Sungai Langkon (Kg.Sungoi Laut); Sungai Langkon (Kg.Sungoi Darat),6.449675,116.836480,JPS/DID
+Sarawak,Dalat,2026-01-04,"Air Laut Pasang, Air Sungai Melimpah",Batang Oya (Kampung Kekan); Batang Oya (Kampung Medong Hulu); Batang Oya (Kampung Medong Hilir),2.696945,111.994420,JPS/DID
+Sarawak,Mukah,2026-01-04,"Air Laut Pasang, Air Sungai Melimpah",Batang Mukah (MUKATP0022 - Jalan Pinang); Batang Mukah (MUKATP0034 - Saliran Jalan Org. Kaya Setiaraja); Batang Mukah (Jln Pokuok Garden); Batang Mukah (MUKATP0020 - Kg. Kuala Lama); Batang Mukah (Kpg Tellian Tengah); Batang Mukah (Tellian Laut); Batang Mukah (Kpg Penakub Permai); Batang Mukah (Kpg Datuk),2.812545,112.350970,JPS/DID
+Sarawak,Mukah,2026-01-04,"Air Laut Pasang, Air Sungai Melimpah",Batang Mukah (Kpg Pangtry),2.812545,112.350970,JPS/DID
+Sarawak,Selangau,2026-01-04,"Air Sungai Melimpah, Hujan Lebat / Berterusan",Batang Oya (Jalan Nanga Tamin Lorong 6 (Simopang Rumah Jimbun)); Batang Oya (Jalan Nanga Tamin Lorong 7 (Simoang Rumah Dali)); Batang Oya (Jalan Nanga Tamin Lorong 11); Batang Oya (Jalan Sekara menuju ke Jalan Sungai Alat),2.498055,112.420495,JPS/DID
+Sarawak,Samarahan,2026-01-04,Air Sungai Melimpah,Batang Sadong (Kg Stika); Batang Sadong (Kg Sg Ijok),1.438020,110.476780,JPS/DID
+Sarawak,Miri,2026-01-04,"Air Laut Pasang, Air Sungai Melimpah",Sungai Sibuti (Pekan Bekenu); Sungai Sibuti (Kampung Rambai); Sungai Sibuti (Kampung Dagang Bekenu); Sungai Sibuti (Kampung Kelapa Bekenu); Sungai Sibuti (Kampung Bekenu Asli); Sungai Sibuti (kampung Jenggalas),3.787580,114.729625,JPS/DID
+Sarawak,Betong,2026-01-03,Air Laut Pasang,Batang Saribas (kampung Manggut),1.481830,111.483500,JPS/DID
+Sabah,Kota Belud,2026-01-03,"Air Laut Pasang, Air Sungai Melimpah",Sungai Abai (ABAITP0002 - Kg. Lingkodon); Sungai Abai (Kg Suang Punggur); Sungai Abai (Kg Lentigi); Sungai Abai (Kg Maraja),6.359225,116.466690,JPS/DID
+Sarawak,Mukah,2026-01-03,"Air Laut Pasang, Air Sungai Melimpah",Batang Mukah (MUKATP0020 - Kg. Kuala Lama),2.812545,112.350970,JPS/DID
+Sabah,Kota Kinabalu,2026-01-03,"Air Laut Pasang, Longkang Tersumbat, Saliran Dalaman",Sungai Inanam (MGKBTP0001 - Kg. Rampayan); Sungai Inanam (MGKBTP0003 - Kg. Mansiang); Sungai Inanam (Taman Wijaya Park); Sungai Inanam (Kampung Warisan); Sungai Inanam (Jalan Tuaran (Inanam)); Sungai Inanam (Jalan Tuaran (Kolombong)); Sungai Inanam (Jalan Tuaran (Kampung Dambai)); Sungai Inanam (Jalan Likas Industries),5.999865,116.104395,JPS/DID
+Sarawak,Bintulu,2026-01-03,"Air Laut Pasang, Air Sungai Melimpah",Sungai Similajau (SUAITP0002 - SK Nyalau),3.313910,113.201905,JPS/DID
+Selangor,Sepang,2026-01-03,Saliran Dalaman,"Sungai Langat (Batu 1, Sepang)",2.805410,101.681090,JPS/DID
+WP Labuan,Labuan,2026-01-03,"Air Sungai Melimpah, Hujan Lebat / Berterusan, Saliran Dalaman",,5.289335,115.225540,JPS/DID
+Sarawak,Sibu,2026-01-02,"Air Sungai Melimpah, Hujan Lebat / Berterusan",Batang Rajang (Rumah Monica); Batang Rajang (Lot 217 Jalan Salim Stabau); Batang Rajang (Lot 211 Jalan Salim Stabau); Batang Rajang (Jalan Utama Sungai Assan); Batang Rajang (Jalan Kedada),2.292280,111.866555,JPS/DID
+Sarawak,Saratok,2026-01-02,"Air Laut Pasang, Air Sungai Melimpah, Pembangunan / Pembukaan Tanah / Sampah Sarap",Batang Kerian (Kampung Lot Bunian Saratok); Batang Kerian (Kampung Tanjung Saratok),1.765515,111.398360,JPS/DID
+Sarawak,Miri,2026-01-02,"Air Laut Pasang, Air Sungai Melimpah",Sungai Niah (Rh Richard Pilet); Sungai Niah (Rh Ayai); Sungai Niah (Rh Nilson); Sungai Niah (Rh Wiley Fernandez); Sungai Niah (Masjid Al Jabar Niah); Sungai Niah (Jalan Raya menuju ke Kampung Lajong),3.787580,114.729625,JPS/DID
+Sabah,Beaufort,2026-01-02,"Air Laut Pasang, Air Sungai Melimpah",Sungai Padas (PADSTP0018 - Kg. Bakalau); Sungai Padas (PADSTP0036 - Kg. Binunuk); Sungai Padas (PADSTP0035 - Kg. Balibata); Sungai Padas (MBKTTP0029 - Kg. Bingkulas); Sungai Padas (PADSTP0051 - Kg. Suasa); Sungai Padas (PADSTP0074 - Kg. Lago); Sungai Padas (PADSTP0041 - Kg. Lubak); Sungai Padas (Kg. Koundu); Sungai Padas (PADSTP0052 - Kg. Kukop); Sungai Padas (PADSTP0005 - Kg. Batu 60); Sungai Padas (Kg. Kangsa); Sungai Padas (PADSTP0054 - Kg. Bangkalalak); Sungai Padas (Kg. Gumarit),5.291295,115.704555,JPS/DID
+Sarawak,Miri,2026-01-02,Air Sungai Melimpah,Sungai Sibuti (Kampung Masjid Tiris); Sungai Sibuti (Kampung Kepayang Tiris); Sungai Sibuti (Kampung Pintasan Tiris); Sungai Sibuti (Kampung Sebalik Tiris); Sungai Sibuti (Kampung Lubuk Burinih); Sungai Sibuti (Rh Melakus Enteri); Sungai Sibuti (Kampung Sinop); Sungai Sibuti (Kampung Bulau); Sungai Sibuti (Kampung Mutap); Sungai Sibuti (Kampung Keluru Jaya); Sungai Sibuti (Kampung Butir); Sungai Sibuti (Kampung Keluru Tengah); Sungai Sibuti (Kampung Kejapil),3.787580,114.729625,JPS/DID
+Sarawak,Mukah,2026-01-02,"Air Laut Pasang, Air Sungai Melimpah",Batang Matu (MATUTP0001 - Kg. Jemoreng); Batang Matu (MATUTP0002 - Pasar Matu),2.812545,112.350970,JPS/DID
+Pahang,Raub,2026-01-02,"Air Sungai Melimpah, Longkang Tersumbat, Saliran Dalaman",Sungai Pahang (ATOKTP0001 - Kg. Ulu Atok),3.872660,101.832000,JPS/DID
+Sarawak,Selangau,2026-01-02,Air Sungai Melimpah,Batang Oya (Jalan Nanga Tamin Lorong 4 (Simpang Rumah Lesia)); Batang Oya (Jalan Sekara (Menuju ke Nanga Tamin)),2.498055,112.420495,JPS/DID
+Sarawak,Limbang,2026-01-01,"Air Laut Pasang, Air Sungai Melimpah",Batang Terusan (TRSNTP0002 - Pekan Sundar),4.352435,115.147090,JPS/DID
+Sarawak,Samarahan,2026-01-01,"Air Laut Pasang, Air Sungai Melimpah",Batang Samarahan (KAMPUNG MOYAN LEDANG),1.438020,110.476780,JPS/DID
+Sarawak,Miri,2026-01-01,Air Sungai Melimpah,Batang Baram (TUTOTP0005 - Long Bemang); Batang Baram (BRAMTP0008 - Klinik Long Bemang); Batang Baram (TUTOTP0013 - SK Long Bemang),3.787580,114.729625,JPS/DID
+Sarawak,Lundu,2026-01-01,Air Sungai Melimpah,Sungai Sematan (Jalan Selarat-Perigi),1.749525,109.864880,JPS/DID
+Sarawak,Lundu,2026-01-01,Air Sungai Melimpah,Sungai Sematan (Kpg Sebat Baru),1.749525,109.864880,JPS/DID
+Sarawak,Selangau,2026-01-01,"Air Sungai Melimpah, Hujan Lebat / Berterusan","Batang Mukah (Rumah Chandu, Kampung Keranji Madu); Batang Mukah (Rumah Magdeline Entayang, Kampung Baru Melinau); Batang Mukah (Rumah Silvester, Kampung Kara)",2.498055,112.420495,JPS/DID
+Sarawak,Samarahan,2026-01-01,"Air Laut Pasang, Air Sungai Melimpah",Batang Sadong (Kampung Lubuk Meranti); Batang Sadong (Kampung Lumut); Batang Sadong (SADOTP0040 - Kg. Sekitong); Batang Sadong (Kampung Bajong),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-01,"Air Laut Pasang, Air Sungai Melimpah",Sungai Sebuyau (Kampung Sagu); Sungai Sebuyau (Kampung Nap); Sungai Sebuyau (Kampung Bulan),1.438020,110.476780,JPS/DID
+Sarawak,Samarahan,2026-01-01,Saliran Dalaman,Batang Sadong (SMJNTP0002 - Kg. Simunjan Jaya); Batang Sadong (SMJNTP0006 - Kg. Hijrah); Batang Sadong (Kampung Nanas); Batang Sadong (Kampung Lot Lintang); Batang Sadong (Kampung Jalan Tun Openg); Batang Sadong (Kampung Sungai Lingkau); Batang Sadong (Kampung Tanjung Harapan),1.438020,110.476780,JPS/DID
+Sarawak,Mukah,2026-01-01,"Air Laut Pasang, Air Sungai Melimpah",Batang Mukah (Kampung SPS Kuala Lama),2.812545,112.350970,JPS/DID
+Sarawak,Kuching,2026-01-01,"Air Laut Pasang, Lain-lain",Sungai Santubong (Kpg Sg. Batu),1.428430,110.320230,JPS/DID
+Sarawak,Kuching,2026-01-01,"Air Laut Pasang, Lain-lain","Sungai Santubong (SRWKTP0055 - Kg. Sg. Lumut, Santubong); Sungai Santubong (Kampung Rampangi Skim); Sungai Santubong (Kampung Rampangi Skim); Sungai Santubong (Kampung Rampangi Skim)",1.428430,110.320230,JPS/DID
+Sarawak,Kuching,2026-01-01,"Air Laut Pasang, Hujan Lebat / Berterusan",Sungai Santubong (Kpg Sg. Batu),1.428430,110.320230,JPS/DID
+Sarawak,Asajaya,2026-01-01,"Air Laut Pasang, Air Sungai Melimpah",Batang Samarahan (Kampung Sampun Gerunggang),1.531625,110.610110,JPS/DID
+Sarawak,Samarahan,2026-01-01,"Air Laut Pasang, Air Sungai Melimpah",Batang Sadong (SADOTP0006 - Kg. Entanggor),1.438020,110.476780,JPS/DID
+Sarawak,Asajaya,2026-01-01,"Air Laut Pasang, Air Sungai Melimpah",Batang Samarahan (Kampung Moyan Laut),1.531625,110.610110,JPS/DID
+Sarawak,Asajaya,2026-01-01,"Air Laut Pasang, Air Sungai Melimpah, Longkang Tersumbat, Saliran Dalaman",Batang Samarahan (Kampung Sampun Gerunggang),1.531625,110.610110,JPS/DID
+Sarawak,Asajaya,2026-01-01,"Air Laut Pasang, Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (KAMPUNG ASAJAYA LAUT DAN ASAJAYA LOT),1.531625,110.610110,JPS/DID
+Sarawak,Asajaya,2026-01-01,"Air Laut Pasang, Air Sungai Melimpah",Batang Sadong (KAMPUNG JAIE LOT),1.531625,110.610110,JPS/DID
+Sarawak,Asajaya,2026-01-01,"Air Laut Pasang, Air Sungai Melimpah, Saliran Dalaman",Batang Sadong (KAMPUNG RANGAWAN),1.531625,110.610110,JPS/DID
+Sarawak,Asajaya,2026-01-01,"Air Laut Pasang, Air Sungai Melimpah",Batang Sadong (KAMPUNG SEMERA),1.531625,110.610110,JPS/DID
+Sarawak,Asajaya,2026-01-01,"Air Laut Pasang, Air Sungai Melimpah",Batang Samarahan (KAMPUNG SAMPUN GERUNGGANG),1.531625,110.610110,JPS/DID
+Sarawak,Asajaya,2026-01-01,"Air Laut Pasang, Air Sungai Melimpah, Saliran Dalaman",Batang Samarahan (Kampung Moyan Ledang),1.531625,110.610110,JPS/DID
