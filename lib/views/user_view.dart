@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flood_prediction/views/user_profile.dart';
 import 'package:flood_prediction/views/simulation_list_view.dart';
 import 'package:flood_prediction/utils/responsive.dart';
+import 'package:flood_prediction/widgets/home_flood_map.dart';
 
 class UserHome extends StatefulWidget {
   const UserHome({super.key});
@@ -95,38 +96,17 @@ class _UserHomeState extends State<UserHome> {
                     ],
                   ),
 
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                  // ---- Current location ----
-                  _InfoBox(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Icon(Icons.location_on, color: Colors.blue),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Current location",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text("xxxx"),
-                            ],
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Icon(Icons.my_location, color: Colors.blue),
-                      ],
-                    ),
+                  // ---- Current location + nearby flood reports ----
+                  const Text(
+                    "Current location",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
+                  const SizedBox(height: 10),
+                  const HomeFloodMap(),
 
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
                   // ---- Rainfall / Water level / Risk level ----
                   Row(
