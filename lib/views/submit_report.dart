@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/responsive.dart';
 
 class SubmitReportPage extends StatefulWidget {
   const SubmitReportPage({super.key});
@@ -27,7 +28,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+    final screenWidth = context.screenWidth;
     final gridColumns = screenWidth >= 900 ? 4 : (screenWidth >= 600 ? 3 : 2);
 
     return Scaffold(
@@ -36,7 +37,13 @@ class _SubmitReportState extends State<SubmitReportPage> {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 700),
+            constraints: BoxConstraints(
+              maxWidth: context.responsive(
+                mobile: 700,
+                tablet: 800,
+                desktop: 900,
+              ),
+            ),
             child: Column(
               children: [
                 // ---- Step indicator ----
@@ -51,7 +58,13 @@ class _SubmitReportState extends State<SubmitReportPage> {
                 // ---- Scrollable form content ----
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.responsive(
+                        mobile: 20,
+                        tablet: 32,
+                        desktop: 40,
+                      ),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -183,7 +196,12 @@ class _SubmitReportState extends State<SubmitReportPage> {
 
                 // ---- Next button ----
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  padding: EdgeInsets.fromLTRB(
+                    context.responsive(mobile: 20, tablet: 32, desktop: 40),
+                    0,
+                    context.responsive(mobile: 20, tablet: 32, desktop: 40),
+                    20,
+                  ),
                   child: SizedBox(
                     width: double.infinity,
                     height: 50,

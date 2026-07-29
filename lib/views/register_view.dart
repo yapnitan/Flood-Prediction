@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../controllers/auth_controller.dart';
 import '../services/auth_service.dart';
+import '../utils/responsive.dart';
 import 'login_view.dart';
 
 class RegistrationPage extends StatefulWidget {
@@ -86,12 +87,21 @@ class _RegisterViewState extends State<RegistrationPage> {
       ),
 
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.symmetric(
+          horizontal: context.responsive(mobile: 20, tablet: 32, desktop: 40),
+          vertical: 20,
+        ),
 
         child: Center(
           child: SingleChildScrollView(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
+              constraints: BoxConstraints(
+                maxWidth: context.responsive(
+                  mobile: 480,
+                  tablet: 520,
+                  desktop: 480,
+                ),
+              ),
 
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
@@ -100,8 +110,8 @@ class _RegisterViewState extends State<RegistrationPage> {
                   const SizedBox(height: 20),
                   Image.asset(
                     "assets/images/logo.png",
-                    width: 150,
-                    height: 150,
+                    width: context.responsive(mobile: 120.0, tablet: 150.0),
+                    height: context.responsive(mobile: 120.0, tablet: 150.0),
                   ),
                   const SizedBox(height: 30),
 

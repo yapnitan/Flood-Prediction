@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/responsive.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -24,9 +25,21 @@ class _ProfileState extends State<ProfilePage> {
           // ---- Settings list ----
           Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
+              constraints: BoxConstraints(
+                maxWidth: context.responsive(
+                  mobile: 600,
+                  tablet: 680,
+                  desktop: 720,
+                ),
+              ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.responsive(
+                    mobile: 16,
+                    tablet: 24,
+                    desktop: 32,
+                  ),
+                ),
                 child: Column(
                   children: [
                     _ProfileTile(
@@ -87,7 +100,7 @@ class _ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 220,
+      height: context.responsive(mobile: 220.0, tablet: 240.0),
       child: Stack(
         alignment: Alignment.center,
         clipBehavior: Clip.none,

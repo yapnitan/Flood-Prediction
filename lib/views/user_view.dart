@@ -1,6 +1,7 @@
 import 'package:flood_prediction/views/submit_report.dart';
 import 'package:flutter/material.dart';
 import 'package:flood_prediction/views/user_profile.dart';
+import 'package:flood_prediction/utils/responsive.dart';
 
 class UserHome extends StatefulWidget {
   const UserHome({super.key});
@@ -21,10 +22,18 @@ class _UserHomeState extends State<UserHome> {
       SingleChildScrollView(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 700),
-            child: const Padding(
-              padding: EdgeInsets.all(20),
-              child: Column(
+            constraints: BoxConstraints(
+              maxWidth: context.responsive(
+                mobile: 700,
+                tablet: 800,
+                desktop: 900,
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(
+                context.responsive(mobile: 20, tablet: 28, desktop: 32),
+              ),
+              child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ---- Flood status + image ----
@@ -158,6 +167,10 @@ class _UserHomeState extends State<UserHome> {
       const ProfilePage(),
     ];
 
+    // On tablet/desktop widths a side NavigationRail makes better use of
+    // the horizontal space than a bottom bar.
+    final bool useRail = !context.isMobile;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -171,26 +184,66 @@ class _UserHomeState extends State<UserHome> {
         centerTitle: true,
       ),
 
-      body: pages[currentIndex],
+      body: useRail
+          ? Row(
+              children: [
+                NavigationRail(
+                  selectedIndex: currentIndex,
+                  onDestinationSelected: (index) {
+                    setState(() {
+                      currentIndex = index;
+                    });
+                  },
+                  labelType: NavigationRailLabelType.all,
+                  selectedIconTheme: const IconThemeData(color: Colors.blue),
+                  selectedLabelTextStyle: const TextStyle(color: Colors.blue),
+                  destinations: const [
+                    NavigationRailDestination(
+                      icon: Icon(Icons.home),
+                      label: Text("Home"),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.add),
+                      label: Text("Report"),
+                    ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.person),
+                      label: Text("Profile"),
+                    ),
+                  ],
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(child: pages[currentIndex]),
+              ],
+            )
+          : pages[currentIndex],
 
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex,
+      bottomNavigationBar: useRail
+          ? null
+          : BottomNavigationBar(
+              currentIndex: currentIndex,
 
-        onTap: (index) {
-          setState(() {
-            currentIndex = index;
-          });
-        },
+              onTap: (index) {
+                setState(() {
+                  currentIndex = index;
+                });
+              },
 
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
+              selectedItemColor: Colors.blue,
+              unselectedItemColor: Colors.grey,
 
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.add), label: "Report"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
-        ],
-      ),
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home),
+                  label: "Home",
+                ),
+                BottomNavigationBarItem(icon: Icon(Icons.add), label: "Report"),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.person),
+                  label: "Profile",
+                ),
+              ],
+            ),
     );
   }
 }
