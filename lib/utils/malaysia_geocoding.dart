@@ -20,6 +20,27 @@ class _Coord {
 class MalaysiaGeocoder {
   MalaysiaGeocoder._();
 
+  /// Malaysia's 13 states + 3 federal territories, in the naming used
+  /// throughout this app (matches the DID dataset's "WP ..." style).
+  static const List<String> states = [
+    'Johor',
+    'Kedah',
+    'Kelantan',
+    'Melaka',
+    'Negeri Sembilan',
+    'Pahang',
+    'Perak',
+    'Perlis',
+    'Pulau Pinang',
+    'Sabah',
+    'Sarawak',
+    'Selangor',
+    'Terengganu',
+    'WP Kuala Lumpur',
+    'WP Labuan',
+    'WP Putrajaya',
+  ];
+
   /// Best-effort centroid for [district] within [state]. Tries an exact
   /// district match first, then falls back to the state centroid, then
   /// null if neither is recognized.

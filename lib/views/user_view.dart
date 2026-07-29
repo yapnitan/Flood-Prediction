@@ -1,6 +1,7 @@
 import 'package:flood_prediction/views/submit_report.dart';
 import 'package:flutter/material.dart';
 import 'package:flood_prediction/views/user_profile.dart';
+import 'package:flood_prediction/views/simulation_list_view.dart';
 import 'package:flood_prediction/utils/responsive.dart';
 
 class UserHome extends StatefulWidget {
@@ -33,11 +34,40 @@ class _UserHomeState extends State<UserHome> {
               padding: EdgeInsets.all(
                 context.responsive(mobile: 20, tablet: 28, desktop: 32),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ---- Flood risk simulator entry point ----
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SimulationListView(),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.analytics_outlined, color: Colors.white),
+                      label: const Text(
+                        "Am I Safe? Run a Flood Risk Assessment",
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
                   // ---- Flood status + image ----
-                  Row(
+                  const Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
