@@ -26,8 +26,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Flood Watch uses the camera to attach flood-report photos.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Flood Watch uses your location to show nearby flood reports and center the map on your area.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Flood Watch accesses your photo library to attach flood-report photos.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -1,4 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../models/flood_report.dart';
+import '../services/flood_report_service.dart';
 import '../utils/responsive.dart';
 
 class SubmitReportPage extends StatefulWidget {
@@ -9,9 +14,23 @@ class SubmitReportPage extends StatefulWidget {
 }
 
 class _SubmitReportState extends State<SubmitReportPage> {
+  int _currentStep = 1;
+
   // Step 1 state
   String? selectedFloodType = "Street Flooding";
   String? selectedWaterLevel = "Medium";
+
+  // Step 2 state
+  final _detailsFormKey = GlobalKey<FormState>();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _dateTimeController = TextEditingController();
+  final TextEditingController _contactController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
+  final List<XFile> _photos = [];
+  final FloodReportService _floodReportService = FloodReportService();
+  DateTime? _observedAt;
+  bool _isSubmitting = false;
+  bool _isSubmitted = false;
 
   final List<String> floodTypes = [
     "Street Flooding",
@@ -25,6 +44,144 @@ class _SubmitReportState extends State<SubmitReportPage> {
     {"label": "Medium", "sub": "(10 - 30 cm)"},
     {"label": "High", "sub": "(> 30 cm)"},
   ];
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    _dateTimeController.dispose();
+    _contactController.dispose();
+    super.dispose();
+  }
+
+  void _goToNextStep() {
+    if (_currentStep == 1) {
+      setState(() => _currentStep = 2);
+      return;
+    }
+
+    if (_currentStep == 2 &&
+        !(_detailsFormKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    if (_currentStep == 2) {
+      setState(() => _currentStep = 3);
+      return;
+    }
+
+    if (_currentStep == 3) {
+      setState(() => _currentStep = 4);
+      return;
+    }
+
+    _submitReport();
+  }
+
+  Future<void> _selectDateTime() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: DateTime(now.year - 1),
+      lastDate: now,
+    );
+    if (date == null || !mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(now),
+    );
+    if (time == null || !mounted) return;
+
+    final selected = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    setState(() {
+      _observedAt = selected;
+      _dateTimeController.text =
+          '${selected.day.toString().padLeft(2, '0')}/${selected.month.toString().padLeft(2, '0')}/${selected.year} '
+          '${time.format(context)}';
+    });
+  }
+
+  Future<void> _submitReport() async {
+    if (_isSubmitting || _isSubmitted) return;
+
+    setState(() => _isSubmitting = true);
+    final submitted = await _floodReportService.submit(
+      FloodReport(
+        locationName: 'Jalan Tun Razak, Kuala Lumpur',
+        latitude: 5.5041,
+        longitude: 101.7128,
+        floodType: selectedFloodType!,
+        waterLevel: selectedWaterLevel!,
+        observedAt: _observedAt!,
+        description: _descriptionController.text.trim(),
+        contactNumber: _contactController.text.trim().isEmpty
+            ? null
+            : _contactController.text.trim(),
+      ),
+      _photos,
+    );
+    if (!mounted) return;
+
+    setState(() {
+      _isSubmitting = false;
+      _isSubmitted = submitted;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          submitted
+              ? 'Your flood report has been submitted.'
+              : 'Could not submit the report. Please try again.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickPhotos(ImageSource source) async {
+    if (source == ImageSource.gallery) {
+      final selectedPhotos = await _imagePicker.pickMultiImage(imageQuality: 85);
+      if (!mounted || selectedPhotos.isEmpty) return;
+      setState(() => _photos.addAll(selectedPhotos));
+      return;
+    }
+
+    final photo = await _imagePicker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 85,
+    );
+    if (!mounted || photo == null) return;
+    setState(() => _photos.add(photo));
+  }
+
+  void _showPhotoSourcePicker() {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickPhotos(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Take a photo'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickPhotos(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,10 +204,13 @@ class _SubmitReportState extends State<SubmitReportPage> {
             child: Column(
               children: [
                 // ---- Step indicator ----
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   child: _StepIndicator(
-                    currentStep: 1,
+                    currentStep: _currentStep,
                     steps: ["Location", "Details", "Photos", "Submit"],
                   ),
                 ),
@@ -68,133 +228,20 @@ class _SubmitReportState extends State<SubmitReportPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ---- Location ----
-                        const Text(
-                          "Location",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.location_on,
-                                color: Colors.blue,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: const [
-                                    Text(
-                                      "Jalan Tun Razak, Kuala Lumpur",
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    SizedBox(height: 2),
-                                    Text(
-                                      "5.5041, 101.7128",
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Icon(
-                                Icons.gps_fixed,
-                                color: Colors.grey.shade500,
-                                size: 20,
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // ---- Type of Flooding ----
-                        const Text(
-                          "Type of Flooding",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        GridView.count(
-                          crossAxisCount: gridColumns,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 2.6,
-                          children: floodTypes.map((type) {
-                            final bool isSelected = selectedFloodType == type;
-                            return _SelectableChip(
-                              label: type,
-                              selected: isSelected,
-                              onTap: () {
-                                setState(() => selectedFloodType = type);
-                              },
-                            );
-                          }).toList(),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // ---- Water Level ----
-                        const Text(
-                          "Water Level (Approx.)",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: waterLevels.map((level) {
-                            final bool isSelected =
-                                selectedWaterLevel == level["label"];
-                            return Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.only(right: 10),
-                                child: _SelectableChip(
-                                  label: level["label"]!,
-                                  sublabel: level["sub"],
-                                  selected: isSelected,
-                                  onTap: () {
-                                    setState(
-                                      () => selectedWaterLevel = level["label"],
-                                    );
-                                  },
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-
-                        const SizedBox(height: 30),
+                        if (_currentStep == 1)
+                          _buildLocationStep(gridColumns)
+                        else if (_currentStep == 2)
+                          _buildDetailsStep()
+                        else if (_currentStep == 3)
+                          _buildPhotosStep()
+                        else if (_currentStep == 4)
+                          _buildReviewStep(),
                       ],
                     ),
                   ),
                 ),
 
-                // ---- Next button ----
+                // ---- Navigation buttons ----
                 Padding(
                   padding: EdgeInsets.fromLTRB(
                     context.responsive(mobile: 20, tablet: 32, desktop: 40),
@@ -202,28 +249,55 @@ class _SubmitReportState extends State<SubmitReportPage> {
                     context.responsive(mobile: 20, tablet: 32, desktop: 40),
                     20,
                   ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        // TODO: navigate to Details step
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  child: Row(
+                    children: [
+                      if (_currentStep > 1 && !_isSubmitted) ...[
+                        Expanded(
+                          child: SizedBox(
+                            height: 50,
+                            child: OutlinedButton(
+                              onPressed: () => setState(() => _currentStep--),
+                              child: const Text('Back'),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: SizedBox(
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: _isSubmitting || _isSubmitted
+                                ? null
+                                : _goToNextStep,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              _isSubmitting
+                                  ? 'Submitting...'
+                                  : _isSubmitted
+                                  ? 'Submitted'
+                                  : _currentStep == 1
+                                  ? 'Next'
+                                  : _currentStep == 2
+                                  ? 'Next: Photos'
+                                  : _currentStep == 3
+                                  ? 'Review Report'
+                                  : 'Submit Report',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                      child: const Text(
-                        "Next",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+                    ],
                   ),
                 ),
               ],
@@ -231,6 +305,269 @@ class _SubmitReportState extends State<SubmitReportPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLocationStep(int gridColumns) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(12)),
+          child: Row(children: [
+            const Icon(Icons.location_on, color: Colors.blue, size: 20),
+            const SizedBox(width: 10),
+            const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Jalan Tun Razak, Kuala Lumpur', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+              SizedBox(height: 2),
+              Text('5.5041, 101.7128', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            ])),
+            Icon(Icons.gps_fixed, color: Colors.grey.shade500, size: 20),
+          ]),
+        ),
+        const SizedBox(height: 24),
+        const Text('Type of Flooding', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const SizedBox(height: 10),
+        GridView.count(crossAxisCount: gridColumns, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 2.6, children: floodTypes.map((type) => _SelectableChip(label: type, selected: selectedFloodType == type, onTap: () => setState(() => selectedFloodType = type))).toList()),
+        const SizedBox(height: 24),
+        const Text('Water Level (Approx.)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const SizedBox(height: 10),
+        Row(children: waterLevels.map((level) => Expanded(child: Padding(padding: const EdgeInsets.only(right: 10), child: _SelectableChip(label: level['label']!, sublabel: level['sub'], selected: selectedWaterLevel == level['label'], onTap: () => setState(() => selectedWaterLevel = level['label']))))).toList()),
+        const SizedBox(height: 30),
+      ],
+    );
+  }
+
+  Widget _buildDetailsStep() {
+    return Form(
+      key: _detailsFormKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Flood Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const SizedBox(height: 8),
+          const Text('Tell us when the flooding occurred and any useful information.', style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 20),
+          TextFormField(
+            controller: _dateTimeController,
+            readOnly: true,
+            onTap: _selectDateTime,
+            decoration: const InputDecoration(labelText: 'Date and time observed', prefixIcon: Icon(Icons.calendar_today), border: OutlineInputBorder()),
+            validator: (value) => value == null || value.isEmpty ? 'Select when you observed the flooding.' : null,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _descriptionController,
+            minLines: 4,
+            maxLines: 6,
+            decoration: const InputDecoration(labelText: 'Description', hintText: 'Describe the flooding, road conditions, or immediate hazards.', alignLabelWithHint: true, border: OutlineInputBorder()),
+            validator: (value) => value == null || value.trim().isEmpty ? 'Enter a short description.' : null,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _contactController,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(labelText: 'Contact number (optional)', prefixIcon: Icon(Icons.phone), border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 30),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhotosStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Add Photos',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Photos help responders verify the report. They are optional.',
+          style: TextStyle(color: Colors.grey),
+        ),
+        const SizedBox(height: 20),
+        OutlinedButton.icon(
+          onPressed: _showPhotoSourcePicker,
+          icon: const Icon(Icons.add_a_photo_outlined),
+          label: const Text('Add photos'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(52),
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (_photos.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Column(
+              children: [
+                Icon(Icons.image_outlined, size: 42, color: Colors.grey),
+                SizedBox(height: 8),
+                Text('No photos added yet'),
+              ],
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _photos.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemBuilder: (context, index) => _PhotoPreview(
+              photo: _photos[index],
+              onRemove: () => setState(() => _photos.removeAt(index)),
+            ),
+          ),
+        const SizedBox(height: 30),
+      ],
+    );
+  }
+
+  Widget _buildReviewStep() {
+    if (_isSubmitted) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.only(top: 56),
+          child: Column(
+            children: [
+              Icon(Icons.check_circle_outline, color: Colors.green, size: 72),
+              SizedBox(height: 16),
+              Text(
+                'Report submitted',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text('Thank you for helping keep your community informed.'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Review Your Report',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        const Text('Check the details below before submitting.'),
+        const SizedBox(height: 20),
+        _ReviewCard(
+          title: 'Location',
+          value: 'Jalan Tun Razak, Kuala Lumpur\n5.5041, 101.7128',
+        ),
+        _ReviewCard(title: 'Flood type', value: selectedFloodType!),
+        _ReviewCard(title: 'Water level', value: selectedWaterLevel!),
+        _ReviewCard(
+          title: 'Observed',
+          value: _dateTimeController.text,
+        ),
+        _ReviewCard(
+          title: 'Description',
+          value: _descriptionController.text.trim(),
+        ),
+        if (_contactController.text.trim().isNotEmpty)
+          _ReviewCard(
+            title: 'Contact number',
+            value: _contactController.text.trim(),
+          ),
+        _ReviewCard(
+          title: 'Photos',
+          value: _photos.isEmpty
+              ? 'No photos attached'
+              : '${_photos.length} photo(s) attached',
+        ),
+        const SizedBox(height: 30),
+      ],
+    );
+  }
+}
+
+class _ReviewCard extends StatelessWidget {
+  const _ReviewCard({required this.title, required this.value});
+
+  final String title;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          ),
+          const SizedBox(height: 4),
+          Text(value),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhotoPreview extends StatelessWidget {
+  const _PhotoPreview({required this.photo, required this.onRemove});
+
+  final XFile photo;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Uint8List>(
+      future: photo.readAsBytes(),
+      builder: (context, snapshot) {
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: snapshot.hasData
+                  ? Image.memory(snapshot.data!, fit: BoxFit.cover)
+                  : const ColoredBox(
+                      color: Color(0xFFF2F2F2),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+            ),
+            Positioned(
+              top: 4,
+              right: 4,
+              child: IconButton.filled(
+                onPressed: onRemove,
+                icon: const Icon(Icons.close, size: 16),
+                tooltip: 'Remove photo',
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -244,57 +581,93 @@ class _StepIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(steps.length * 2 - 1, (i) {
-        if (i.isOdd) {
-          // connecting line between circles
-          final leftStep = (i ~/ 2) + 1;
-          final isActive = leftStep < currentStep;
-          return Expanded(
-            child: Container(
-              height: 2,
-              color: isActive ? Colors.blue : Colors.grey.shade300,
-            ),
-          );
-        }
-
-        final stepNumber = (i ~/ 2) + 1;
-        final isActive = stepNumber == currentStep;
-        final isDone = stepNumber < currentStep;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sideInset = constraints.maxWidth / (steps.length * 2);
 
         return Column(
           children: [
-            Container(
-              width: 26,
+            SizedBox(
               height: 26,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: (isActive || isDone)
-                    ? Colors.blue
-                    : Colors.grey.shade300,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                "$stepNumber",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned(
+                    left: sideInset,
+                    right: sideInset,
+                    child: Row(
+                      children: List.generate(steps.length - 1, (index) {
+                        return Expanded(
+                          child: Container(
+                            height: 2,
+                            color: index + 1 < currentStep
+                                ? Colors.blue
+                                : Colors.grey.shade300,
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                  Row(
+                    children: List.generate(steps.length, (index) {
+                      final stepNumber = index + 1;
+                      final isActive = stepNumber == currentStep;
+                      final isDone = stepNumber < currentStep;
+
+                      return Expanded(
+                        child: Center(
+                          child: Container(
+                            width: 26,
+                            height: 26,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isActive || isDone
+                                  ? Colors.blue
+                                  : Colors.grey.shade300,
+                            ),
+                            child: Text(
+                              '$stepNumber',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              steps[stepNumber - 1],
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                color: isActive ? Colors.blue : Colors.grey,
+            Row(
+              children: List.generate(
+                steps.length,
+                (index) => Expanded(
+                  child: Text(
+                    steps[index],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: index + 1 == currentStep
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: index + 1 == currentStep
+                          ? Colors.blue
+                          : Colors.grey,
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
         );
-      }),
+      },
     );
   }
 }
