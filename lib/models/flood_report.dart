@@ -1,5 +1,6 @@
 class FloodReport {
   const FloodReport({
+    this.id,
     this.reporterId,
     required this.locationName,
     required this.latitude,
@@ -10,8 +11,10 @@ class FloodReport {
     required this.description,
     this.contactNumber,
     this.photoPaths = const [],
+    this.createdAt,
   });
 
+  final String? id;
   final String? reporterId;
   final String locationName;
   final double latitude;
@@ -22,6 +25,28 @@ class FloodReport {
   final String description;
   final String? contactNumber;
   final List<String> photoPaths;
+  final DateTime? createdAt;
+
+  factory FloodReport.fromJson(Map<String, dynamic> json) => FloodReport(
+    id: json['id'] as String?,
+    reporterId: json['reporter_id'] as String?,
+    locationName: json['location_name'] as String,
+    latitude: (json['latitude'] as num).toDouble(),
+    longitude: (json['longitude'] as num).toDouble(),
+    floodType: json['flood_type'] as String,
+    waterLevel: json['water_level'] as String,
+    observedAt: DateTime.parse(json['observed_at'] as String),
+    description: json['description'] as String,
+    contactNumber: json['contact_number'] as String?,
+    photoPaths:
+        (json['photo_paths'] as List<dynamic>?)
+            ?.map((e) => e as String)
+            .toList() ??
+        const [],
+    createdAt: json['created_at'] != null
+        ? DateTime.parse(json['created_at'] as String)
+        : null,
+  );
 
   Map<String, dynamic> toJson() => {
     'reporter_id': reporterId,

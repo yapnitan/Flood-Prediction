@@ -45,6 +45,22 @@ class FloodReportService {
     }
   }
 
+  Future<List<FloodReport>> getRecent({int limit = 50}) async {
+    try {
+      final rows = await _supabase
+          .from(_table)
+          .select()
+          .order('created_at', ascending: false)
+          .limit(limit);
+      return (rows as List)
+          .map((row) => FloodReport.fromJson(row as Map<String, dynamic>))
+          .toList();
+    } catch (error) {
+      debugPrint('FloodReportService.getRecent error: $error');
+      return [];
+    }
+  }
+
   Future<List<String>> _uploadPhotos(List<XFile> photos) async {
     final uploadBatch = DateTime.now().microsecondsSinceEpoch.toString();
     final uploaderId = _supabase.auth.currentUser?.id;

@@ -1,50 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../models/flood_report.dart';
+import '../services/flood_report_service.dart';
 import '../services/location_service.dart';
 
-/// Stand-in for real community flood reports until the Community Reporting
-/// module (owned separately, has its own `flood_report` table/service) is
-/// built and wired up here. Remove this data + the markers using it once
-/// that's in place.
-class _PlaceholderReport {
-  final LatLng position;
-  final String location;
-  final String waterLevel;
-  final String reportedAgo;
-
-  const _PlaceholderReport({
-    required this.position,
-    required this.location,
-    required this.waterLevel,
-    required this.reportedAgo,
-  });
-}
-
-const _placeholderReports = [
-  _PlaceholderReport(
-    position: LatLng(3.1478, 101.6953),
-    location: 'Jalan Tun Razak, Kuala Lumpur',
-    waterLevel: 'Medium (10-30cm)',
-    reportedAgo: '25 min ago',
-  ),
-  _PlaceholderReport(
-    position: LatLng(3.0738, 101.5183),
-    location: 'Kuala Langat, Selangor',
-    waterLevel: 'High (>30cm)',
-    reportedAgo: '1 hr ago',
-  ),
-  _PlaceholderReport(
-    position: LatLng(3.2078, 101.6415),
-    location: 'Gombak, Selangor',
-    waterLevel: 'Low (<10cm)',
-    reportedAgo: '3 hr ago',
-  ),
-];
-
-/// Home-tab map: current location + nearby flood reports (placeholder data
-/// for now — see [_placeholderReports]). Uses OpenStreetMap tiles via
-/// flutter_map, no API key required.
+/// Home-tab map: current location + nearby community flood reports, read
+/// live from Supabase's `flood_report` table via [FloodReportService].
+/// Uses OpenStreetMap tiles via flutter_map, no API key required.
 class HomeFloodMap extends StatefulWidget {
   const HomeFloodMap({super.key});
 
@@ -56,24 +19,31 @@ class _HomeFloodMapState extends State<HomeFloodMap> {
   static const _fallbackCenter = LatLng(3.1390, 101.6869); // Kuala Lumpur
 
   final _locationService = LocationService();
+  final _floodReportService = FloodReportService();
   final _mapController = MapController();
 
   LatLng? _currentLocation;
+  List<FloodReport> _reports = const [];
   bool _isLoading = true;
   String? _statusMessage;
 
   @override
   void initState() {
     super.initState();
-    _loadLocation();
+    _loadData();
   }
 
-  Future<void> _loadLocation() async {
-    final position = await _locationService.getCurrentPosition();
+  Future<void> _loadData() async {
+    final positionFuture = _locationService.getCurrentPosition();
+    final reportsFuture = _floodReportService.getRecent();
+
+    final position = await positionFuture;
+    final reports = await reportsFuture;
     if (!mounted) return;
 
     setState(() {
       _isLoading = false;
+      _reports = reports;
       if (position != null) {
         _currentLocation = LatLng(position.latitude, position.longitude);
       } else {
@@ -82,7 +52,16 @@ class _HomeFloodMapState extends State<HomeFloodMap> {
     });
   }
 
-  void _showReportInfo(_PlaceholderReport report) {
+  String _formatTimeAgo(DateTime time) {
+    final diff = DateTime.now().difference(time);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+    if (diff.inHours < 24) return '${diff.inHours} hr ago';
+    return '${diff.inDays} day${diff.inDays == 1 ? '' : 's'} ago';
+  }
+
+  void _showReportInfo(FloodReport report) {
+    final reportedTime = report.createdAt ?? report.observedAt;
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -100,7 +79,7 @@ class _HomeFloodMapState extends State<HomeFloodMap> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    report.location,
+                    report.locationName,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -110,20 +89,15 @@ class _HomeFloodMapState extends State<HomeFloodMap> {
               ],
             ),
             const SizedBox(height: 10),
+            Text('Flood type: ${report.floodType}'),
+            const SizedBox(height: 4),
             Text('Water level: ${report.waterLevel}'),
             const SizedBox(height: 4),
+            Text(report.description),
+            const SizedBox(height: 4),
             Text(
-              'Reported ${report.reportedAgo}',
+              'Reported ${_formatTimeAgo(reportedTime)}',
               style: TextStyle(color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Sample data — community reporting is still in progress.',
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey,
-                fontStyle: FontStyle.italic,
-              ),
             ),
           ],
         ),
@@ -166,9 +140,9 @@ class _HomeFloodMapState extends State<HomeFloodMap> {
                             size: 32,
                           ),
                         ),
-                      ..._placeholderReports.map(
+                      ..._reports.map(
                         (report) => Marker(
-                          point: report.position,
+                          point: LatLng(report.latitude, report.longitude),
                           width: 36,
                           height: 36,
                           child: GestureDetector(
