@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../controllers/auth_controller.dart';
-import '../services/auth_service.dart';
-import '../utils/responsive.dart';
-import 'login_view.dart';
+import '../../controllers/auth_controller.dart';
+import '../../services/auth_service.dart';
+import '../../utils/responsive.dart';
+import '../../routes/app_routes.dart';
 
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
@@ -48,10 +48,7 @@ class _RegisterViewState extends State<RegistrationPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Registration successful")));
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginView()),
-      );
+      Navigator.pushReplacementNamed(context, AppRoutes.login);
     } else if (result['status'] == 'confirm_email') {
       setState(() => errorMessage = result['message']);
       // Optionally show a dialog instead of inline red text, since this isn't really an "error"

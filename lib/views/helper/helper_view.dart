@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../utils/responsive.dart';
-import 'user_profile.dart';
+import '../../utils/responsive.dart';
+import '../shared/user_profile.dart';
 
 class HelperHome extends StatefulWidget {
   const HelperHome({super.key});

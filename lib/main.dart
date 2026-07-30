@@ -5,8 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import 'package:app_links/app_links.dart';
 
-import 'views/login_view.dart';
-import 'views/reset_password_view.dart';
+import 'routes/app_routes.dart';
+import 'routes/route_generator.dart';
 
 /// Lets the passwordRecovery listener below push a new screen without a
 /// BuildContext of its own (it fires from a top-level stream listener).
@@ -38,9 +38,7 @@ Future<void> main() async {
   // session. That's the cue to show the "set new password" screen.
   Supabase.instance.client.auth.onAuthStateChange.listen((data) {
     if (data.event == AuthChangeEvent.passwordRecovery) {
-      navigatorKey.currentState?.push(
-        MaterialPageRoute(builder: (_) => const ResetPasswordView()),
-      );
+      navigatorKey.currentState?.pushNamed(AppRoutes.resetPassword);
     }
   });
 
@@ -63,7 +61,8 @@ class MainApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-      home: const LoginView(),
+      initialRoute: AppRoutes.login,
+      onGenerateRoute: RouteGenerator.generateRoute,
     );
   }
 }

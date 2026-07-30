@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/account.dart';
-import '../controllers/auth_controller.dart';
-import '../services/auth_service.dart';
-import '../utils/responsive.dart';
+import '../../models/account.dart';
+import '../../controllers/auth_controller.dart';
+import '../../services/auth_service.dart';
+import '../../utils/responsive.dart';
 
 class PersonalInformationView extends StatefulWidget {
   final Account account;

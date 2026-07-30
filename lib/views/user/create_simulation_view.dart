@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
-import '../controllers/risk_assessment_controller.dart';
-import '../controllers/historical_flood_controller.dart';
-import '../controllers/environment_controller.dart';
-import '../services/historical_flood_service.dart';
-import '../services/terrain_service.dart';
-import '../services/weather_service.dart';
-import '../services/risk_assessment_service.dart';
-import '../services/flood_simulation_service.dart';
-import '../utils/malaysia_geocoding.dart';
-import '../utils/responsive.dart';
-import 'simulation_detail_view.dart';
+import '../../controllers/risk_assessment_controller.dart';
+import '../../controllers/historical_flood_controller.dart';
+import '../../controllers/environment_controller.dart';
+import '../../services/historical_flood_service.dart';
+import '../../services/terrain_service.dart';
+import '../../services/weather_service.dart';
+import '../../services/risk_assessment_service.dart';
+import '../../services/flood_simulation_service.dart';
+import '../../utils/malaysia_geocoding.dart';
+import '../../utils/responsive.dart';
+import '../../routes/app_routes.dart';
+import '../../routes/route_arguments.dart';
 
 class CreateSimulationView extends StatefulWidget {
   const CreateSimulationView({super.key});
@@ -85,14 +86,13 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
       return;
     }
 
-    Navigator.pushReplacement(
+    Navigator.pushReplacementNamed(
       context,
-      MaterialPageRoute(
-        builder: (context) => SimulationDetailView(
-          simulation: outcome.simulation!,
-          factors: outcome.factors,
-          recommendations: outcome.recommendations,
-        ),
+      AppRoutes.simulationDetail,
+      arguments: SimulationDetailArgs(
+        simulation: outcome.simulation!,
+        factors: outcome.factors,
+        recommendations: outcome.recommendations,
       ),
     );
   }

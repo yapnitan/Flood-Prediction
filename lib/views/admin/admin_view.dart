@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import '../models/account.dart';
-import '../controllers/user_management_controller.dart';
-import '../services/user_management_service.dart';
-import '../utils/responsive.dart';
+import '../../models/account.dart';
+import '../../controllers/user_management_controller.dart';
+import '../../services/user_management_service.dart';
+import '../../utils/responsive.dart';
 import 'user_management_view.dart';
-import 'user_profile.dart';
+import '../shared/user_profile.dart';
 
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});

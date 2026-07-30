@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../controllers/auth_controller.dart';
-import '../services/auth_service.dart';
-import '../utils/responsive.dart';
-import 'login_view.dart';
+import '../../controllers/auth_controller.dart';
+import '../../services/auth_service.dart';
+import '../../utils/responsive.dart';
+import '../../routes/app_routes.dart';
 
 /// Shown when the app is opened via the password-reset email's deep link
 /// (see main.dart's `passwordRecovery` listener). At that point Supabase
@@ -49,10 +49,9 @@ class _ResetPasswordViewState extends State<ResetPasswordView> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Password updated. Please log in again.')),
       );
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginView()),
-        (route) => false,
-      );
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
     } else {
       setState(() {
         _isSubmitting = false;

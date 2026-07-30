@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/flood_simulation.dart';
-import '../models/simulation_factor.dart';
-import '../services/flood_simulation_service.dart';
-import '../utils/responsive.dart';
+import '../../models/flood_simulation.dart';
+import '../../models/simulation_factor.dart';
+import '../../services/flood_simulation_service.dart';
+import '../../utils/responsive.dart';
 
 class SimulationDetailView extends StatefulWidget {
   final FloodSimulation simulation;

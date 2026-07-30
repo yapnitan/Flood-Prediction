@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import '../models/flood_simulation.dart';
-import '../controllers/risk_assessment_controller.dart';
-import '../controllers/historical_flood_controller.dart';
-import '../controllers/environment_controller.dart';
-import '../services/historical_flood_service.dart';
-import '../services/terrain_service.dart';
-import '../services/weather_service.dart';
-import '../services/risk_assessment_service.dart';
-import '../services/flood_simulation_service.dart';
-import 'create_simulation_view.dart';
-import 'simulation_detail_view.dart';
+import '../../models/flood_simulation.dart';
+import '../../controllers/risk_assessment_controller.dart';
+import '../../controllers/historical_flood_controller.dart';
+import '../../controllers/environment_controller.dart';
+import '../../services/historical_flood_service.dart';
+import '../../services/terrain_service.dart';
+import '../../services/weather_service.dart';
+import '../../services/risk_assessment_service.dart';
+import '../../services/flood_simulation_service.dart';
+import '../../routes/app_routes.dart';
+import '../../routes/route_arguments.dart';
 
 class SimulationListView extends StatefulWidget {
   const SimulationListView({super.key});
@@ -66,10 +66,7 @@ class _SimulationListViewState extends State<SimulationListView> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CreateSimulationView()),
-          );
+          await Navigator.pushNamed(context, AppRoutes.createSimulation);
           _refresh();
         },
         backgroundColor: Colors.blue,
@@ -121,12 +118,10 @@ class _SimulationListViewState extends State<SimulationListView> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                   onTap: () async {
-                    await Navigator.push(
+                    await Navigator.pushNamed(
                       context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            SimulationDetailView(simulation: sim),
-                      ),
+                      AppRoutes.simulationDetail,
+                      arguments: SimulationDetailArgs(simulation: sim),
                     );
                     _refresh();
                   },

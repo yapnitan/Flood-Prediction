@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../utils/responsive.dart';
+import '../../utils/responsive.dart';
 
 class HelpSupportView extends StatelessWidget {
   const HelpSupportView({super.key});

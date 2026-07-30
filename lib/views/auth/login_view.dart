@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
-import '../controllers/auth_controller.dart';
-import '../services/auth_service.dart';
-import '../utils/responsive.dart';
-import 'user_view.dart';
-import 'admin_view.dart';
-import 'helper_view.dart';
-import 'register_view.dart';
-import 'forgot_password_view.dart';
+import '../../controllers/auth_controller.dart';
+import '../../services/auth_service.dart';
+import '../../utils/responsive.dart';
+import '../../routes/app_routes.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -30,17 +26,11 @@ class _LoginViewState extends State<LoginView> {
 
     // TEMPORARY: hardcoded test accounts, bypasses Supabase
     if (email == "admin" && password == "123") {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => AdminHome()),
-      );
+      Navigator.pushNamed(context, AppRoutes.adminHome);
       return;
     }
     if (email == "user" && password == "123") {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => UserHome()),
-      );
+      Navigator.pushNamed(context, AppRoutes.userHome);
       return;
     }
 
@@ -60,35 +50,20 @@ class _LoginViewState extends State<LoginView> {
 
     final account = result.account!;
     if (account.role == "admin") {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => AdminHome()),
-      );
+      Navigator.pushNamed(context, AppRoutes.adminHome);
     } else if (account.role == "helper") {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => HelperHome()),
-      );
+      Navigator.pushNamed(context, AppRoutes.helperHome);
     } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => UserHome()),
-      );
+      Navigator.pushNamed(context, AppRoutes.userHome);
     }
   }
 
   void forgotPassword() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => ForgotPasswordPage()),
-    );
+    Navigator.pushNamed(context, AppRoutes.forgotPassword);
   }
 
   void register() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => RegistrationPage()),
-    );
+    Navigator.pushNamed(context, AppRoutes.register);
   }
 
   @override

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/account.dart';
-import '../controllers/user_management_controller.dart';
-import '../services/user_management_service.dart';
-import '../utils/responsive.dart';
+import '../../models/account.dart';
+import '../../controllers/user_management_controller.dart';
+import '../../services/user_management_service.dart';
+import '../../utils/responsive.dart';
 
 class UserManagementView extends StatefulWidget {
   const UserManagementView({super.key});

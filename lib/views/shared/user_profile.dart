@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/account.dart';
-import '../controllers/auth_controller.dart';
-import '../services/auth_service.dart';
-import '../utils/responsive.dart';
-import 'login_view.dart';
-import 'personal_information_view.dart';
-import 'notification_settings_view.dart';
-import 'help_support_view.dart';
-import 'about_view.dart';
+import '../../models/account.dart';
+import '../../controllers/auth_controller.dart';
+import '../../services/auth_service.dart';
+import '../../utils/responsive.dart';
+import '../../routes/app_routes.dart';
+import '../../routes/route_arguments.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -65,10 +62,9 @@ class _ProfileState extends State<ProfilePage> {
 
     await _authController.logout();
     if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const LoginView()),
-      (route) => false,
-    );
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
   }
 
   @override
@@ -116,11 +112,10 @@ class _ProfileState extends State<ProfilePage> {
                       label: "Personal Information",
                       onTap: () async {
                         if (_account == null) return;
-                        final updated = await Navigator.push<Account>(
+                        final updated = await Navigator.pushNamed<Account>(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => PersonalInformationView(account: _account!),
-                          ),
+                          AppRoutes.personalInformation,
+                          arguments: PersonalInformationArgs(_account!),
                         );
                         if (updated != null) setState(() => _account = updated);
                       },
@@ -130,11 +125,10 @@ class _ProfileState extends State<ProfilePage> {
                       label: "Notification Settings",
                       onTap: () async {
                         if (_account == null) return;
-                        final updated = await Navigator.push<Account>(
+                        final updated = await Navigator.pushNamed<Account>(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => NotificationSettingsView(account: _account!),
-                          ),
+                          AppRoutes.notificationSettings,
+                          arguments: NotificationSettingsArgs(_account!),
                         );
                         if (updated != null) setState(() => _account = updated);
                       },
@@ -153,20 +147,14 @@ class _ProfileState extends State<ProfilePage> {
                       icon: Icons.help_outline,
                       label: "Help & Support",
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const HelpSupportView()),
-                        );
+                        Navigator.pushNamed(context, AppRoutes.helpSupport);
                       },
                     ),
                     _ProfileTile(
                       icon: Icons.info_outline,
                       label: "About FloodWatch",
                       onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const AboutView()),
-                        );
+                        Navigator.pushNamed(context, AppRoutes.about);
                       },
                     ),
                     _ProfileTile(

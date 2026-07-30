@@ -2,10 +2,10 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../models/flood_report.dart';
-import '../services/flood_report_service.dart';
-import '../services/location_service.dart';
-import '../utils/responsive.dart';
+import '../../models/flood_report.dart';
+import '../../services/flood_report_service.dart';
+import '../../services/location_service.dart';
+import '../../utils/responsive.dart';
 
 class SubmitReportPage extends StatefulWidget {
   const SubmitReportPage({super.key, this.onSubmissionComplete});

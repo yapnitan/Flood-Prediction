@@ -1,9 +1,9 @@
-import 'package:flood_prediction/views/submit_report.dart';
+import 'package:flood_prediction/views/user/submit_report.dart';
 import 'package:flutter/material.dart';
-import 'package:flood_prediction/views/user_profile.dart';
-import 'package:flood_prediction/views/simulation_list_view.dart';
+import 'package:flood_prediction/views/shared/user_profile.dart';
 import 'package:flood_prediction/utils/responsive.dart';
 import 'package:flood_prediction/widgets/home_flood_map.dart';
+import 'package:flood_prediction/routes/app_routes.dart';
 
 class UserHome extends StatefulWidget {
   const UserHome({super.key});
@@ -42,12 +42,7 @@ class _UserHomeState extends State<UserHome> {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SimulationListView(),
-                        ),
-                      );
+                      Navigator.pushNamed(context, AppRoutes.simulationList);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
