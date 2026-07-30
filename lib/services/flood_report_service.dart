@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -16,13 +14,19 @@ class FloodReportService {
   final SupabaseClient _supabase;
 
   Future<bool> submit(FloodReport report, List<XFile> photos) async {
+    final reporterId = _supabase.auth.currentUser?.id;
+    if (reporterId == null) {
+      debugPrint('FloodReportService.submit error: user is not authenticated');
+      return false;
+    }
+
     try {
       final photoPaths = await _uploadPhotos(photos);
       await _supabase
           .from(_table)
           .insert(
             FloodReport(
-              reporterId: _supabase.auth.currentUser?.id,
+              reporterId: reporterId,
               locationName: report.locationName,
               latitude: report.latitude,
               longitude: report.longitude,
@@ -43,11 +47,15 @@ class FloodReportService {
 
   Future<List<String>> _uploadPhotos(List<XFile> photos) async {
     final uploadBatch = DateTime.now().microsecondsSinceEpoch.toString();
+    final uploaderId = _supabase.auth.currentUser?.id;
+    if (uploaderId == null) {
+      throw StateError('A signed-in user is required to upload report photos.');
+    }
     final paths = <String>[];
 
     for (var index = 0; index < photos.length; index++) {
       final Uint8List bytes = await photos[index].readAsBytes();
-      final path = '$uploadBatch/photo_$index.jpg';
+      final path = '$uploaderId/$uploadBatch/photo_$index.jpg';
       await _supabase.storage.from(_photoBucket).uploadBinary(
         path,
         bytes,

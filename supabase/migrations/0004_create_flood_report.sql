@@ -25,13 +25,11 @@ create index if not exists idx_flood_report_location
 
 alter table public.flood_report enable row level security;
 
--- Reports may be submitted by either a signed-in user or a temporary/guest
--- session. Reads remain restricted to the submitter (or an administrator).
-create policy "Anyone can submit a flood report"
+create policy "Users can submit their own flood reports"
   on public.flood_report
   for insert
-  to anon, authenticated
-  with check (true);
+  to authenticated
+  with check (reporter_id = auth.uid());
 
 create policy "Users can read their own flood reports"
   on public.flood_report
@@ -55,14 +53,20 @@ insert into storage.buckets (id, name, public)
 values ('flood-report-photos', 'flood-report-photos', false)
 on conflict (id) do nothing;
 
-create policy "Anyone can upload flood report photos"
+create policy "Users can upload their own flood report photos"
   on storage.objects
   for insert
-  to anon, authenticated
-  with check (bucket_id = 'flood-report-photos');
+  to authenticated
+  with check (
+    bucket_id = 'flood-report-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
 
-create policy "Authenticated users can view their flood report photos"
+create policy "Users can view their own flood report photos"
   on storage.objects
   for select
   to authenticated
-  using (bucket_id = 'flood-report-photos');
+  using (
+    bucket_id = 'flood-report-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );

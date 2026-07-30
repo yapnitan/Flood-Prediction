@@ -59,8 +59,20 @@ alter table public.historical_flood enable row level security;
 -- Historical flood data is public reference data: any authenticated user
 -- may read it, but only backend/import processes (service role, which
 -- bypasses RLS) may write to it.
-create policy "Historical flood records are readable by authenticated users"
-  on public.historical_flood
-  for select
-  to authenticated
-  using (true);
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'historical_flood'
+      and policyname = 'Historical flood records are readable by authenticated users'
+  ) then
+    create policy "Historical flood records are readable by authenticated users"
+      on public.historical_flood
+      for select
+      to authenticated
+      using (true);
+  end if;
+end;
+$$;

@@ -14,166 +14,173 @@ class UserHome extends StatefulWidget {
 
 class _UserHomeState extends State<UserHome> {
   int currentIndex = 0;
+  final GlobalKey _reportPageKey = GlobalKey();
 
   // Titles corresponding to each tab, in the same order as `pages`
   final List<String> titles = ["Flood Watch", "Submit Report", "Profile"];
 
-  @override
-  Widget build(BuildContext context) {
-    final List<Widget> pages = [
-      SingleChildScrollView(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: context.responsive(
-                mobile: 700,
-                tablet: 800,
-                desktop: 900,
-              ),
+  Widget _buildHomePage() {
+    return SingleChildScrollView(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: context.responsive(
+              mobile: 700,
+              tablet: 800,
+              desktop: 900,
             ),
-            child: Padding(
-              padding: EdgeInsets.all(
-                context.responsive(mobile: 20, tablet: 28, desktop: 32),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ---- Flood risk simulator entry point ----
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SimulationListView(),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(
+              context.responsive(mobile: 20, tablet: 28, desktop: 32),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ---- Flood risk simulator entry point ----
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SimulationListView(),
                         ),
-                      ),
-                      icon: const Icon(Icons.analytics_outlined, color: Colors.white),
-                      label: const Text(
-                        "Am I Safe? Run a Flood Risk Assessment",
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
+                    icon: const Icon(Icons.analytics_outlined, color: Colors.white),
+                    label: const Text(
+                      "Am I Safe? Run a Flood Risk Assessment",
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
                   ),
+                ),
 
-                  const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-                  // ---- Flood status + image ----
-                  const Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _InfoBox(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Flood status",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
+                // ---- Flood status + image ----
+                const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _InfoBox(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Flood status",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
                               ),
-                              SizedBox(height: 6),
-                              Text("xxxxx"),
-                            ],
-                          ),
+                            ),
+                            SizedBox(height: 6),
+                            Text("xxxxx"),
+                          ],
                         ),
                       ),
-                      SizedBox(width: 16),
-                      Expanded(
-                        child: _InfoBox(child: Center(child: Text("images"))),
-                      ),
-                    ],
-                  ),
+                    ),
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: _InfoBox(child: Center(child: Text("images"))),
+                    ),
+                  ],
+                ),
 
-                  const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-                  // ---- Current location + nearby flood reports ----
-                  const Text(
-                    "Current location",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  const SizedBox(height: 10),
-                  const HomeFloodMap(),
+                // ---- Current location + nearby flood reports ----
+                const Text(
+                  "Current location",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 10),
+                const HomeFloodMap(),
 
-                  const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-                  // ---- Rainfall / Water level / Risk level ----
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _InfoBox(
-                          child: Column(
-                            children: [
-                              Text(
-                                "Rainfall",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
+                // ---- Rainfall / Water level / Risk level ----
+                Row(
+                  children: [
+                    Expanded(
+                      child: _InfoBox(
+                        child: Column(
+                          children: [
+                            Text(
+                              "Rainfall",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
                               ),
-                              SizedBox(height: 6),
-                              Text("xxxx"),
-                            ],
-                          ),
+                            ),
+                            SizedBox(height: 6),
+                            Text("xxxx"),
+                          ],
                         ),
                       ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: _InfoBox(
-                          child: Column(
-                            children: [
-                              Text(
-                                "Water level",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: _InfoBox(
+                        child: Column(
+                          children: [
+                            Text(
+                              "Water level",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
                               ),
-                              SizedBox(height: 6),
-                              Text("xxxx"),
-                            ],
-                          ),
+                            ),
+                            SizedBox(height: 6),
+                            Text("xxxx"),
+                          ],
                         ),
                       ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: _InfoBox(
-                          child: Column(
-                            children: [
-                              Text(
-                                "Risk level",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: _InfoBox(
+                        child: Column(
+                          children: [
+                            Text(
+                              "Risk level",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
                               ),
-                              SizedBox(height: 6),
-                              Text("xxxx"),
-                            ],
-                          ),
+                            ),
+                            SizedBox(height: 6),
+                            Text("xxxx"),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
       ),
+    );
+  }
 
-      const SubmitReportPage(),
+  @override
+  Widget build(BuildContext context) {
+    final pages = [
+      _buildHomePage(),
+      SubmitReportPage(
+        key: _reportPageKey,
+        onSubmissionComplete: () => setState(() => currentIndex = 0),
+      ),
       const ProfilePage(),
     ];
 
@@ -223,10 +230,12 @@ class _UserHomeState extends State<UserHome> {
                   ],
                 ),
                 const VerticalDivider(width: 1),
-                Expanded(child: pages[currentIndex]),
+                Expanded(
+                  child: IndexedStack(index: currentIndex, children: pages),
+                ),
               ],
             )
-          : pages[currentIndex],
+          : IndexedStack(index: currentIndex, children: pages),
 
       bottomNavigationBar: useRail
           ? null

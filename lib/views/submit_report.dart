@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/flood_report.dart';
 import '../services/flood_report_service.dart';
+import '../services/location_service.dart';
 import '../utils/responsive.dart';
 
 class SubmitReportPage extends StatefulWidget {
-  const SubmitReportPage({super.key});
+  const SubmitReportPage({super.key, this.onSubmissionComplete});
+
+  final VoidCallback? onSubmissionComplete;
 
   @override
   State<SubmitReportPage> createState() => _SubmitReportState();
@@ -19,6 +22,22 @@ class _SubmitReportState extends State<SubmitReportPage> {
   // Step 1 state
   String? selectedFloodType = "Street Flooding";
   String? selectedWaterLevel = "Medium";
+  final TextEditingController _locationNameController = TextEditingController();
+  final FocusNode _locationFocusNode = FocusNode();
+  final LocationService _locationService = LocationService();
+  double? _selectedLatitude;
+  double? _selectedLongitude;
+  bool _isLocating = false;
+
+  static const _nearbyLocations = <_ReportLocation>[
+    _ReportLocation('Jalan Tun Razak, Kuala Lumpur', 3.1688, 101.7203),
+    _ReportLocation('Bukit Bintang, Kuala Lumpur', 3.1466, 101.7108),
+    _ReportLocation('KL Sentral, Kuala Lumpur', 3.1340, 101.6869),
+    _ReportLocation('Bangsar, Kuala Lumpur', 3.1279, 101.6719),
+    _ReportLocation('Petaling Jaya, Selangor', 3.1073, 101.6067),
+    _ReportLocation('Shah Alam, Selangor', 3.0733, 101.5185),
+    _ReportLocation('Gombak, Selangor', 3.2382, 101.7223),
+  ];
 
   // Step 2 state
   final _detailsFormKey = GlobalKey<FormState>();
@@ -50,11 +69,14 @@ class _SubmitReportState extends State<SubmitReportPage> {
     _descriptionController.dispose();
     _dateTimeController.dispose();
     _contactController.dispose();
+    _locationNameController.dispose();
+    _locationFocusNode.dispose();
     super.dispose();
   }
 
   void _goToNextStep() {
     if (_currentStep == 1) {
+      if (!_validateLocation()) return;
       setState(() => _currentStep = 2);
       return;
     }
@@ -75,6 +97,56 @@ class _SubmitReportState extends State<SubmitReportPage> {
     }
 
     _submitReport();
+  }
+
+  bool _validateLocation() {
+    final name = _locationNameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select or enter a location.')),
+      );
+      return false;
+    }
+    _selectedLatitude ??= 3.1390;
+    _selectedLongitude ??= 101.6869;
+    return true;
+  }
+
+  Future<void> _useCurrentLocation() async {
+    if (_isLocating) return;
+    setState(() => _isLocating = true);
+    final details = await _locationService.getCurrentLocationDetails();
+    if (!mounted) return;
+
+    if (details == null) {
+      setState(() => _isLocating = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to access your location. You can enter it manually.'),
+        ),
+      );
+      return;
+    }
+
+    String readableAddress = details.address?.trim() ?? '';
+    if (readableAddress.isEmpty) {
+      readableAddress = 'Current location';
+    }
+
+    setState(() {
+      _isLocating = false;
+      _locationNameController.text = readableAddress;
+      _selectedLatitude = details.position.latitude;
+      _selectedLongitude = details.position.longitude;
+    });
+  }
+
+  void _selectLocation(_ReportLocation location) {
+    _locationNameController.text = location.name;
+    _selectedLatitude = location.latitude;
+    _selectedLongitude = location.longitude;
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {});
   }
 
   Future<void> _selectDateTime() async {
@@ -108,9 +180,9 @@ class _SubmitReportState extends State<SubmitReportPage> {
     setState(() => _isSubmitting = true);
     final submitted = await _floodReportService.submit(
       FloodReport(
-        locationName: 'Jalan Tun Razak, Kuala Lumpur',
-        latitude: 5.5041,
-        longitude: 101.7128,
+        locationName: _locationNameController.text.trim(),
+        latitude: _selectedLatitude ?? 3.1390,
+        longitude: _selectedLongitude ?? 101.6869,
         floodType: selectedFloodType!,
         waterLevel: selectedWaterLevel!,
         observedAt: _observedAt!,
@@ -125,7 +197,11 @@ class _SubmitReportState extends State<SubmitReportPage> {
 
     setState(() {
       _isSubmitting = false;
-      _isSubmitted = submitted;
+      if (submitted) {
+        _resetForm();
+        _currentStep = 4;
+        _isSubmitted = true;
+      }
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -137,6 +213,26 @@ class _SubmitReportState extends State<SubmitReportPage> {
         ),
       ),
     );
+  }
+
+  void _resetForm() {
+    _currentStep = 1;
+    selectedFloodType = 'Street Flooding';
+    selectedWaterLevel = 'Medium';
+    _observedAt = null;
+    _descriptionController.clear();
+    _dateTimeController.clear();
+    _contactController.clear();
+    _locationNameController.clear();
+    _selectedLatitude = null;
+    _selectedLongitude = null;
+    _photos.clear();
+    _isSubmitted = false;
+  }
+
+  void _completeSubmission() {
+    setState(_resetForm);
+    widget.onSubmissionComplete?.call();
   }
 
   Future<void> _pickPhotos(ImageSource source) async {
@@ -314,19 +410,117 @@ class _SubmitReportState extends State<SubmitReportPage> {
       children: [
         const Text('Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(12)),
-          child: Row(children: [
-            const Icon(Icons.location_on, color: Colors.blue, size: 20),
-            const SizedBox(width: 10),
-            const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Jalan Tun Razak, Kuala Lumpur', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-              SizedBox(height: 2),
-              Text('5.5041, 101.7128', style: TextStyle(fontSize: 12, color: Colors.grey)),
-            ])),
-            Icon(Icons.gps_fixed, color: Colors.grey.shade500, size: 20),
-          ]),
+        RawAutocomplete<_ReportLocation>(
+          textEditingController: _locationNameController,
+          focusNode: _locationFocusNode,
+          optionsBuilder: (textEditingValue) {
+            final query = textEditingValue.text.trim().toLowerCase();
+            return _nearbyLocations.where(
+              (location) => query.isEmpty || location.name.toLowerCase().contains(query),
+            );
+          },
+          onSelected: _selectLocation,
+          displayStringForOption: (location) => location.name,
+          optionsViewBuilder: (context, onSelected, options) => Align(
+            alignment: Alignment.topLeft,
+            child: Material(
+              elevation: 4,
+              borderRadius: BorderRadius.circular(10),
+              color: Colors.white,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 250, maxWidth: 600),
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  children: [
+                    ListTile(
+                      leading: _isLocating
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.my_location, color: Colors.blue),
+                      title: const Text(
+                        'Use Current Location',
+                        style: TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: const Text('Detect location using GPS'),
+                      onTap: () {
+                        FocusManager.instance.primaryFocus?.unfocus();
+                        _useCurrentLocation();
+                      },
+                    ),
+                    const Divider(height: 1),
+                    ...options.map((location) {
+                      return ListTile(
+                        leading: const Icon(Icons.location_on_outlined, color: Colors.grey),
+                        title: Text(location.name),
+                        onTap: () => onSelected(location),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) => TextField(
+            controller: controller,
+            focusNode: focusNode,
+            onChanged: (value) {
+              _locationNameController.value = controller.value;
+              _selectedLatitude = null;
+              _selectedLongitude = null;
+            },
+            decoration: InputDecoration(
+              labelText: 'Search location',
+              hintText: 'Tap to see nearby locations',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _isLocating
+                  ? const Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.my_location, color: Colors.blue),
+                      tooltip: 'Use Current Location',
+                      onPressed: _useCurrentLocation,
+                    ),
+              border: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(10)),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: OutlinedButton.icon(
+            onPressed: _isLocating ? null : _useCurrentLocation,
+            icon: _isLocating
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.my_location, size: 18),
+            label: Text(_isLocating ? 'Locating...' : 'Use Current Location'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.blue,
+              side: const BorderSide(color: Colors.blue),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
         ),
         const SizedBox(height: 24),
         const Text('Type of Flooding', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
@@ -440,19 +634,32 @@ class _SubmitReportState extends State<SubmitReportPage> {
 
   Widget _buildReviewStep() {
     if (_isSubmitted) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.only(top: 56),
+          padding: const EdgeInsets.only(top: 56),
           child: Column(
             children: [
-              Icon(Icons.check_circle_outline, color: Colors.green, size: 72),
-              SizedBox(height: 16),
-              Text(
+              const Icon(Icons.check_circle_outline, color: Colors.green, size: 72),
+              const SizedBox(height: 16),
+              const Text(
                 'Report submitted',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 8),
-              Text('Thank you for helping keep your community informed.'),
+              const SizedBox(height: 8),
+              const Text('Thank you for helping keep your community informed.'),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: 180,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _completeSubmission,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('OK'),
+                ),
+              ),
             ],
           ),
         ),
@@ -471,7 +678,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
         const SizedBox(height: 20),
         _ReviewCard(
           title: 'Location',
-          value: 'Jalan Tun Razak, Kuala Lumpur\n5.5041, 101.7128',
+          value: _locationNameController.text.trim(),
         ),
         _ReviewCard(title: 'Flood type', value: selectedFloodType!),
         _ReviewCard(title: 'Water level', value: selectedWaterLevel!),
@@ -749,4 +956,12 @@ class _SelectableChip extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ReportLocation {
+  final String name;
+  final double latitude;
+  final double longitude;
+
+  const _ReportLocation(this.name, this.latitude, this.longitude);
 }

@@ -59,27 +59,51 @@ alter table public.flood_simulation enable row level security;
 alter table public.simulation_factor enable row level security;
 
 -- Simulations are personal: owners can read/write only their own.
-create policy "Users manage their own simulations"
-  on public.flood_simulation
-  for all
-  to authenticated
-  using (auth.uid() = account_id)
-  with check (auth.uid() = account_id);
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'flood_simulation'
+      and policyname = 'Users manage their own simulations'
+  ) then
+    create policy "Users manage their own simulations"
+      on public.flood_simulation
+      for all
+      to authenticated
+      using (auth.uid() = account_id)
+      with check (auth.uid() = account_id);
+  end if;
+end;
+$$;
 
 -- Factors inherit access from their parent simulation's ownership.
-create policy "Users manage factors of their own simulations"
-  on public.simulation_factor
-  for all
-  to authenticated
-  using (
-    exists (
-      select 1 from public.flood_simulation fs
-      where fs.id = simulation_id and fs.account_id = auth.uid()
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.flood_simulation fs
-      where fs.id = simulation_id and fs.account_id = auth.uid()
-    )
-  );
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'simulation_factor'
+      and policyname = 'Users manage factors of their own simulations'
+  ) then
+    create policy "Users manage factors of their own simulations"
+      on public.simulation_factor
+      for all
+      to authenticated
+      using (
+        exists (
+          select 1 from public.flood_simulation fs
+          where fs.id = simulation_id and fs.account_id = auth.uid()
+        )
+      )
+      with check (
+        exists (
+          select 1 from public.flood_simulation fs
+          where fs.id = simulation_id and fs.account_id = auth.uid()
+        )
+      );
+  end if;
+end;
+$$;
