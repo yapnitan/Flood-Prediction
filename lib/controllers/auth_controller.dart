@@ -10,10 +10,8 @@ class AuthController {
     return await authService.register(name, email, password);
   }
 
-  Future<Account?> login(String email, String password) async {
-    Account? account = await authService.loginValidate(email, password);
-
-    return account;
+  Future<LoginResult> login(String email, String password) {
+    return authService.loginValidate(email, password);
   }
 
   Future<void> logout() {

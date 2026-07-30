@@ -23,8 +23,15 @@ class _UserManagementViewState extends State<UserManagementView> {
     _refresh();
   }
 
+  // NOTE: must be a block body `{ ... }`, not an arrow `=> expr`. An arrow
+  // body would make the assignment's *value* (a Future) the return value of
+  // the closure, and setState() only accepts callbacks that return void —
+  // that mismatch is what throws "setState() callback argument returned a
+  // Future" at runtime.
   void _refresh() {
-    setState(() => _usersFuture = _controller.listUsers());
+    setState(() {
+      _usersFuture = _controller.listUsers();
+    });
   }
 
   Future<void> _changeRole(Account account, String role) async {
@@ -48,6 +55,18 @@ class _UserManagementViewState extends State<UserManagementView> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to update account status')),
+      );
+    }
+  }
+
+  Future<void> _changeStatus(Account account, String status) async {
+    final ok = await _controller.changeStatus(account.id, status);
+    if (!mounted) return;
+    if (ok) {
+      _refresh();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update status')),
       );
     }
   }
@@ -181,7 +200,13 @@ class _UserManagementViewState extends State<UserManagementView> {
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                initialValue: account.role,
+                                // Guard against role values that don't match
+                                // any of _roles (blank/legacy data) — that
+                                // mismatch is what throws a red-screen
+                                // assertion from DropdownButtonFormField.
+                                initialValue:
+                                    _roles.contains(account.role) ? account.role : null,
+                                hint: Text(account.role),
                                 isDense: true,
                                 decoration: InputDecoration(
                                   labelText: 'Role',
@@ -221,6 +246,45 @@ class _UserManagementViewState extends State<UserManagementView> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 10),
+                        if (account.status == 'pending')
+                          Row(
+                            children: [
+                              const Text(
+                                'Pending approval',
+                                style: TextStyle(
+                                  color: Colors.orange,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const Spacer(),
+                              TextButton(
+                                onPressed: () => _changeStatus(account, 'rejected'),
+                                child: const Text('Reject', style: TextStyle(color: Colors.red)),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => _changeStatus(account, 'active'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                ),
+                                child: const Text(
+                                  'Approve',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          Text(
+                            'Status: ${account.status}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: account.status == 'rejected'
+                                  ? Colors.red
+                                  : Colors.grey[600],
+                            ),
+                          ),
                       ],
                     ),
                   );

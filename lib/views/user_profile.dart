@@ -219,7 +219,7 @@ class _ProfileHeader extends StatelessWidget {
               clipper: _WaveClipperBack(),
               child: Container(
                 height: 150,
-                width: double.infinity,
+                width: MediaQuery.of(context).size.width,
                 color: const Color(0xFF6FAEE0),
               ),
             ),

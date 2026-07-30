@@ -3,7 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/account.dart';
 
 /// Admin-only operations over the `account` table: listing every user,
-/// changing roles, enabling/disabling accounts, and removing accounts.
+/// changing roles, enabling/disabling accounts, approving/rejecting
+/// pending sign-ups, and removing accounts.
 ///
 /// This assumes Supabase row-level security restricts these write
 /// operations to admins server-side — this service does not itself
@@ -40,6 +41,18 @@ class UserManagementService {
       return true;
     } catch (e) {
       debugPrint('UserManagementService.setActive error: $e');
+      return false;
+    }
+  }
+
+  /// Approval workflow — separate from [setActive]. Pass 'active' to
+  /// approve a pending sign-up, or 'rejected' to reject it.
+  Future<bool> updateStatus(String id, String status) async {
+    try {
+      await supabase.from(_table).update({'status': status}).eq('id', id);
+      return true;
+    } catch (e) {
+      debugPrint('UserManagementService.updateStatus error: $e');
       return false;
     }
   }

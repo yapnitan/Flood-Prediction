@@ -4,9 +4,14 @@ class Account {
   String email;
   String role;
 
-  /// Whether an admin has enabled this account. Disabled accounts should
-  /// be blocked at login by the UI/AuthController.
+  /// Admin on/off switch — blocks login regardless of [status]. Any role
+  /// can be disabled at any time.
   bool isActive;
+
+  /// Approval workflow — separate from [isActive]. Values: 'pending',
+  /// 'active', 'rejected'. New helper sign-ups start as 'pending' and
+  /// need an admin to approve them before they can log in.
+  String status;
 
   /// Notification preferences, editable from the Profile > Notification
   /// Settings screen.
@@ -19,6 +24,7 @@ class Account {
     required this.email,
     required this.role,
     this.isActive = true,
+    this.status = 'active',
     this.notifyEmail = true,
     this.notifyPush = true,
   });
@@ -28,8 +34,9 @@ class Account {
       id: json['id'],
       name: json['name'],
       email: json['email'],
-      role: json['role'],
+      role: (json['role'] as String?)?.trim().toLowerCase() ?? 'user',
       isActive: json['is_active'] as bool? ?? true,
+      status: (json['status'] as String?)?.trim().toLowerCase() ?? 'active',
       notifyEmail: json['notify_email'] as bool? ?? true,
       notifyPush: json['notify_push'] as bool? ?? true,
     );
@@ -42,6 +49,7 @@ class Account {
       'email': email,
       'role': role,
       'is_active': isActive,
+      'status': status,
       'notify_email': notifyEmail,
       'notify_push': notifyPush,
     };
@@ -52,6 +60,7 @@ class Account {
     String? email,
     String? role,
     bool? isActive,
+    String? status,
     bool? notifyEmail,
     bool? notifyPush,
   }) {
@@ -61,6 +70,7 @@ class Account {
       email: email ?? this.email,
       role: role ?? this.role,
       isActive: isActive ?? this.isActive,
+      status: status ?? this.status,
       notifyEmail: notifyEmail ?? this.notifyEmail,
       notifyPush: notifyPush ?? this.notifyPush,
     );

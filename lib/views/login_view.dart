@@ -44,33 +44,36 @@ class _LoginViewState extends State<LoginView> {
       return;
     }
 
-    var account = await authController.login(email, password);
+    final result = await authController.login(email, password);
     if (!mounted) return;
-    if (account == null) {
-      setState(() {
-        errorMessage = "Invalid email or password";
-      });
-    } else {
-      setState(() {
-        errorMessage = "";
-      });
 
-      if (account.role == "admin") {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => AdminHome()),
-        );
-      } else if (account.role == "helper") {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => HelperHome()),
-        );
-      } else if (account.role == "user") {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => UserHome()),
-        );
-      }
+    if (result.account == null) {
+      setState(() {
+        errorMessage = result.error ?? "Invalid email or password";
+      });
+      return;
+    }
+
+    setState(() {
+      errorMessage = "";
+    });
+
+    final account = result.account!;
+    if (account.role == "admin") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => AdminHome()),
+      );
+    } else if (account.role == "helper") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => HelperHome()),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => UserHome()),
+      );
     }
   }
 
@@ -143,12 +146,14 @@ class _LoginViewState extends State<LoginView> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       if (errorMessage.isNotEmpty)
-                        Text(
-                          errorMessage,
-                          style: const TextStyle(
-                            color: Colors.red,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Text(
+                            errorMessage,
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                     ],

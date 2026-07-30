@@ -9,7 +9,19 @@ import '../models/account.dart';
 ///  - android/app/src/main/AndroidManifest.xml intent-filter
 ///  - ios/Runner/Info.plist CFBundleURLTypes
 const String kPasswordResetRedirect =
-    'io.supabase.floodprediction://reset-callback/';
+    'https://public-flutter.web.app/reset-callback';
+
+/// Result of a login attempt. [account] is non-null only on success;
+/// [error] gives a user-facing reason when it fails (wrong password,
+/// disabled account, pending approval, etc.) so the UI can show something
+/// more useful than a generic "invalid credentials" message.
+class LoginResult {
+  final Account? account;
+  final String? error;
+
+  LoginResult.success(this.account) : error = null;
+  LoginResult.failure(this.error) : account = null;
+}
 
 class AuthService {
   final supabase = Supabase.instance.client;
@@ -20,7 +32,7 @@ class AuthService {
       final response = await supabase.auth.signUp(
         email: email,
         password: password,
-        data: {'name': name}, // 👈 ADD THIS LINE — stores name in user_metadata
+        data: {'name': name}, // stores name in user_metadata
       );
 
       final user = response.user;
@@ -51,7 +63,11 @@ class AuthService {
     }
   }
 
-  Future<Account?> loginValidate(String email, String password) async {
+  /// Signs in with Supabase auth, then checks the matching `account` row.
+  /// Both [Account.isActive] (admin on/off switch) and [Account.status]
+  /// (approval workflow) must pass for login to succeed; either failing
+  /// signs the auth session back out so the user isn't left half-logged-in.
+  Future<LoginResult> loginValidate(String email, String password) async {
     try {
       final response = await supabase.auth.signInWithPassword(
         email: email,
@@ -59,7 +75,9 @@ class AuthService {
       );
 
       final user = response.user;
-      if (user == null) return null;
+      if (user == null) {
+        return LoginResult.failure('Invalid email or password');
+      }
 
       // Try to fetch existing profile
       final existing = await supabase
@@ -68,35 +86,43 @@ class AuthService {
           .eq('id', user.id)
           .maybeSingle();
 
+      Account account;
       if (existing != null) {
-        final account = Account.fromJson(existing);
-        if (!account.isActive) {
-          // Account disabled by an admin — sign the auth session back out
-          // so the user isn't left half-logged-in.
-          await supabase.auth.signOut();
-          return null;
-        }
-        return account;
+        account = Account.fromJson(existing);
+      } else {
+        // No profile yet (first login after email confirmation) — create it now
+        final inserted = await supabase
+            .from('account')
+            .insert({
+              'id': user.id,
+              'name': user.userMetadata?['name'] ?? '',
+              'email': user.email,
+              'role': 'user',
+            })
+            .select()
+            .single();
+        account = Account.fromJson(inserted);
       }
 
-      // No profile yet (first login after email confirmation) — create it now
-      // Note: you'll need to also store 'name' somewhere accessible,
-      // e.g. in user.userMetadata during signUp — see note below
-      final account = await supabase
-          .from('account')
-          .insert({
-            'id': user.id,
-            'name': user.userMetadata?['name'] ?? '',
-            'email': user.email,
-            'role': 'user',
-          })
-          .select()
-          .single();
+      if (!account.isActive) {
+        await supabase.auth.signOut();
+        return LoginResult.failure(
+          'Your account has been disabled. Please contact an administrator.',
+        );
+      }
+      if (account.status == 'pending') {
+        await supabase.auth.signOut();
+        return LoginResult.failure('Your account is still pending admin approval.');
+      }
+      if (account.status == 'rejected') {
+        await supabase.auth.signOut();
+        return LoginResult.failure('Your account application was rejected.');
+      }
 
-      return Account.fromJson(account);
+      return LoginResult.success(account);
     } catch (e) {
       debugPrint("Login error: $e");
-      return null;
+      return LoginResult.failure('Invalid email or password');
     }
   }
 
