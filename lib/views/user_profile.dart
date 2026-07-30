@@ -1,5 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/account.dart';
+import '../controllers/auth_controller.dart';
+import '../services/auth_service.dart';
 import '../utils/responsive.dart';
+import 'login_view.dart';
+import 'personal_information_view.dart';
+import 'notification_settings_view.dart';
+import 'help_support_view.dart';
+import 'about_view.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -9,8 +18,68 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfileState extends State<ProfilePage> {
+  final _authController = AuthController(AuthService());
+
+  Account? _account;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    Account? account;
+    if (userId != null) {
+      account = await _authController.getAccount(userId);
+    }
+    if (!mounted) return;
+    setState(() {
+      _account = account;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text('You will need to log in again to access your account.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Log out', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    await _authController.logout();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const LoginView()),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final name = _account?.name.isNotEmpty == true ? _account!.name : 'Guest';
+    final email = _account?.email ?? '-';
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FC),
 
@@ -18,7 +87,7 @@ class _ProfileState extends State<ProfilePage> {
         padding: EdgeInsets.zero,
         children: [
           // ---- Header with wave background + avatar ----
-          _ProfileHeader(name: "Muhammad Aiman", email: "aiman@example.com"),
+          _ProfileHeader(name: name, email: email),
 
           const SizedBox(height: 20),
 
@@ -45,12 +114,30 @@ class _ProfileState extends State<ProfilePage> {
                     _ProfileTile(
                       icon: Icons.person_outline,
                       label: "Personal Information",
-                      onTap: () {},
+                      onTap: () async {
+                        if (_account == null) return;
+                        final updated = await Navigator.push<Account>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PersonalInformationView(account: _account!),
+                          ),
+                        );
+                        if (updated != null) setState(() => _account = updated);
+                      },
                     ),
                     _ProfileTile(
                       icon: Icons.notifications_none,
                       label: "Notification Settings",
-                      onTap: () {},
+                      onTap: () async {
+                        if (_account == null) return;
+                        final updated = await Navigator.push<Account>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => NotificationSettingsView(account: _account!),
+                          ),
+                        );
+                        if (updated != null) setState(() => _account = updated);
+                      },
                     ),
                     _ProfileTile(
                       icon: Icons.location_on_outlined,
@@ -63,19 +150,31 @@ class _ProfileState extends State<ProfilePage> {
                       onTap: () {},
                     ),
                     _ProfileTile(
-                      icon: Icons.settings_outlined,
-                      label: "App Settings",
-                      onTap: () {},
-                    ),
-                    _ProfileTile(
                       icon: Icons.help_outline,
                       label: "Help & Support",
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const HelpSupportView()),
+                        );
+                      },
                     ),
                     _ProfileTile(
                       icon: Icons.info_outline,
                       label: "About FloodWatch",
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const AboutView()),
+                        );
+                      },
+                    ),
+                    _ProfileTile(
+                      icon: Icons.logout,
+                      label: "Log Out",
+                      iconColor: Colors.red,
+                      textColor: Colors.red,
+                      onTap: _logout,
                     ),
                   ],
                 ),
@@ -196,11 +295,15 @@ class _ProfileTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final Color? iconColor;
+  final Color? textColor;
 
   const _ProfileTile({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.iconColor,
+    this.textColor,
   });
 
   @override
@@ -221,10 +324,14 @@ class _ProfileTile extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        leading: Icon(icon, color: const Color(0xFF3B82F6)),
+        leading: Icon(icon, color: iconColor ?? const Color(0xFF3B82F6)),
         title: Text(
           label,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: textColor,
+          ),
         ),
         trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
       ),
