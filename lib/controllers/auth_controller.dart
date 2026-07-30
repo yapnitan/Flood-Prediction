@@ -15,4 +15,36 @@ class AuthController {
 
     return account;
   }
+
+  Future<void> logout() {
+    return authService.logout();
+  }
+
+  Future<Account?> getAccount(String id) {
+    return authService.getAccountById(id);
+  }
+
+  Future<Map<String, dynamic>> sendPasswordReset(String email) {
+    return authService.sendPasswordResetEmail(email);
+  }
+
+  Future<Map<String, dynamic>> updatePassword(String newPassword) {
+    return authService.updatePassword(newPassword);
+  }
+
+  Future<bool> updateProfile({required String id, required String name}) {
+    return authService.updateProfile(id: id, name: name);
+  }
+
+  Future<bool> updateNotificationPrefs({
+    required String id,
+    required bool notifyEmail,
+    required bool notifyPush,
+  }) {
+    return authService.updateNotificationPrefs(
+      id: id,
+      notifyEmail: notifyEmail,
+      notifyPush: notifyPush,
+    );
+  }
 }
