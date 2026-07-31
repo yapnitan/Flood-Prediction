@@ -36,6 +36,14 @@ class AuthController {
     return authService.verifyResetCode(email: email, token: token, newPassword: newPassword);
   }
 
+  Future<Map<String, dynamic>> verifySignupCode({
+    required String email,
+    required String token,
+    required String name,
+  }) {
+    return authService.verifySignupCode(email: email, token: token, name: name);
+  }
+
   Future<bool> updateProfile({required String id, required String name}) {
     return authService.updateProfile(id: id, name: name);
   }

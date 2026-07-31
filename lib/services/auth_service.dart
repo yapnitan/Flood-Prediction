@@ -37,6 +37,7 @@ class AuthService {
         return {
           'status': 'confirm_email',
           'message': 'Please check your email to confirm your account before logging in.',
+          'email': email,
         };
       }
 
@@ -167,6 +168,57 @@ class AuthService {
       return {'status': 'success', 'message': 'Password updated successfully.'};
     } catch (e) {
       debugPrint('AuthService.verifyResetCode error: $e');
+      return {'status': 'error', 'message': 'Invalid or expired code. Please try again.'};
+    }
+  }
+
+  /// Verifies the signup confirmation code (the "Confirm signup" email
+  /// template must use `{{ .Token }}`, not the confirmation link). On
+  /// success, creates the `account` row now — signUp() couldn't create it
+  /// earlier because no session existed yet before the email was confirmed.
+  Future<Map<String, dynamic>> verifySignupCode({
+    required String email,
+    required String token,
+    required String name,
+  }) async {
+    try {
+      final response = await supabase.auth.verifyOTP(
+        email: email,
+        token: token,
+        type: OtpType.signup,
+      );
+
+      final user = response.user;
+      if (user == null) {
+        return {'status': 'error', 'message': 'Invalid or expired code. Please try again.'};
+      }
+
+      final existing = await supabase
+          .from('account')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
+
+      Account account;
+      if (existing != null) {
+        account = Account.fromJson(existing);
+      } else {
+        final inserted = await supabase
+            .from('account')
+            .insert({
+          'id': user.id,
+          'name': name,
+          'email': email,
+          'role': 'user',
+        })
+            .select()
+            .single();
+        account = Account.fromJson(inserted);
+      }
+
+      return {'status': 'success', 'account': account};
+    } catch (e) {
+      debugPrint('AuthService.verifySignupCode error: $e');
       return {'status': 'error', 'message': 'Invalid or expired code. Please try again.'};
     }
   }
