@@ -112,12 +112,14 @@ class _ProfileState extends State<ProfilePage> {
                       label: "Personal Information",
                       onTap: () async {
                         if (_account == null) return;
-                        final updated = await Navigator.pushNamed<Account>(
+                        final updated = await Navigator.pushNamed(
                           context,
                           AppRoutes.personalInformation,
                           arguments: PersonalInformationArgs(_account!),
                         );
-                        if (updated != null) setState(() => _account = updated);
+                        if (updated is Account) {
+                          setState(() => _account = updated);
+                        }
                       },
                     ),
                     _ProfileTile(
@@ -125,12 +127,14 @@ class _ProfileState extends State<ProfilePage> {
                       label: "Notification Settings",
                       onTap: () async {
                         if (_account == null) return;
-                        final updated = await Navigator.pushNamed<Account>(
+                        final updated = await Navigator.pushNamed(
                           context,
                           AppRoutes.notificationSettings,
                           arguments: NotificationSettingsArgs(_account!),
                         );
-                        if (updated != null) setState(() => _account = updated);
+                        if (updated is Account) {
+                          setState(() => _account = updated);
+                        }
                       },
                     ),
                     _ProfileTile(
