@@ -2,6 +2,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import '../models/account.dart';
 
+const String _avatarBucket = 'avatars';
+
 /// Deep-link scheme the app registers so Supabase's password-reset email
 /// can open the app again and hand back a recovery session.
 /// Must match:
@@ -203,6 +205,39 @@ class AuthService {
     } catch (e) {
       debugPrint('AuthService.updateNotificationPrefs error: $e');
       return false;
+    }
+  }
+
+  /// Uploads [bytes] as the user's avatar (fixed path per user, so a
+  /// re-upload overwrites the old one instead of accumulating files),
+  /// saves the resulting public URL on the account row, and returns it.
+  /// A timestamp query param is appended so cached copies of the old
+  /// image at the same URL don't get shown after an update.
+  Future<String?> uploadAvatar({
+    required String id,
+    required Uint8List bytes,
+  }) async {
+    try {
+      final path = '$id/avatar.jpg';
+      await supabase.storage
+          .from(_avatarBucket)
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: const FileOptions(
+              contentType: 'image/jpeg',
+              upsert: true,
+            ),
+          );
+
+      final publicUrl = supabase.storage.from(_avatarBucket).getPublicUrl(path);
+      final avatarUrl = '$publicUrl?updated=${DateTime.now().millisecondsSinceEpoch}';
+
+      await supabase.from('account').update({'avatar_url': avatarUrl}).eq('id', id);
+      return avatarUrl;
+    } catch (e) {
+      debugPrint('AuthService.uploadAvatar error: $e');
+      return null;
     }
   }
 }

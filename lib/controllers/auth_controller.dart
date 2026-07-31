@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../models/account.dart';
 import '../services/auth_service.dart';
 
@@ -44,5 +46,9 @@ class AuthController {
       notifyEmail: notifyEmail,
       notifyPush: notifyPush,
     );
+  }
+
+  Future<String?> uploadAvatar({required String id, required Uint8List bytes}) {
+    return authService.uploadAvatar(id: id, bytes: bytes);
   }
 }

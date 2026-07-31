@@ -18,6 +18,10 @@ class Account {
   bool notifyEmail;
   bool notifyPush;
 
+  /// Public URL of the user's profile picture, or null if they haven't
+  /// set one — the Profile screen falls back to a placeholder icon.
+  String? avatarUrl;
+
   Account({
     required this.id,
     required this.name,
@@ -27,6 +31,7 @@ class Account {
     this.status = 'active',
     this.notifyEmail = true,
     this.notifyPush = true,
+    this.avatarUrl,
   });
 
   factory Account.fromJson(Map<String, dynamic> json) {
@@ -39,6 +44,7 @@ class Account {
       status: (json['status'] as String?)?.trim().toLowerCase() ?? 'active',
       notifyEmail: json['notify_email'] as bool? ?? true,
       notifyPush: json['notify_push'] as bool? ?? true,
+      avatarUrl: json['avatar_url'] as String?,
     );
   }
 
@@ -52,6 +58,7 @@ class Account {
       'status': status,
       'notify_email': notifyEmail,
       'notify_push': notifyPush,
+      'avatar_url': avatarUrl,
     };
   }
 
@@ -63,6 +70,7 @@ class Account {
     String? status,
     bool? notifyEmail,
     bool? notifyPush,
+    String? avatarUrl,
   }) {
     return Account(
       id: id,
@@ -73,6 +81,7 @@ class Account {
       status: status ?? this.status,
       notifyEmail: notifyEmail ?? this.notifyEmail,
       notifyPush: notifyPush ?? this.notifyPush,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/account.dart';
 import '../../controllers/auth_controller.dart';
@@ -16,9 +17,76 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfileState extends State<ProfilePage> {
   final _authController = AuthController(AuthService());
+  final _imagePicker = ImagePicker();
 
   Account? _account;
   bool _isLoading = true;
+  bool _isUploadingAvatar = false;
+
+  void _showAvatarSourcePicker() {
+    if (_account == null || _isUploadingAvatar) return;
+
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndUploadAvatar(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Take a photo'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndUploadAvatar(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadAvatar(ImageSource source) async {
+    final account = _account;
+    if (account == null || _isUploadingAvatar) return;
+
+    final picked = await _imagePicker.pickImage(
+      source: source,
+      maxWidth: 800,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+
+    setState(() => _isUploadingAvatar = true);
+
+    final bytes = await picked.readAsBytes();
+    final avatarUrl = await _authController.uploadAvatar(
+      id: account.id,
+      bytes: bytes,
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _isUploadingAvatar = false;
+      if (avatarUrl != null) {
+        _account = account.copyWith(avatarUrl: avatarUrl);
+      }
+    });
+
+    if (avatarUrl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update profile picture')),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -83,7 +151,13 @@ class _ProfileState extends State<ProfilePage> {
         padding: EdgeInsets.zero,
         children: [
           // ---- Header with wave background + avatar ----
-          _ProfileHeader(name: name, email: email),
+          _ProfileHeader(
+            name: name,
+            email: email,
+            avatarUrl: _account?.avatarUrl,
+            isUploading: _isUploadingAvatar,
+            onEditAvatar: _showAvatarSourcePicker,
+          ),
 
           const SizedBox(height: 20),
 
@@ -185,8 +259,17 @@ class _ProfileState extends State<ProfilePage> {
 class _ProfileHeader extends StatelessWidget {
   final String name;
   final String email;
+  final String? avatarUrl;
+  final bool isUploading;
+  final VoidCallback onEditAvatar;
 
-  const _ProfileHeader({required this.name, required this.email});
+  const _ProfileHeader({
+    required this.name,
+    required this.email,
+    required this.avatarUrl,
+    required this.isUploading,
+    required this.onEditAvatar,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -231,30 +314,55 @@ class _ProfileHeader extends StatelessWidget {
                         color: Colors.white,
                         shape: BoxShape.circle,
                       ),
-                      child: const CircleAvatar(
+                      child: CircleAvatar(
                         radius: 42,
-                        backgroundColor: Color(0xFFE0ECF9),
-                        child: Icon(
-                          Icons.person,
-                          size: 48,
-                          color: Color(0xFF6FAEE0),
-                        ),
+                        backgroundColor: const Color(0xFFE0ECF9),
+                        backgroundImage: avatarUrl != null
+                            ? NetworkImage(avatarUrl!)
+                            : null,
+                        child: avatarUrl == null
+                            ? const Icon(
+                                Icons.person,
+                                size: 48,
+                                color: Color(0xFF6FAEE0),
+                              )
+                            : null,
                       ),
                     ),
+                    if (isUploading)
+                      const Positioned.fill(
+                        child: Padding(
+                          padding: EdgeInsets.all(4),
+                          child: CircleAvatar(
+                            backgroundColor: Colors.black45,
+                            child: SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     Positioned(
                       bottom: 0,
                       right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF3B82F6),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt,
-                          size: 14,
-                          color: Colors.white,
+                      child: GestureDetector(
+                        onTap: isUploading ? null : onEditAvatar,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF3B82F6),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            size: 14,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
