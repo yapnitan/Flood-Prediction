@@ -4,15 +4,6 @@ import '../models/account.dart';
 
 const String _avatarBucket = 'avatars';
 
-/// Deep-link scheme the app registers so Supabase's password-reset email
-/// can open the app again and hand back a recovery session.
-/// Must match:
-///  - Supabase Dashboard > Authentication > URL Configuration > Redirect URLs
-///  - android/app/src/main/AndroidManifest.xml intent-filter
-///  - ios/Runner/Info.plist CFBundleURLTypes
-const String kPasswordResetRedirect =
-    'https://public-flutter.web.app/reset-callback';
-
 /// Result of a login attempt. [account] is non-null only on success;
 /// [error] gives a user-facing reason when it fails (wrong password,
 /// disabled account, pending approval, etc.) so the UI can show something
@@ -30,11 +21,10 @@ class AuthService {
 
   Future<Map<String, dynamic>> register(String name, String email, String password) async {
     try {
-      // 1. Create authentication account
       final response = await supabase.auth.signUp(
         email: email,
         password: password,
-        data: {'name': name}, // stores name in user_metadata
+        data: {'name': name},
       );
 
       final user = response.user;
@@ -43,7 +33,6 @@ class AuthService {
         return {'status': 'error', 'message': 'Registration failed'};
       }
 
-      // 2. Check if a session exists (it won't if email confirmation is required)
       if (response.session == null) {
         return {
           'status': 'confirm_email',
@@ -51,7 +40,6 @@ class AuthService {
         };
       }
 
-      // 3. Session exists (auto-confirmed) — safe to insert profile now
       final account = await supabase
           .from('account')
           .insert({'id': user.id, 'name': name, 'email': email, 'role': 'user'})
@@ -81,7 +69,6 @@ class AuthService {
         return LoginResult.failure('Invalid email or password');
       }
 
-      // Try to fetch existing profile
       final existing = await supabase
           .from('account')
           .select()
@@ -92,15 +79,14 @@ class AuthService {
       if (existing != null) {
         account = Account.fromJson(existing);
       } else {
-        // No profile yet (first login after email confirmation) — create it now
         final inserted = await supabase
             .from('account')
             .insert({
-              'id': user.id,
-              'name': user.userMetadata?['name'] ?? '',
-              'email': user.email,
-              'role': 'user',
-            })
+          'id': user.id,
+          'name': user.userMetadata?['name'] ?? '',
+          'email': user.email,
+          'role': 'user',
+        })
             .select()
             .single();
         account = Account.fromJson(inserted);
@@ -147,37 +133,41 @@ class AuthService {
     }
   }
 
-  /// Step 1 of "forgot password": emails the user a recovery link that
-  /// deep-links back into the app via [kPasswordResetRedirect]. Opening
-  /// that link fires an `AuthChangeEvent.passwordRecovery` event (handled
-  /// in main.dart), which is what actually lets [updatePassword] succeed.
-  Future<Map<String, dynamic>> sendPasswordResetEmail(String email) async {
+  /// Step 1 of "forgot password": Supabase emails a 6-digit code (email
+  /// template must use `{{ .Token }}`, not the confirmation link). Whole
+  /// flow stays in-app — no browser hand-off, no deep link.
+  Future<Map<String, dynamic>> sendPasswordResetCode(String email) async {
     try {
-      await supabase.auth.resetPasswordForEmail(
-        email,
-        redirectTo: kPasswordResetRedirect,
-      );
+      await supabase.auth.resetPasswordForEmail(email);
       return {
         'status': 'success',
-        'message':
-            'If an account exists for that email, a reset link has been sent. Please check your inbox.',
+        'message': 'If an account exists for that email, a verification code has been sent.',
       };
     } catch (e) {
-      debugPrint('AuthService.sendPasswordResetEmail error: $e');
+      debugPrint('AuthService.sendPasswordResetCode error: $e');
       return {'status': 'error', 'message': e.toString()};
     }
   }
 
-  /// Step 2 of "forgot password": must be called while the temporary
-  /// recovery session from the emailed link is active (i.e. from
-  /// ResetPasswordView, right after the passwordRecovery event fires).
-  Future<Map<String, dynamic>> updatePassword(String newPassword) async {
+  /// Step 2: verifies the emailed code (exchanges it for a temporary
+  /// recovery session) and sets the new password in the same call.
+  Future<Map<String, dynamic>> verifyResetCode({
+    required String email,
+    required String token,
+    required String newPassword,
+  }) async {
     try {
+      await supabase.auth.verifyOTP(
+        email: email,
+        token: token,
+        type: OtpType.recovery,
+      );
       await supabase.auth.updateUser(UserAttributes(password: newPassword));
+      await supabase.auth.signOut();
       return {'status': 'success', 'message': 'Password updated successfully.'};
     } catch (e) {
-      debugPrint('AuthService.updatePassword error: $e');
-      return {'status': 'error', 'message': e.toString()};
+      debugPrint('AuthService.verifyResetCode error: $e');
+      return {'status': 'error', 'message': 'Invalid or expired code. Please try again.'};
     }
   }
 
@@ -222,13 +212,13 @@ class AuthService {
       await supabase.storage
           .from(_avatarBucket)
           .uploadBinary(
-            path,
-            bytes,
-            fileOptions: const FileOptions(
-              contentType: 'image/jpeg',
-              upsert: true,
-            ),
-          );
+        path,
+        bytes,
+        fileOptions: const FileOptions(
+          contentType: 'image/jpeg',
+          upsert: true,
+        ),
+      );
 
       final publicUrl = supabase.storage.from(_avatarBucket).getPublicUrl(path);
       final avatarUrl = '$publicUrl?updated=${DateTime.now().millisecondsSinceEpoch}';

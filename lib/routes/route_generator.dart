@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../views/auth/login_view.dart';
 import '../views/auth/register_view.dart';
 import '../views/auth/forgot_password_view.dart';
-import '../views/auth/reset_password_view.dart';
 import '../views/admin/admin_view.dart';
 import '../views/helper/helper_view.dart';
 import '../views/user/user_view.dart';
@@ -30,9 +29,6 @@ class RouteGenerator {
 
       case AppRoutes.forgotPassword:
         return MaterialPageRoute(builder: (_) => const ForgotPasswordPage());
-
-      case AppRoutes.resetPassword:
-        return MaterialPageRoute(builder: (_) => const ResetPasswordView());
 
       case AppRoutes.adminHome:
         return MaterialPageRoute(builder: (_) => const AdminHome());
@@ -79,9 +75,7 @@ class RouteGenerator {
 
       default:
         return MaterialPageRoute(
-          builder: (_) => Scaffold(
-            body: Center(child: Text('No route defined for ${settings.name}')),
-          ),
+          builder: (_) => const LoginView(),
         );
     }
   }

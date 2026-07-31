@@ -24,12 +24,16 @@ class AuthController {
     return authService.getAccountById(id);
   }
 
-  Future<Map<String, dynamic>> sendPasswordReset(String email) {
-    return authService.sendPasswordResetEmail(email);
+  Future<Map<String, dynamic>> sendPasswordResetCode(String email) {
+    return authService.sendPasswordResetCode(email);
   }
 
-  Future<Map<String, dynamic>> updatePassword(String newPassword) {
-    return authService.updatePassword(newPassword);
+  Future<Map<String, dynamic>> verifyResetCode({
+    required String email,
+    required String token,
+    required String newPassword,
+  }) {
+    return authService.verifyResetCode(email: email, token: token, newPassword: newPassword);
   }
 
   Future<bool> updateProfile({required String id, required String name}) {
