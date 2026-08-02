@@ -341,40 +341,46 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
         const SizedBox(height: 20),
 
         // ---- Rainfall / Water level / Nearby reports ----
-        Row(
-          children: [
-            Expanded(
-              child: _StatBox(
-                label: "Rainfall",
-                isLoading: _isLoadingAreaRisk,
-                value: _rainfallMm != null
-                    ? '${_rainfallMm!.toStringAsFixed(1)} mm'
-                    : 'Unavailable',
+        // Wrapped in IntrinsicHeight + stretch so all three cards match the
+        // height of whichever has the most content (e.g. "No reports
+        // nearby" wraps to two lines while "3.2 mm" doesn't).
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _StatBox(
+                  label: "Rainfall",
+                  isLoading: _isLoadingAreaRisk,
+                  value: _rainfallMm != null
+                      ? '${_rainfallMm!.toStringAsFixed(1)} mm'
+                      : 'Unavailable',
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _StatBox(
-                label: "Water level",
-                isLoading: _isLoadingAreaRisk,
-                value: _nearbyReports.isEmpty
-                    ? 'No reports nearby'
-                    : _nearbyReports.first.waterLevel,
-                valueColor: _nearbyReports.isEmpty
-                    ? null
-                    : _areaRiskColor(_nearbyReports.first.waterLevel),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatBox(
+                  label: "Water level",
+                  isLoading: _isLoadingAreaRisk,
+                  value: _nearbyReports.isEmpty
+                      ? 'No reports nearby'
+                      : _nearbyReports.first.waterLevel,
+                  valueColor: _nearbyReports.isEmpty
+                      ? null
+                      : _areaRiskColor(_nearbyReports.first.waterLevel),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _StatBox(
-                label: "Nearby reports",
-                isLoading: _isLoadingAreaRisk,
-                value: '${_nearbyReports.length}',
-                caption: 'within 5km, 24h',
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StatBox(
+                  label: "Nearby reports",
+                  isLoading: _isLoadingAreaRisk,
+                  value: '${_nearbyReports.length}',
+                  caption: 'within 5km, 24h',
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
