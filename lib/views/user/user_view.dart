@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flood_prediction/views/shared/user_profile.dart';
 import 'package:flood_prediction/utils/responsive.dart';
 import 'package:flood_prediction/widgets/home_flood_overview.dart';
-import 'package:flood_prediction/widgets/info_box.dart';
 import 'package:flood_prediction/routes/app_routes.dart';
 
 class UserHome extends StatefulWidget {
@@ -64,69 +63,9 @@ class _UserHomeState extends State<UserHome> {
 
                 const SizedBox(height: 20),
 
-                // ---- Flood status + alert icon + current-location map ----
+                // ---- Flood status + alert icon + current-location map +
+                //      rainfall / water level / nearby report count ----
                 HomeFloodOverview(key: _homeOverviewKey),
-
-                const SizedBox(height: 20),
-
-                // ---- Rainfall / Water level / Risk level ----
-                Row(
-                  children: [
-                    Expanded(
-                      child: InfoBox(
-                        child: Column(
-                          children: [
-                            Text(
-                              "Rainfall",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                            SizedBox(height: 6),
-                            Text("xxxx"),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: InfoBox(
-                        child: Column(
-                          children: [
-                            Text(
-                              "Water level",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                            SizedBox(height: 6),
-                            Text("xxxx"),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: InfoBox(
-                        child: Column(
-                          children: [
-                            Text(
-                              "Risk level",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                            SizedBox(height: 6),
-                            Text("xxxx"),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),

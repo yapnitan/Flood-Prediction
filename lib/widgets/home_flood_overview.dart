@@ -56,6 +56,8 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
   String? _statusMessage;
 
   AreaRiskResult? _areaRisk;
+  double? _rainfallMm;
+  List<FloodReport> _nearbyReports = const [];
   bool _isLoadingAreaRisk = true;
 
   @override
@@ -95,13 +97,15 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
       if (mounted) setState(() => _isLoadingAreaRisk = false);
       return;
     }
-    final result = await _areaRiskController.assessCurrentLocation(
+    final assessment = await _areaRiskController.assessCurrentLocation(
       latitude: position.latitude,
       longitude: position.longitude,
     );
     if (!mounted) return;
     setState(() {
-      _areaRisk = result;
+      _areaRisk = assessment.result;
+      _rainfallMm = assessment.currentRainfallMm;
+      _nearbyReports = assessment.nearbyReports;
       _isLoadingAreaRisk = false;
     });
   }
@@ -333,6 +337,45 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
             ),
           ),
         ),
+
+        const SizedBox(height: 20),
+
+        // ---- Rainfall / Water level / Nearby reports ----
+        Row(
+          children: [
+            Expanded(
+              child: _StatBox(
+                label: "Rainfall",
+                isLoading: _isLoadingAreaRisk,
+                value: _rainfallMm != null
+                    ? '${_rainfallMm!.toStringAsFixed(1)} mm'
+                    : 'Unavailable',
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatBox(
+                label: "Water level",
+                isLoading: _isLoadingAreaRisk,
+                value: _nearbyReports.isEmpty
+                    ? 'No reports nearby'
+                    : _nearbyReports.first.waterLevel,
+                valueColor: _nearbyReports.isEmpty
+                    ? null
+                    : _areaRiskColor(_nearbyReports.first.waterLevel),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatBox(
+                label: "Nearby reports",
+                isLoading: _isLoadingAreaRisk,
+                value: '${_nearbyReports.length}',
+                caption: 'within 5km, 24h',
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -428,5 +471,58 @@ Color _areaRiskColor(String? level) {
       return Colors.green;
     default:
       return Colors.grey;
+  }
+}
+
+/// Small labelled stat tile — rainfall, nearest report's water level,
+/// nearby report count — sharing the same [InfoBox] card style as
+/// [_FloodRiskCard].
+class _StatBox extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool isLoading;
+  final Color? valueColor;
+  final String? caption;
+
+  const _StatBox({
+    required this.label,
+    required this.value,
+    required this.isLoading,
+    this.valueColor,
+    this.caption,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InfoBox(
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          ),
+          const SizedBox(height: 6),
+          if (isLoading)
+            const SizedBox(
+              height: 14,
+              width: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            Text(
+              value,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.bold, color: valueColor),
+            ),
+          if (!isLoading && caption != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              caption!,
+              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
