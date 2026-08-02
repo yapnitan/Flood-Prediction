@@ -21,6 +21,50 @@ class _UserHomeState extends State<UserHome> {
   // Titles corresponding to each tab, in the same order as `pages`
   final List<String> titles = ["Flood Watch", "Submit Report", "Profile"];
 
+  /// The bottom nav's "Report" destination (index 1) no longer switches
+  /// tabs directly — it first asks whether this is a live flood report
+  /// (handled in-app, in the existing `SubmitReportPage` tab) or a
+  /// property damage / aid request (CLAUDE.md Task 10, pushed as its own
+  /// route since it's a one-off action, not something that needs a
+  /// permanent tab slot).
+  void _onNavTap(int index) {
+    if (index == 1) {
+      _showReportChooser();
+      return;
+    }
+    setState(() => currentIndex = index);
+  }
+
+  void _showReportChooser() {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.water_drop_outlined, color: Colors.blue),
+              title: const Text('Report a flood'),
+              subtitle: const Text('Share live flood conditions in your area'),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() => currentIndex = 1);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.home_repair_service_outlined, color: Colors.orange),
+              title: const Text('Report property damage'),
+              subtitle: const Text('Request post-flood repair or aid assistance'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, AppRoutes.createRepairRequest);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildHomePage() {
     return SingleChildScrollView(
       child: Center(
@@ -110,11 +154,7 @@ class _UserHomeState extends State<UserHome> {
               children: [
                 NavigationRail(
                   selectedIndex: currentIndex,
-                  onDestinationSelected: (index) {
-                    setState(() {
-                      currentIndex = index;
-                    });
-                  },
+                  onDestinationSelected: _onNavTap,
                   labelType: NavigationRailLabelType.all,
                   selectedIconTheme: const IconThemeData(color: Colors.blue),
                   selectedLabelTextStyle: const TextStyle(color: Colors.blue),
@@ -146,11 +186,7 @@ class _UserHomeState extends State<UserHome> {
           : BottomNavigationBar(
               currentIndex: currentIndex,
 
-              onTap: (index) {
-                setState(() {
-                  currentIndex = index;
-                });
-              },
+              onTap: _onNavTap,
 
               selectedItemColor: Colors.blue,
               unselectedItemColor: Colors.grey,

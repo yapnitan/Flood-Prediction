@@ -1,30 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../constants/nearby_locations.dart';
-import '../../models/flood_report.dart';
-import '../../services/flood_report_service.dart';
+import '../../controllers/repair_request_controller.dart';
+import '../../models/repair_request.dart';
 import '../../services/location_service.dart';
+import '../../services/repair_request_service.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/photo_preview.dart';
 import '../../widgets/review_card.dart';
 import '../../widgets/selectable_chip.dart';
 import '../../widgets/step_indicator.dart';
 
-class SubmitReportPage extends StatefulWidget {
-  const SubmitReportPage({super.key, this.onSubmissionComplete});
-
-  final VoidCallback? onSubmissionComplete;
+/// Post-flood aid & repair request submission wizard (CLAUDE.md Task 10).
+/// Structurally mirrors [SubmitReportPage]'s 4-step flow (Location →
+/// Details → Photos → Review/Submit) with damage-specific fields instead
+/// of flood-specific ones. Pushed as its own route from the Home tab's
+/// "Report" chooser, rather than living in the bottom nav's `IndexedStack`
+/// like the flood report tab does — a one-off action doesn't need a
+/// permanent tab slot.
+class CreateRepairRequestView extends StatefulWidget {
+  const CreateRepairRequestView({super.key});
 
   @override
-  State<SubmitReportPage> createState() => _SubmitReportState();
+  State<CreateRepairRequestView> createState() => _CreateRepairRequestState();
 }
 
-class _SubmitReportState extends State<SubmitReportPage> {
+class _CreateRepairRequestState extends State<CreateRepairRequestView> {
   int _currentStep = 1;
 
   // Step 1 state
-  String? selectedFloodType = "Street Flooding";
-  String? selectedWaterLevel = "Medium";
   final TextEditingController _locationNameController = TextEditingController();
   final FocusNode _locationFocusNode = FocusNode();
   final LocationService _locationService = LocationService();
@@ -33,34 +37,30 @@ class _SubmitReportState extends State<SubmitReportPage> {
   bool _isLocating = false;
 
   // Step 2 state
+  String? selectedAssistanceType = 'Structural Repair';
   final _detailsFormKey = GlobalKey<FormState>();
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _dateTimeController = TextEditingController();
   final TextEditingController _contactController = TextEditingController();
+
+  // Step 3 state
   final ImagePicker _imagePicker = ImagePicker();
   final List<XFile> _photos = [];
-  final FloodReportService _floodReportService = FloodReportService();
-  DateTime? _observedAt;
+  final _repairRequestController = RepairRequestController(RepairRequestService());
   bool _isSubmitting = false;
   bool _isSubmitted = false;
 
-  final List<String> floodTypes = [
-    "Street Flooding",
-    "River Overflow",
-    "Drainage Issue",
-    "Other",
-  ];
-
-  final List<Map<String, String>> waterLevels = [
-    {"label": "Low", "sub": "(< 10 cm)"},
-    {"label": "Medium", "sub": "(10 - 30 cm)"},
-    {"label": "High", "sub": "(> 30 cm)"},
+  final List<String> assistanceTypes = [
+    'Structural Repair',
+    'Temporary Shelter',
+    'Food & Water Supply',
+    'Medical Assistance',
+    'Financial Aid',
+    'Other',
   ];
 
   @override
   void dispose() {
     _descriptionController.dispose();
-    _dateTimeController.dispose();
     _contactController.dispose();
     _locationNameController.dispose();
     _locationFocusNode.dispose();
@@ -89,7 +89,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
       return;
     }
 
-    _submitReport();
+    _submitRequest();
   }
 
   bool _validateLocation() {
@@ -142,44 +142,17 @@ class _SubmitReportState extends State<SubmitReportPage> {
     setState(() {});
   }
 
-  Future<void> _selectDateTime() async {
-    final now = DateTime.now();
-    final date = await showDatePicker(
-      context: context,
-      initialDate: now,
-      firstDate: DateTime(now.year - 1),
-      lastDate: now,
-    );
-    if (date == null || !mounted) return;
-
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(now),
-    );
-    if (time == null || !mounted) return;
-
-    final selected = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-    setState(() {
-      _observedAt = selected;
-      _dateTimeController.text =
-          '${selected.day.toString().padLeft(2, '0')}/${selected.month.toString().padLeft(2, '0')}/${selected.year} '
-          '${time.format(context)}';
-    });
-  }
-
-  Future<void> _submitReport() async {
+  Future<void> _submitRequest() async {
     if (_isSubmitting || _isSubmitted) return;
 
     setState(() => _isSubmitting = true);
-    final submitted = await _floodReportService.submit(
-      FloodReport(
+    final submitted = await _repairRequestController.submit(
+      RepairRequest(
         locationName: _locationNameController.text.trim(),
         latitude: _selectedLatitude ?? 3.1390,
         longitude: _selectedLongitude ?? 101.6869,
-        floodType: selectedFloodType!,
-        waterLevel: selectedWaterLevel!,
-        observedAt: _observedAt!,
-        description: _descriptionController.text.trim(),
+        assistanceType: selectedAssistanceType!,
+        damageDescription: _descriptionController.text.trim(),
         contactNumber: _contactController.text.trim().isEmpty
             ? null
             : _contactController.text.trim(),
@@ -191,7 +164,6 @@ class _SubmitReportState extends State<SubmitReportPage> {
     setState(() {
       _isSubmitting = false;
       if (submitted) {
-        _resetForm();
         _currentStep = 4;
         _isSubmitted = true;
       }
@@ -201,31 +173,11 @@ class _SubmitReportState extends State<SubmitReportPage> {
       SnackBar(
         content: Text(
           submitted
-              ? 'Your flood report has been submitted.'
-              : 'Could not submit the report. Please try again.',
+              ? 'Your repair request has been submitted.'
+              : 'Could not submit the request. Please try again.',
         ),
       ),
     );
-  }
-
-  void _resetForm() {
-    _currentStep = 1;
-    selectedFloodType = 'Street Flooding';
-    selectedWaterLevel = 'Medium';
-    _observedAt = null;
-    _descriptionController.clear();
-    _dateTimeController.clear();
-    _contactController.clear();
-    _locationNameController.clear();
-    _selectedLatitude = null;
-    _selectedLongitude = null;
-    _photos.clear();
-    _isSubmitted = false;
-  }
-
-  void _completeSubmission() {
-    setState(_resetForm);
-    widget.onSubmissionComplete?.call();
   }
 
   Future<void> _pickPhotos(ImageSource source) async {
@@ -278,29 +230,25 @@ class _SubmitReportState extends State<SubmitReportPage> {
     final gridColumns = screenWidth >= 900 ? 4 : (screenWidth >= 600 ? 3 : 2);
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Report Property Damage'),
+        centerTitle: true,
+      ),
       backgroundColor: Colors.white,
-
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: context.responsive(
-                mobile: 700,
-                tablet: 800,
-                desktop: 900,
-              ),
+              maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
             ),
             child: Column(
               children: [
                 // ---- Step indicator ----
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   child: StepIndicator(
                     currentStep: _currentStep,
-                    steps: ["Location", "Details", "Photos", "Submit"],
+                    steps: const ["Location", "Damage Details", "Photos", "Submit"],
                   ),
                 ),
 
@@ -308,19 +256,15 @@ class _SubmitReportState extends State<SubmitReportPage> {
                 Expanded(
                   child: SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
-                      horizontal: context.responsive(
-                        mobile: 20,
-                        tablet: 32,
-                        desktop: 40,
-                      ),
+                      horizontal: context.responsive(mobile: 20, tablet: 32, desktop: 40),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (_currentStep == 1)
-                          _buildLocationStep(gridColumns)
+                          _buildLocationStep()
                         else if (_currentStep == 2)
-                          _buildDetailsStep()
+                          _buildDetailsStep(gridColumns)
                         else if (_currentStep == 3)
                           _buildPhotosStep()
                         else if (_currentStep == 4)
@@ -375,8 +319,8 @@ class _SubmitReportState extends State<SubmitReportPage> {
                                   : _currentStep == 2
                                   ? 'Next: Photos'
                                   : _currentStep == 3
-                                  ? 'Review Report'
-                                  : 'Submit Report',
+                                  ? 'Review Request'
+                                  : 'Submit Request',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -397,11 +341,16 @@ class _SubmitReportState extends State<SubmitReportPage> {
     );
   }
 
-  Widget _buildLocationStep(int gridColumns) {
+  Widget _buildLocationStep() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const SizedBox(height: 8),
+        const Text(
+          'Where is the damage located?',
+          style: TextStyle(color: Colors.grey),
+        ),
         const SizedBox(height: 10),
         RawAutocomplete<ReportLocation>(
           textEditingController: _locationNameController,
@@ -436,10 +385,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
                           : const Icon(Icons.my_location, color: Colors.blue),
                       title: const Text(
                         'Use Current Location',
-                        style: TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: TextStyle(color: Colors.blue, fontWeight: FontWeight.w600),
                       ),
                       subtitle: const Text('Detect location using GPS'),
                       onTap: () {
@@ -509,55 +455,73 @@ class _SubmitReportState extends State<SubmitReportPage> {
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.blue,
               side: const BorderSide(color: Colors.blue),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
         ),
-        const SizedBox(height: 24),
-        const Text('Type of Flooding', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-        const SizedBox(height: 10),
-        GridView.count(crossAxisCount: gridColumns, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 2.6, children: floodTypes.map((type) => SelectableChip(label: type, selected: selectedFloodType == type, onTap: () => setState(() => selectedFloodType = type))).toList()),
-        const SizedBox(height: 24),
-        const Text('Water Level (Approx.)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-        const SizedBox(height: 10),
-        Row(children: waterLevels.map((level) => Expanded(child: Padding(padding: const EdgeInsets.only(right: 10), child: SelectableChip(label: level['label']!, sublabel: level['sub'], selected: selectedWaterLevel == level['label'], onTap: () => setState(() => selectedWaterLevel = level['label']))))).toList()),
         const SizedBox(height: 30),
       ],
     );
   }
 
-  Widget _buildDetailsStep() {
+  Widget _buildDetailsStep(int gridColumns) {
     return Form(
       key: _detailsFormKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Flood Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          const SizedBox(height: 8),
-          const Text('Tell us when the flooding occurred and any useful information.', style: TextStyle(color: Colors.grey)),
-          const SizedBox(height: 20),
-          TextFormField(
-            controller: _dateTimeController,
-            readOnly: true,
-            onTap: _selectDateTime,
-            decoration: const InputDecoration(labelText: 'Date and time observed', prefixIcon: Icon(Icons.calendar_today), border: OutlineInputBorder()),
-            validator: (value) => value == null || value.isEmpty ? 'Select when you observed the flooding.' : null,
+          const Text(
+            'Type of Assistance Needed',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
+          GridView.count(
+            crossAxisCount: gridColumns,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 2.6,
+            children: assistanceTypes
+                .map(
+                  (type) => SelectableChip(
+                    label: type,
+                    selected: selectedAssistanceType == type,
+                    onTap: () => setState(() => selectedAssistanceType = type),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 24),
+          const Text('Damage Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const SizedBox(height: 8),
+          const Text(
+            'Describe the damage so helpers know what to expect.',
+            style: TextStyle(color: Colors.grey),
+          ),
+          const SizedBox(height: 20),
           TextFormField(
             controller: _descriptionController,
             minLines: 4,
             maxLines: 6,
-            decoration: const InputDecoration(labelText: 'Description', hintText: 'Describe the flooding, road conditions, or immediate hazards.', alignLabelWithHint: true, border: OutlineInputBorder()),
-            validator: (value) => value == null || value.trim().isEmpty ? 'Enter a short description.' : null,
+            decoration: const InputDecoration(
+              labelText: 'Damage description',
+              hintText: 'Describe the extent of the damage and what assistance is needed.',
+              alignLabelWithHint: true,
+              border: OutlineInputBorder(),
+            ),
+            validator: (value) =>
+                value == null || value.trim().isEmpty ? 'Enter a short description.' : null,
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: _contactController,
             keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(labelText: 'Contact number (optional)', prefixIcon: Icon(Icons.phone), border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+              labelText: 'Contact number (optional)',
+              prefixIcon: Icon(Icons.phone),
+              border: OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 30),
         ],
@@ -569,13 +533,10 @@ class _SubmitReportState extends State<SubmitReportPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Add Photos',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-        ),
+        const Text('Add Photos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 8),
         const Text(
-          'Photos help responders verify the report. They are optional.',
+          'Photos help helpers and admins assess the damage. They are optional.',
           style: TextStyle(color: Colors.grey),
         ),
         const SizedBox(height: 20),
@@ -583,9 +544,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
           onPressed: _showPhotoSourcePicker,
           icon: const Icon(Icons.add_a_photo_outlined),
           label: const Text('Add photos'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(52),
-          ),
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
         ),
         const SizedBox(height: 16),
         if (_photos.isEmpty)
@@ -634,18 +593,15 @@ class _SubmitReportState extends State<SubmitReportPage> {
             children: [
               const Icon(Icons.check_circle_outline, color: Colors.green, size: 72),
               const SizedBox(height: 16),
-              const Text(
-                'Report submitted',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
+              const Text('Request submitted', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              const Text('Thank you for helping keep your community informed.'),
+              const Text('A helper or admin will review your request soon.'),
               const SizedBox(height: 24),
               SizedBox(
                 width: 180,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: _completeSubmission,
+                  onPressed: () => Navigator.of(context).pop(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
@@ -662,41 +618,21 @@ class _SubmitReportState extends State<SubmitReportPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Review Your Report',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
+        const Text('Review Your Request', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         const Text('Check the details below before submitting.'),
         const SizedBox(height: 20),
-        ReviewCard(
-          title: 'Location',
-          value: _locationNameController.text.trim(),
-        ),
-        ReviewCard(title: 'Flood type', value: selectedFloodType!),
-        ReviewCard(title: 'Water level', value: selectedWaterLevel!),
-        ReviewCard(
-          title: 'Observed',
-          value: _dateTimeController.text,
-        ),
-        ReviewCard(
-          title: 'Description',
-          value: _descriptionController.text.trim(),
-        ),
+        ReviewCard(title: 'Location', value: _locationNameController.text.trim()),
+        ReviewCard(title: 'Assistance type', value: selectedAssistanceType!),
+        ReviewCard(title: 'Damage description', value: _descriptionController.text.trim()),
         if (_contactController.text.trim().isNotEmpty)
-          ReviewCard(
-            title: 'Contact number',
-            value: _contactController.text.trim(),
-          ),
+          ReviewCard(title: 'Contact number', value: _contactController.text.trim()),
         ReviewCard(
           title: 'Photos',
-          value: _photos.isEmpty
-              ? 'No photos attached'
-              : '${_photos.length} photo(s) attached',
+          value: _photos.isEmpty ? 'No photos attached' : '${_photos.length} photo(s) attached',
         ),
         const SizedBox(height: 30),
       ],
     );
   }
 }
-

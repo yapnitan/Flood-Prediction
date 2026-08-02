@@ -9,6 +9,7 @@ import '../views/user/user_view.dart';
 import '../views/user/simulation_list_view.dart';
 import '../views/user/create_simulation_view.dart';
 import '../views/user/simulation_detail_view.dart';
+import '../views/user/create_repair_request_view.dart';
 import '../views/shared/personal_information_view.dart';
 import '../views/shared/notification_settings_view.dart';
 import '../views/shared/help_support_view.dart';
@@ -54,6 +55,9 @@ class RouteGenerator {
             recommendations: args.recommendations,
           ),
         );
+
+      case AppRoutes.createRepairRequest:
+        return MaterialPageRoute(builder: (_) => const CreateRepairRequestView());
 
       case AppRoutes.personalInformation:
         final args = settings.arguments as PersonalInformationArgs;

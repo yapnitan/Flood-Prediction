@@ -14,6 +14,8 @@ class AppRoutes {
   static const String createSimulation = '/simulations/create';
   static const String simulationDetail = '/simulations/detail';
 
+  static const String createRepairRequest = '/repair-requests/create';
+
   static const String personalInformation = '/profile/personal-information';
   static const String notificationSettings = '/profile/notification-settings';
   static const String helpSupport = '/profile/help-support';
