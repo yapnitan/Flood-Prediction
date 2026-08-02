@@ -235,8 +235,70 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
               'Reported ${_formatTimeAgo(reportedTime)}',
               style: TextStyle(color: Colors.grey[600]),
             ),
+            if (report.photoPaths.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 90,
+                child: FutureBuilder<List<String>>(
+                  future: _floodReportService.getPhotoUrls(report.photoPaths),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState != ConnectionState.done) {
+                      return const Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      );
+                    }
+                    final urls = snapshot.data ?? [];
+                    if (urls.isEmpty) {
+                      return Text(
+                        'Photos unavailable',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      );
+                    }
+                    return ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: urls.length,
+                      separatorBuilder: (context, index) => const SizedBox(width: 8),
+                      itemBuilder: (context, index) => GestureDetector(
+                        onTap: () => _openPhotoViewer(urls, index),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.network(
+                            urls[index],
+                            width: 90,
+                            height: 90,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, progress) => progress == null
+                                ? child
+                                : const Center(
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              color: Colors.grey.shade200,
+                              child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  void _openPhotoViewer(List<String> urls, int initialIndex) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (context) => _ReportPhotoViewer(urls: urls, initialIndex: initialIndex),
       ),
     );
   }
@@ -528,6 +590,35 @@ class _StatBox extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Full-screen, swipeable, pinch-to-zoom viewer for a report's photos,
+/// opened by tapping a thumbnail in [HomeFloodOverviewState._showReportInfo].
+class _ReportPhotoViewer extends StatelessWidget {
+  final List<String> urls;
+  final int initialIndex;
+
+  const _ReportPhotoViewer({required this.urls, required this.initialIndex});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: PageView.builder(
+        controller: PageController(initialPage: initialIndex),
+        itemCount: urls.length,
+        itemBuilder: (context, index) => InteractiveViewer(
+          child: Center(
+            child: Image.network(urls[index], fit: BoxFit.contain),
+          ),
+        ),
       ),
     );
   }

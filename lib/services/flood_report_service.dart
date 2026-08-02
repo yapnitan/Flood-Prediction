@@ -111,6 +111,27 @@ class FloodReportService {
     }
   }
 
+  /// Signed, time-limited URLs for a report's evidence photos — the
+  /// `flood-report-photos` bucket is private, so a plain public URL
+  /// won't work; each viewer needs their own freshly-signed one. Paths
+  /// the caller isn't allowed to read (RLS) are silently omitted rather
+  /// than failing the whole batch.
+  Future<List<String>> getPhotoUrls(
+    List<String> paths, {
+    int expiresInSeconds = 600,
+  }) async {
+    if (paths.isEmpty) return [];
+    try {
+      final results = await _supabase.storage
+          .from(_photoBucket)
+          .createSignedUrlsResult(paths, expiresInSeconds);
+      return results.whereType<SignedUrlSuccess>().map((r) => r.signedUrl).toList();
+    } catch (error) {
+      debugPrint('FloodReportService.getPhotoUrls error: $error');
+      return [];
+    }
+  }
+
   Future<List<String>> _uploadPhotos(List<XFile> photos) async {
     final uploadBatch = DateTime.now().microsecondsSinceEpoch.toString();
     final uploaderId = _supabase.auth.currentUser?.id;
