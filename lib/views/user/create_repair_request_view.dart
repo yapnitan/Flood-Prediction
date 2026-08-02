@@ -37,7 +37,7 @@ class _CreateRepairRequestState extends State<CreateRepairRequestView> {
   bool _isLocating = false;
 
   // Step 2 state
-  String? selectedAssistanceType = 'Structural Repair';
+  String? selectedAssistanceType;
   final _detailsFormKey = GlobalKey<FormState>();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _contactController = TextEditingController();
@@ -74,12 +74,16 @@ class _CreateRepairRequestState extends State<CreateRepairRequestView> {
       return;
     }
 
-    if (_currentStep == 2 &&
-        !(_detailsFormKey.currentState?.validate() ?? false)) {
-      return;
-    }
-
     if (_currentStep == 2) {
+      if (selectedAssistanceType == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select the type of assistance needed.')),
+        );
+        return;
+      }
+      if (!(_detailsFormKey.currentState?.validate() ?? false)) {
+        return;
+      }
       setState(() => _currentStep = 3);
       return;
     }

@@ -23,8 +23,8 @@ class _SubmitReportState extends State<SubmitReportPage> {
   int _currentStep = 1;
 
   // Step 1 state
-  String? selectedFloodType = "Street Flooding";
-  String? selectedWaterLevel = "Medium";
+  String? selectedFloodType;
+  String? selectedWaterLevel;
   final TextEditingController _locationNameController = TextEditingController();
   final FocusNode _locationFocusNode = FocusNode();
   final LocationService _locationService = LocationService();
@@ -95,14 +95,24 @@ class _SubmitReportState extends State<SubmitReportPage> {
   bool _validateLocation() {
     final name = _locationNameController.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select or enter a location.')),
-      );
+      _showSnack('Please select or enter a location.');
+      return false;
+    }
+    if (selectedFloodType == null) {
+      _showSnack('Please select the type of flooding.');
+      return false;
+    }
+    if (selectedWaterLevel == null) {
+      _showSnack('Please select the water level.');
       return false;
     }
     _selectedLatitude ??= 3.1390;
     _selectedLongitude ??= 101.6869;
     return true;
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _useCurrentLocation() async {
@@ -210,8 +220,8 @@ class _SubmitReportState extends State<SubmitReportPage> {
 
   void _resetForm() {
     _currentStep = 1;
-    selectedFloodType = 'Street Flooding';
-    selectedWaterLevel = 'Medium';
+    selectedFloodType = null;
+    selectedWaterLevel = null;
     _observedAt = null;
     _descriptionController.clear();
     _dateTimeController.clear();
