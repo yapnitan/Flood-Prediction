@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/flood_report.dart';
+import '../utils/geo_utils.dart';
 
 class FloodReportService {
   FloodReportService({SupabaseClient? client})
@@ -57,6 +58,55 @@ class FloodReportService {
           .toList();
     } catch (error) {
       debugPrint('FloodReportService.getRecent error: $error');
+      return [];
+    }
+  }
+
+  /// Reports within [radiusKm] of the given coordinates, reported within
+  /// the last [maxAge] — a live "what's happening near here right now"
+  /// signal, as opposed to [getRecent]'s global recent-reports list.
+  Future<List<FloodReport>> getNearby({
+    required double latitude,
+    required double longitude,
+    double radiusKm = 5,
+    Duration maxAge = const Duration(hours: 24),
+    int limit = 50,
+  }) async {
+    try {
+      final box = GeoBoundingBox.fromCenter(
+        lat: latitude,
+        lon: longitude,
+        radiusKm: radiusKm,
+      );
+      final since = DateTime.now().toUtc().subtract(maxAge);
+
+      final rows = await _supabase
+          .from(_table)
+          .select()
+          .gte('latitude', box.minLat)
+          .lte('latitude', box.maxLat)
+          .gte('longitude', box.minLon)
+          .lte('longitude', box.maxLon)
+          .gte('created_at', since.toIso8601String())
+          .order('created_at', ascending: false);
+
+      final reports = (rows as List)
+          .map((row) => FloodReport.fromJson(row as Map<String, dynamic>))
+          .where(
+            (r) =>
+                haversineDistanceKm(
+                  lat1: latitude,
+                  lon1: longitude,
+                  lat2: r.latitude,
+                  lon2: r.longitude,
+                ) <=
+                radiusKm,
+          )
+          .toList();
+
+      return reports.take(limit).toList();
+    } catch (error) {
+      debugPrint('FloodReportService.getNearby error: $error');
       return [];
     }
   }

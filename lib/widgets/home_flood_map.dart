@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/flood_report.dart';
 import '../services/flood_report_service.dart';
@@ -9,7 +10,15 @@ import '../services/location_service.dart';
 /// live from Supabase's `flood_report` table via [FloodReportService].
 /// Uses OpenStreetMap tiles via flutter_map, no API key required.
 class HomeFloodMap extends StatefulWidget {
-  const HomeFloodMap({super.key});
+  /// Optional GPS fix shared with the parent (e.g. [UserHome]'s "flood
+  /// status" badge), which needs the same coordinate. Two independent
+  /// `Geolocator.getCurrentPosition()` calls fired at once from the same
+  /// screen can cause one of them to time out on Android, so callers that
+  /// already need a position elsewhere on the page should fetch it once
+  /// and pass it down here rather than letting this widget fetch its own.
+  final Future<Position?>? positionFuture;
+
+  const HomeFloodMap({super.key, this.positionFuture});
 
   @override
   State<HomeFloodMap> createState() => HomeFloodMapState();
@@ -44,7 +53,8 @@ class HomeFloodMapState extends State<HomeFloodMap> {
   }
 
   Future<void> _loadData() async {
-    final positionFuture = _locationService.getCurrentPosition();
+    final positionFuture =
+        widget.positionFuture ?? _locationService.getCurrentPosition();
     final reportsFuture = _floodReportService.getRecent();
 
     final position = await positionFuture;
