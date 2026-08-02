@@ -15,6 +15,7 @@ class UserHome extends StatefulWidget {
 class _UserHomeState extends State<UserHome> {
   int currentIndex = 0;
   final GlobalKey _reportPageKey = GlobalKey();
+  final GlobalKey<HomeFloodMapState> _homeMapKey = GlobalKey<HomeFloodMapState>();
 
   // Titles corresponding to each tab, in the same order as `pages`
   final List<String> titles = ["Flood Watch", "Submit Report", "Profile"];
@@ -98,7 +99,7 @@ class _UserHomeState extends State<UserHome> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                 ),
                 const SizedBox(height: 10),
-                const HomeFloodMap(),
+                HomeFloodMap(key: _homeMapKey),
 
                 const SizedBox(height: 20),
 
@@ -174,7 +175,10 @@ class _UserHomeState extends State<UserHome> {
       _buildHomePage(),
       SubmitReportPage(
         key: _reportPageKey,
-        onSubmissionComplete: () => setState(() => currentIndex = 0),
+        onSubmissionComplete: () {
+          setState(() => currentIndex = 0);
+          _homeMapKey.currentState?.refresh();
+        },
       ),
       const ProfilePage(),
     ];

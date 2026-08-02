@@ -12,10 +12,10 @@ class HomeFloodMap extends StatefulWidget {
   const HomeFloodMap({super.key});
 
   @override
-  State<HomeFloodMap> createState() => _HomeFloodMapState();
+  State<HomeFloodMap> createState() => HomeFloodMapState();
 }
 
-class _HomeFloodMapState extends State<HomeFloodMap> {
+class HomeFloodMapState extends State<HomeFloodMap> {
   static const _fallbackCenter = LatLng(3.1390, 101.6869); // Kuala Lumpur
 
   final _locationService = LocationService();
@@ -31,6 +31,16 @@ class _HomeFloodMapState extends State<HomeFloodMap> {
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  /// Re-fetches just the report markers, leaving the current map position
+  /// alone. Called by [UserHome] via a [GlobalKey] after a new report is
+  /// submitted, since this widget stays alive (and its state is preserved)
+  /// inside the home tab's [IndexedStack] rather than being recreated.
+  Future<void> refresh() async {
+    final reports = await _floodReportService.getRecent();
+    if (!mounted) return;
+    setState(() => _reports = reports);
   }
 
   Future<void> _loadData() async {
