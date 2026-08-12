@@ -6,7 +6,7 @@ import '../models/repair_request.dart';
 
 class RepairRequestService {
   RepairRequestService({SupabaseClient? client})
-    : _supabase = client ?? Supabase.instance.client;
+      : _supabase = client ?? Supabase.instance.client;
 
   static const _table = 'repair_request';
   static const _photoBucket = 'repair-request-photos';
@@ -22,20 +22,19 @@ class RepairRequestService {
 
     try {
       final photoPaths = await _uploadPhotos(photos);
-      await _supabase
-          .from(_table)
-          .insert(
-            RepairRequest(
-              requesterId: requesterId,
-              locationName: request.locationName,
-              latitude: request.latitude,
-              longitude: request.longitude,
-              assistanceType: request.assistanceType,
-              damageDescription: request.damageDescription,
-              contactNumber: request.contactNumber,
-              photoPaths: photoPaths,
-            ).toJson(),
-          );
+      await _supabase.from(_table).insert(
+        RepairRequest(
+          requesterId: requesterId,
+          locationName: request.locationName,
+          latitude: request.latitude,
+          longitude: request.longitude,
+          assistanceType: request.assistanceType,
+          damageDescription: request.damageDescription,
+          contactNumber: request.contactNumber,
+          photoPaths: photoPaths,
+          shelterName: request.shelterName,
+        ).toJson(),
+      );
       return true;
     } catch (error) {
       debugPrint('RepairRequestService.submit error: $error');
@@ -62,5 +61,46 @@ class RepairRequestService {
       paths.add(path);
     }
     return paths;
+  }
+
+  Future<String> getSignedPhotoUrl(String path, {int expiresInSeconds = 3600}) {
+    return _supabase.storage.from(_photoBucket).createSignedUrl(path, expiresInSeconds);
+  }
+
+  Future<List<RepairRequest>> getUserRequests(String requesterId) async {
+    final data = await _supabase
+        .from(_table)
+        .select()
+        .eq('requester_id', requesterId)
+        .order('created_at', ascending: false);
+    return (data as List).map((e) => RepairRequest.fromJson(e)).toList();
+  }
+
+  Future<RepairRequest?> getRequestById(String requestId) async {
+    final data = await _supabase.from(_table).select().eq('id', requestId).maybeSingle();
+    return data == null ? null : RepairRequest.fromJson(data);
+  }
+
+  Future<List<Map<String, dynamic>>> getAllRequestsWithAccountInfo() async {
+    final data = await _supabase
+        .from(_table)
+        .select('*, account:requester_id(name, email)')
+        .order('priority', ascending: false)
+        .order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(data);
+  }
+
+  Future<List<RepairRequest>> getHelperTasks(String helperId) async {
+    final data = await _supabase
+        .from(_table)
+        .select()
+        .eq('assigned_helper_id', helperId)
+        .order('created_at', ascending: false);
+    return (data as List).map((e) => RepairRequest.fromJson(e)).toList();
+  }
+
+  Future<void> updateFields(String requestId, Map<String, dynamic> updates) async {
+    updates['updated_at'] = DateTime.now().toIso8601String();
+    await _supabase.from(_table).update(updates).eq('id', requestId);
   }
 }

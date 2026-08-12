@@ -4,6 +4,7 @@ import 'package:flood_prediction/views/shared/user_profile.dart';
 import 'package:flood_prediction/utils/responsive.dart';
 import 'package:flood_prediction/widgets/home_flood_overview.dart';
 import 'package:flood_prediction/routes/app_routes.dart';
+import 'my_repair_requests_view.dart';
 
 class UserHome extends StatefulWidget {
   const UserHome({super.key});
@@ -101,6 +102,30 @@ class _UserHomeState extends State<UserHome> {
                     label: const Text(
                       "Am I Safe? Run a Flood Risk Assessment",
                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // ---- My repair/aid requests entry point ----
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const MyRepairRequestsView()),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orange,
+                      side: const BorderSide(color: Colors.orange),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.assignment_outlined),
+                    label: const Text(
+                      "My Repair & Aid Requests",
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
