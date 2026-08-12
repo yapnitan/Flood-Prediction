@@ -197,6 +197,13 @@ class _ProfileState extends State<ProfilePage> {
                       },
                     ),
                     _ProfileTile(
+                      icon: Icons.lock_outline,
+                      label: "Change Password",
+                      onTap: () {
+                        Navigator.pushNamed(context, AppRoutes.changePassword);
+                      },
+                    ),
+                    _ProfileTile(
                       icon: Icons.notifications_none,
                       label: "Notification Settings",
                       onTap: () async {

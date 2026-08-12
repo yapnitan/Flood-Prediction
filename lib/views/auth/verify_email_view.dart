@@ -1,25 +1,27 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../controllers/auth_controller.dart';
+import '../../models/account.dart';
 import '../../services/auth_service.dart';
 import '../../utils/responsive.dart';
 import '../../routes/app_routes.dart';
-import 'dart:async';
 
-/// Whole "forgot password" flow lives on this one screen — request a
-/// 6-digit code, then enter it plus a new password. No browser hand-off,
-/// no deep link, nothing that can strand the user on a blank page.
-class ForgotPasswordPage extends StatefulWidget {
-  const ForgotPasswordPage({super.key});
+/// Reached from the login page by a user who registered but closed the app
+/// before entering the confirmation code — resends the code, then verifies
+/// it. Unlike [RegistrationPage]'s inline code step, this doesn't have the
+/// original name/role in memory, so [AuthService.verifySignupCode] recovers
+/// them from the signup's stored user metadata instead.
+class VerifyEmailPage extends StatefulWidget {
+  const VerifyEmailPage({super.key});
 
   @override
-  State<ForgotPasswordPage> createState() => _ForgotPasswordState();
+  State<VerifyEmailPage> createState() => _VerifyEmailPageState();
 }
 
-class _ForgotPasswordState extends State<ForgotPasswordPage> {
+class _VerifyEmailPageState extends State<VerifyEmailPage> {
   final _emailController = TextEditingController();
   final _codeController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmController = TextEditingController();
   final _authController = AuthController(AuthService());
 
   bool _isSendingCode = false;
@@ -59,7 +61,7 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
       _errorMessage = '';
     });
 
-    final result = await _authController.sendPasswordResetCode(email);
+    final result = await _authController.resendSignupCode(email);
 
     if (!mounted) return;
 
@@ -95,21 +97,10 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
     return int.tryParse(match.group(1)!);
   }
 
-  Future<void> _submitNewPassword() async {
+  Future<void> _verifyCode() async {
     final code = _codeController.text.trim();
-    final password = _passwordController.text.trim();
-    final confirm = _confirmController.text.trim();
-
     if (code.isEmpty) {
       setState(() => _errorMessage = 'Enter the code from your email');
-      return;
-    }
-    if (password.isEmpty || password.length < 8) {
-      setState(() => _errorMessage = 'Password must be at least 8 characters');
-      return;
-    }
-    if (password != confirm) {
-      setState(() => _errorMessage = 'Passwords do not match');
       return;
     }
 
@@ -118,32 +109,56 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
       _errorMessage = '';
     });
 
-    final result = await _authController.verifyResetCode(
+    final result = await _authController.verifySignupCode(
       email: _emailController.text.trim(),
       token: code,
-      newPassword: password,
     );
 
     if (!mounted) return;
 
     if (result['status'] == 'success') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password updated. Please log in again.')),
-      );
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      _handleVerified(result['account'] as Account);
     } else {
       setState(() {
         _isSubmitting = false;
-        _errorMessage = result['message'] ?? 'Failed to update password';
+        _errorMessage = result['message'] ?? 'Invalid or expired code. Please try again.';
       });
     }
+  }
+
+  /// A helper account still pending admin approval can't log in yet — send
+  /// them back to Login with an explanation instead of into the app.
+  void _handleVerified(Account account) {
+    if (account.status == 'pending') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Email confirmed. Your helper application is still awaiting admin approval.',
+          ),
+          duration: Duration(seconds: 5),
+        ),
+      );
+      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Email confirmed! Welcome to FloodWatch.')),
+    );
+
+    final destination = switch (account.role) {
+      'admin' => AppRoutes.adminHome,
+      'helper' => AppRoutes.helperHome,
+      _ => AppRoutes.userHome,
+    };
+    Navigator.pushNamedAndRemoveUntil(context, destination, (route) => false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Forgot Password'),
+        title: const Text('Confirm Email'),
         centerTitle: true,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -172,16 +187,16 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.lock_reset, size: 56, color: Colors.blue),
+        const Icon(Icons.mark_email_unread, size: 56, color: Colors.blue),
         const SizedBox(height: 16),
         const Text(
-          'Reset your password',
+          'Confirm your email',
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         const Text(
-          "Enter the email associated with your account and we'll send you a "
-              "6-digit verification code.",
+          "If you signed up but never entered the code, enter your email and "
+          "we'll send a new one.",
           style: TextStyle(color: Colors.grey),
         ),
         const SizedBox(height: 20),
@@ -219,16 +234,20 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
             ),
             child: _isSendingCode
                 ? const SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
-            )
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                  )
                 : Text(
-              _cooldownSeconds > 0
-                  ? 'Resend in ${_cooldownSeconds}s'
-                  : 'Send Verification Code',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-            ),
+                    _cooldownSeconds > 0
+                        ? 'Resend in ${_cooldownSeconds}s'
+                        : 'Send Confirmation Code',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
           ),
         ),
         const SizedBox(height: 10),
@@ -254,8 +273,8 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
         ),
         const SizedBox(height: 8),
         Text(
-          "We've sent a verification code to ${_emailController.text.trim()}. "
-              "Enter it below along with your new password.",
+          "We've sent a confirmation code to ${_emailController.text.trim()}. "
+          "Enter it below.",
           style: const TextStyle(color: Colors.grey),
         ),
         const SizedBox(height: 20),
@@ -272,33 +291,9 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
           controller: _codeController,
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
-            labelText: 'Verification code',
+            labelText: 'Confirmation code',
             hintText: '6-digit code',
             prefixIcon: const Icon(Icons.pin, color: Colors.blue),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            filled: true,
-            fillColor: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _passwordController,
-          obscureText: true,
-          decoration: InputDecoration(
-            labelText: 'New password',
-            prefixIcon: const Icon(Icons.lock, color: Colors.blue),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            filled: true,
-            fillColor: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _confirmController,
-          obscureText: true,
-          decoration: InputDecoration(
-            labelText: 'Confirm new password',
-            prefixIcon: const Icon(Icons.lock_outline, color: Colors.blue),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
             fillColor: Colors.white,
@@ -310,21 +305,21 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
           width: double.infinity,
           height: 50,
           child: ElevatedButton(
-            onPressed: _isSubmitting ? null : _submitNewPassword,
+            onPressed: _isSubmitting ? null : _verifyCode,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: _isSubmitting
                 ? const SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
-            )
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                  )
                 : const Text(
-              'Update Password',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-            ),
+                    'Verify & Continue',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
           ),
         ),
         const SizedBox(height: 10),
@@ -343,8 +338,6 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
     _cooldownTimer?.cancel();
     _emailController.dispose();
     _codeController.dispose();
-    _passwordController.dispose();
-    _confirmController.dispose();
     super.dispose();
   }
 }
