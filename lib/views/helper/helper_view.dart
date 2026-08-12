@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../../controllers/repair_request_controller.dart';
 import '../../models/repair_request.dart';
 import '../../services/repair_request_service.dart';
+import '../../utils/maps_launcher.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/priority_badge.dart';
 import '../../widgets/status_badge.dart';
 import '../shared/user_profile.dart';
 import 'repair_request_helper_detail_view.dart';
@@ -101,6 +103,15 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
     await _tasksFuture;
   }
 
+  /// Assigned work is fetched newest-first; re-sort so the most urgent
+  /// task is always what the helper sees at the top of their list, not
+  /// just whatever landed on their queue most recently.
+  List<RepairRequest> _sortedByUrgency(List<RepairRequest> tasks) {
+    final sorted = [...tasks];
+    sorted.sort(RepairRequest.comparePriority);
+    return sorted;
+  }
+
   Future<void> _updateStatus(String requestId, String status) async {
     await _controller.updateStatus(requestId, status);
     _refresh();
@@ -131,7 +142,7 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
                   );
                 }
 
-                final tasks = snapshot.data ?? [];
+                final tasks = _sortedByUrgency(snapshot.data ?? []);
                 if (tasks.isEmpty) {
                   return _buildEmptyState(
                     icon: Icons.volunteer_activism_outlined,
@@ -209,11 +220,16 @@ class _TaskCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = request.status;
+    final isUrgent = request.priority == 'urgent';
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
+        color: isUrgent ? Colors.red.withValues(alpha: 0.04) : null,
+        border: Border.all(
+          color: isUrgent ? Colors.red.shade200 : Colors.grey.shade300,
+          width: isUrgent ? 1.4 : 1,
+        ),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -231,7 +247,9 @@ class _TaskCard extends StatelessWidget {
               StatusBadge(status: status),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
+          PriorityBadge(priority: request.priority, dense: true),
+          const SizedBox(height: 10),
           Row(
             children: [
               const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
@@ -241,6 +259,19 @@ class _TaskCard extends StatelessWidget {
                   request.locationName,
                   style: const TextStyle(color: Colors.grey, fontSize: 13),
                   overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () => openDirections(
+                  context,
+                  latitude: request.latitude,
+                  longitude: request.longitude,
+                ),
+                icon: const Icon(Icons.directions, size: 16),
+                label: const Text('Directions'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  visualDensity: VisualDensity.compact,
                 ),
               ),
             ],
