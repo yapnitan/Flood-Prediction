@@ -15,6 +15,9 @@ class AppRoutes {
   static const String simulationDetail = '/simulations/detail';
 
   static const String createRepairRequest = '/repair-requests/create';
+  static const String myRepairRequests = '/repair-requests/mine';
+  static const String repairRequestDetail = '/repair-requests/detail';
+  static const String repairRequestAdmin = '/admin/repair-requests';
 
   static const String personalInformation = '/profile/personal-information';
   static const String notificationSettings = '/profile/notification-settings';

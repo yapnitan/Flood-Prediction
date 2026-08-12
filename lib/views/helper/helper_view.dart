@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../controllers/repair_request_controller.dart';
+import '../../models/repair_request.dart';
+import '../../services/repair_request_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/status_badge.dart';
 import '../shared/user_profile.dart';
+import 'repair_request_helper_detail_view.dart';
 
 class HelperHome extends StatefulWidget {
   const HelperHome({super.key});
@@ -33,79 +38,278 @@ class _HelperHomeState extends State<HelperHome> {
       ),
       body: useRail
           ? Row(
-              children: [
-                NavigationRail(
-                  selectedIndex: currentIndex,
-                  onDestinationSelected: (index) => setState(() => currentIndex = index),
-                  labelType: NavigationRailLabelType.all,
-                  selectedIconTheme: const IconThemeData(color: Colors.blue),
-                  selectedLabelTextStyle: const TextStyle(color: Colors.blue),
-                  destinations: const [
-                    NavigationRailDestination(
-                      icon: Icon(Icons.dashboard_outlined),
-                      label: Text("Dashboard"),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.person),
-                      label: Text("Profile"),
-                    ),
-                  ],
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(child: pages[currentIndex]),
-              ],
-            )
+        children: [
+          NavigationRail(
+            selectedIndex: currentIndex,
+            onDestinationSelected: (index) => setState(() => currentIndex = index),
+            labelType: NavigationRailLabelType.all,
+            selectedIconTheme: const IconThemeData(color: Colors.blue),
+            selectedLabelTextStyle: const TextStyle(color: Colors.blue),
+            destinations: const [
+              NavigationRailDestination(
+                icon: Icon(Icons.dashboard_outlined),
+                label: Text("Dashboard"),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.person),
+                label: Text("Profile"),
+              ),
+            ],
+          ),
+          const VerticalDivider(width: 1),
+          Expanded(child: pages[currentIndex]),
+        ],
+      )
           : pages[currentIndex],
       bottomNavigationBar: useRail
           ? null
           : BottomNavigationBar(
-              currentIndex: currentIndex,
-              onTap: (index) => setState(() => currentIndex = index),
-              selectedItemColor: Colors.blue,
-              unselectedItemColor: Colors.grey,
-              items: const [
-                BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: "Dashboard"),
-                BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
-              ],
-            ),
+        currentIndex: currentIndex,
+        onTap: (index) => setState(() => currentIndex = index),
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: "Dashboard"),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+        ],
+      ),
     );
   }
 }
 
-/// Placeholder pending the helper-specific feature set (e.g. assigned
-/// community reports to verify) — kept minimal so the role has a working
-/// home screen now instead of the previous UnimplementedError crash.
-class _HelperDashboardTab extends StatelessWidget {
+/// Helper's assigned recovery/repair tasks — requests an admin has
+/// assigned to this helper, with status updates (in_progress/completed).
+class _HelperDashboardTab extends StatefulWidget {
   const _HelperDashboardTab();
+
+  @override
+  State<_HelperDashboardTab> createState() => _HelperDashboardTabState();
+}
+
+class _HelperDashboardTabState extends State<_HelperDashboardTab> {
+  final _controller = RepairRequestController(RepairRequestService());
+  late Future<List<RepairRequest>> _tasksFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _tasksFuture = _controller.getMyAssignedTasks();
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _tasksFuture = _controller.getMyAssignedTasks());
+    await _tasksFuture;
+  }
+
+  Future<void> _updateStatus(String requestId, String status) async {
+    await _controller.updateStatus(requestId, status);
+    _refresh();
+  }
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Center(
-        child: Padding(
-          padding: EdgeInsets.all(
-            context.responsive(mobile: 20, tablet: 28, desktop: 32),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(Icons.volunteer_activism_outlined, size: 64, color: Colors.blue),
-              SizedBox(height: 16),
-              Text(
-                'Helper tools are coming soon',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                textAlign: TextAlign.center,
+          child: RefreshIndicator(
+            onRefresh: _refresh,
+            child: FutureBuilder<List<RepairRequest>>(
+              future: _tasksFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return _buildEmptyState(
+                    icon: Icons.error_outline,
+                    title: 'Could not load your tasks',
+                    subtitle: 'Pull down to try again.',
+                  );
+                }
+
+                final tasks = snapshot.data ?? [];
+                if (tasks.isEmpty) {
+                  return _buildEmptyState(
+                    icon: Icons.volunteer_activism_outlined,
+                    title: 'No tasks assigned yet',
+                    subtitle: 'Requests an admin assigns to you will show up here.',
+                  );
+                }
+
+                return ListView.separated(
+                  padding: EdgeInsets.all(context.responsive(mobile: 16, tablet: 24, desktop: 24)),
+                  itemCount: tasks.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) => InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RepairRequestHelperDetailView(
+                            request: tasks[index],
+                            controller: _controller,
+                          ),
+                        ),
+                      );
+                      _refresh();
+                    },
+                    child: _TaskCard(request: tasks[index], onUpdateStatus: _updateStatus),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState({required IconData icon, required String title, required String subtitle}) {
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(context.responsive(mobile: 20, tablet: 28, desktop: 32)),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 64, color: Colors.blue),
+                  const SizedBox(height: 16),
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(subtitle, style: const TextStyle(color: Colors.grey), textAlign: TextAlign.center),
+                ],
               ),
-              SizedBox(height: 8),
-              Text(
-                'Verifying community flood reports and coordinating relief '
-                'will show up here once that module is ready.',
-                style: TextStyle(color: Colors.grey),
-                textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TaskCard extends StatelessWidget {
+  const _TaskCard({required this.request, required this.onUpdateStatus});
+
+  final RepairRequest request;
+  final Future<void> Function(String requestId, String status) onUpdateStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = request.status;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  request.assistanceType,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+              ),
+              StatusBadge(status: status),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  request.locationName,
+                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
-        ),
+          if (request.shelterName != null) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.home_work_outlined, size: 16, color: Colors.grey),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'Shelter: ${request.shelterName}',
+                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (request.contactNumber != null && request.contactNumber!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.phone_outlined, size: 16, color: Colors.grey),
+                const SizedBox(width: 4),
+                Text(request.contactNumber!, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+              ],
+            ),
+          ],
+          const SizedBox(height: 10),
+          Text(
+            request.damageDescription,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13),
+          ),
+          const SizedBox(height: 14),
+          if (status == 'assigned')
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton.icon(
+                onPressed: () => onUpdateStatus(request.id!, 'in_progress'),
+                icon: const Icon(Icons.play_arrow, color: Colors.white),
+                label: const Text('Start task', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
+              ),
+            )
+          else if (status == 'in_progress')
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton.icon(
+                onPressed: () => onUpdateStatus(request.id!, 'completed'),
+                icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                label: const Text('Mark completed', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              ),
+            )
+          else if (status == 'completed')
+              const Row(
+                children: [
+                  Icon(Icons.check_circle, size: 18, color: Colors.green),
+                  SizedBox(width: 6),
+                  Text('Task completed', style: TextStyle(color: Colors.green, fontSize: 13)),
+                ],
+              ),
+        ],
       ),
     );
   }

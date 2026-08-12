@@ -35,3 +35,8 @@ class SimulationDetailArgs {
     this.recommendations,
   });
 }
+
+class RepairRequestDetailArgs {
+  final String requestId;
+  const RepairRequestDetailArgs({required this.requestId});
+}

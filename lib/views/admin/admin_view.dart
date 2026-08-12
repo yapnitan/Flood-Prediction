@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import '../../models/account.dart';
 import '../../controllers/user_management_controller.dart';
 import '../../services/user_management_service.dart';
+import '../../controllers/repair_request_controller.dart';
+import '../../services/repair_request_service.dart';
 import '../../utils/responsive.dart';
 import 'user_management_view.dart';
+import 'repair_request_admin_view.dart';
 import '../shared/user_profile.dart';
 
 class AdminHome extends StatefulWidget {
@@ -16,14 +19,49 @@ class AdminHome extends StatefulWidget {
 class _AdminHomeState extends State<AdminHome> {
   int currentIndex = 0;
 
-  final List<String> titles = ["Dashboard", "User Management", "Profile"];
+  final List<String> titles = ["Dashboard", "User Management", "Recovery", "Profile"];
+
+  final _repairRequestController = RepairRequestController(RepairRequestService());
+  int _pendingRepairCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPendingCount();
+  }
+
+  Future<void> _loadPendingCount() async {
+    final requests = await _repairRequestController.getAdminOverview();
+    if (!mounted) return;
+    setState(() {
+      _pendingRepairCount = requests.where((r) => r['status'] == 'pending').length;
+    });
+  }
+
+  void _onNavTap(int index) {
+    setState(() => currentIndex = index);
+    // Refresh the badge count whenever the admin leaves the Recovery tab,
+    // so it reflects any approve/reject actions taken while inside it.
+    if (index != 2) {
+      _loadPendingCount();
+    }
+  }
+
+  Widget _navIcon(IconData icon) {
+    if (_pendingRepairCount == 0) return Icon(icon);
+    return Badge(
+      label: Text('$_pendingRepairCount'),
+      child: Icon(icon),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> pages = const [
-      _AdminDashboardTab(),
-      UserManagementView(),
-      ProfilePage(),
+    final List<Widget> pages = [
+      const _AdminDashboardTab(),
+      const UserManagementView(),
+      RepairRequestAdminView(onRequestsChanged: _loadPendingCount),
+      const ProfilePage(),
     ];
 
     final bool useRail = !context.isMobile;
@@ -38,46 +76,51 @@ class _AdminHomeState extends State<AdminHome> {
       ),
       body: useRail
           ? Row(
-              children: [
-                NavigationRail(
-                  selectedIndex: currentIndex,
-                  onDestinationSelected: (index) => setState(() => currentIndex = index),
-                  labelType: NavigationRailLabelType.all,
-                  selectedIconTheme: const IconThemeData(color: Colors.blue),
-                  selectedLabelTextStyle: const TextStyle(color: Colors.blue),
-                  destinations: const [
-                    NavigationRailDestination(
-                      icon: Icon(Icons.dashboard_outlined),
-                      label: Text("Dashboard"),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.people_outline),
-                      label: Text("Users"),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.person),
-                      label: Text("Profile"),
-                    ),
-                  ],
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(child: pages[currentIndex]),
-              ],
-            )
+        children: [
+          NavigationRail(
+            selectedIndex: currentIndex,
+            onDestinationSelected: _onNavTap,
+            labelType: NavigationRailLabelType.all,
+            selectedIconTheme: const IconThemeData(color: Colors.blue),
+            selectedLabelTextStyle: const TextStyle(color: Colors.blue),
+            destinations: [
+              const NavigationRailDestination(
+                icon: Icon(Icons.dashboard_outlined),
+                label: Text("Dashboard"),
+              ),
+              const NavigationRailDestination(
+                icon: Icon(Icons.people_outline),
+                label: Text("Users"),
+              ),
+              NavigationRailDestination(
+                icon: _navIcon(Icons.assignment_outlined),
+                label: const Text("Recovery"),
+              ),
+              const NavigationRailDestination(
+                icon: Icon(Icons.person),
+                label: Text("Profile"),
+              ),
+            ],
+          ),
+          const VerticalDivider(width: 1),
+          Expanded(child: pages[currentIndex]),
+        ],
+      )
           : pages[currentIndex],
       bottomNavigationBar: useRail
           ? null
           : BottomNavigationBar(
-              currentIndex: currentIndex,
-              onTap: (index) => setState(() => currentIndex = index),
-              selectedItemColor: Colors.blue,
-              unselectedItemColor: Colors.grey,
-              items: const [
-                BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: "Dashboard"),
-                BottomNavigationBarItem(icon: Icon(Icons.people_outline), label: "Users"),
-                BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
-              ],
-            ),
+        currentIndex: currentIndex,
+        onTap: _onNavTap,
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: "Dashboard"),
+          const BottomNavigationBarItem(icon: Icon(Icons.people_outline), label: "Users"),
+          BottomNavigationBarItem(icon: _navIcon(Icons.assignment_outlined), label: "Recovery"),
+          const BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+        ],
+      ),
     );
   }
 }

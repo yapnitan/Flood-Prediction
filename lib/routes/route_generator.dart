@@ -4,12 +4,15 @@ import '../views/auth/login_view.dart';
 import '../views/auth/register_view.dart';
 import '../views/auth/forgot_password_view.dart';
 import '../views/admin/admin_view.dart';
+import '../views/admin/repair_request_admin_view.dart';
 import '../views/helper/helper_view.dart';
 import '../views/user/user_view.dart';
 import '../views/user/simulation_list_view.dart';
 import '../views/user/create_simulation_view.dart';
 import '../views/user/simulation_detail_view.dart';
 import '../views/user/create_repair_request_view.dart';
+import '../views/user/my_repair_requests_view.dart';
+import '../views/user/repair_request_detail_view.dart';
 import '../views/shared/personal_information_view.dart';
 import '../views/shared/notification_settings_view.dart';
 import '../views/shared/help_support_view.dart';
@@ -58,6 +61,18 @@ class RouteGenerator {
 
       case AppRoutes.createRepairRequest:
         return MaterialPageRoute(builder: (_) => const CreateRepairRequestView());
+
+      case AppRoutes.myRepairRequests:
+        return MaterialPageRoute(builder: (_) => const MyRepairRequestsView());
+
+      case AppRoutes.repairRequestDetail:
+        final args = settings.arguments as RepairRequestDetailArgs;
+        return MaterialPageRoute(
+          builder: (_) => RepairRequestDetailView(requestId: args.requestId),
+        );
+
+      case AppRoutes.repairRequestAdmin:
+        return MaterialPageRoute(builder: (_) => const RepairRequestAdminView());
 
       case AppRoutes.personalInformation:
         final args = settings.arguments as PersonalInformationArgs;

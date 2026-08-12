@@ -156,6 +156,7 @@ class _CreateRepairRequestState extends State<CreateRepairRequestView> {
         latitude: _selectedLatitude ?? 3.1390,
         longitude: _selectedLongitude ?? 101.6869,
         assistanceType: selectedAssistanceType!,
+        priority: RepairRequest.suggestedPriority(selectedAssistanceType!),
         damageDescription: _descriptionController.text.trim(),
         contactNumber: _contactController.text.trim().isEmpty
             ? null
