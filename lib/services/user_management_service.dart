@@ -3,8 +3,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/account.dart';
 
 /// Admin-only operations over the `account` table: listing every user,
-/// changing roles, enabling/disabling accounts, approving/rejecting
-/// pending sign-ups, and removing accounts.
+/// changing roles, enabling/disabling accounts, and approving/rejecting
+/// (or reconsidering) sign-ups. Deliberately no delete — disabling
+/// (`setActive`) is the moderation tool; deleting would orphan any
+/// repair requests/flood reports the account left behind and can't be
+/// undone.
 ///
 /// This assumes Supabase row-level security restricts these write
 /// operations to admins server-side — this service does not itself
@@ -57,13 +60,4 @@ class UserManagementService {
     }
   }
 
-  Future<bool> deleteAccount(String id) async {
-    try {
-      await supabase.from(_table).delete().eq('id', id);
-      return true;
-    } catch (e) {
-      debugPrint('UserManagementService.deleteAccount error: $e');
-      return false;
-    }
-  }
 }
