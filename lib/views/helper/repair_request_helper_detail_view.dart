@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../controllers/repair_request_controller.dart';
 import '../../models/repair_request.dart';
+import '../../utils/maps_launcher.dart';
 import '../../widgets/network_photo_thumbnail.dart';
+import '../../widgets/priority_badge.dart';
 import '../../widgets/review_card.dart';
 import '../../widgets/status_badge.dart';
 
@@ -68,19 +70,31 @@ class _RepairRequestHelperDetailViewState extends State<RepairRequestHelperDetai
                         StatusBadge(status: _status),
                       ],
                     ),
+                    const SizedBox(height: 8),
+                    PriorityBadge(priority: request.priority),
                     const SizedBox(height: 20),
                     ReviewCard(title: 'Location', value: request.locationName),
-                    ReviewCard(
-                      title: 'Coordinates',
-                      value: '${request.latitude.toStringAsFixed(5)}, ${request.longitude.toStringAsFixed(5)}',
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => openDirections(
+                          context,
+                          latitude: request.latitude,
+                          longitude: request.longitude,
+                        ),
+                        icon: const Icon(Icons.directions),
+                        label: const Text('Get directions'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.indigo,
+                          side: const BorderSide(color: Colors.indigo),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 12),
                     ReviewCard(title: 'Damage description', value: request.damageDescription),
                     if (request.contactNumber != null && request.contactNumber!.isNotEmpty)
                       ReviewCard(title: 'Contact number', value: request.contactNumber!),
-                    ReviewCard(
-                      title: 'Priority',
-                      value: request.priority[0].toUpperCase() + request.priority.substring(1),
-                    ),
                     if (request.shelterName != null)
                       ReviewCard(title: 'Shelter', value: request.shelterName!),
 

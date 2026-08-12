@@ -75,6 +75,28 @@ class RepairRequest {
     }
   }
 
+  /// Lower rank = more urgent. Shared by every view that lists requests
+  /// (admin overview, helper dashboard) so "urgent" actually surfaces
+  /// first everywhere instead of only wherever someone remembered to sort.
+  static const Map<String, int> priorityRank = {
+    'urgent': 0,
+    'high': 1,
+    'medium': 2,
+    'low': 3,
+  };
+
+  int get priorityWeight => priorityRank[priority] ?? priorityRank.length;
+
+  /// Sorts most urgent first, breaking ties with the newest request first.
+  static int comparePriority(RepairRequest a, RepairRequest b) {
+    final byPriority = a.priorityWeight.compareTo(b.priorityWeight);
+    if (byPriority != 0) return byPriority;
+    final aCreated = a.createdAt;
+    final bCreated = b.createdAt;
+    if (aCreated == null || bCreated == null) return 0;
+    return bCreated.compareTo(aCreated);
+  }
+
   Map<String, dynamic> toJson() => {
     'requester_id': requesterId,
     'location_name': locationName,

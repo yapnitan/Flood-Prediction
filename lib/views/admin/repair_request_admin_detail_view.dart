@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../controllers/repair_request_controller.dart';
 import '../../models/account.dart';
+import '../../utils/maps_launcher.dart';
 import '../../widgets/network_photo_thumbnail.dart';
 import '../../widgets/review_card.dart';
 import '../../widgets/status_badge.dart';
@@ -143,6 +144,21 @@ class _RepairRequestAdminDetailViewState extends State<RepairRequestAdminDetailV
                     ],
                     const SizedBox(height: 20),
                     ReviewCard(title: 'Location', value: _data['location_name'] as String? ?? ''),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 4, bottom: 8),
+                        child: OutlinedButton.icon(
+                          onPressed: () => openDirections(
+                            context,
+                            latitude: (_data['latitude'] as num).toDouble(),
+                            longitude: (_data['longitude'] as num).toDouble(),
+                          ),
+                          icon: const Icon(Icons.directions, size: 18),
+                          label: const Text('Get directions'),
+                        ),
+                      ),
+                    ),
                     ReviewCard(title: 'Damage description', value: _data['damage_description'] as String? ?? ''),
                     if ((_data['contact_number'] as String?)?.isNotEmpty ?? false)
                       ReviewCard(title: 'Contact number', value: _data['contact_number'] as String),

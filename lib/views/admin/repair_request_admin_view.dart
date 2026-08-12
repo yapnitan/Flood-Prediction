@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import '../../controllers/repair_request_controller.dart';
 import '../../controllers/user_management_controller.dart';
 import '../../models/account.dart';
+import '../../models/repair_request.dart';
 import '../../services/repair_request_service.dart';
 import '../../services/user_management_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/priority_badge.dart';
 import '../../widgets/status_badge.dart';
 import 'repair_request_admin_detail_view.dart';
 
@@ -24,6 +26,7 @@ class _RepairRequestAdminViewState extends State<RepairRequestAdminView> {
   late Future<List<Map<String, dynamic>>> _requestsFuture;
   List<Account> _helpers = [];
   String _statusFilter = 'all';
+  String _priorityFilter = 'all';
 
   final List<String> _statusOptions = [
     'all',
@@ -35,6 +38,8 @@ class _RepairRequestAdminViewState extends State<RepairRequestAdminView> {
     'rejected',
     'cancelled',
   ];
+
+  final List<String> _priorityOptions = ['all', 'urgent', 'high', 'medium', 'low'];
 
   @override
   void initState() {
@@ -116,6 +121,7 @@ class _RepairRequestAdminViewState extends State<RepairRequestAdminView> {
             child: Column(
               children: [
                 _buildFilterBar(),
+                _buildPriorityFilterBar(),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _refresh,
@@ -133,10 +139,14 @@ class _RepairRequestAdminViewState extends State<RepairRequestAdminView> {
                         if (_statusFilter != 'all') {
                           requests = requests.where((r) => r['status'] == _statusFilter).toList();
                         }
-                        const priorityRank = {'urgent': 0, 'high': 1, 'medium': 2, 'low': 3};
+                        if (_priorityFilter != 'all') {
+                          requests = requests.where((r) => r['priority'] == _priorityFilter).toList();
+                        }
                         requests.sort((a, b) {
-                          final pa = priorityRank[a['priority']] ?? 4;
-                          final pb = priorityRank[b['priority']] ?? 4;
+                          final pa = RepairRequest.priorityRank[a['priority']] ??
+                              RepairRequest.priorityRank.length;
+                          final pb = RepairRequest.priorityRank[b['priority']] ??
+                              RepairRequest.priorityRank.length;
                           return pa.compareTo(pb);
                         });
 
@@ -200,6 +210,32 @@ class _RepairRequestAdminViewState extends State<RepairRequestAdminView> {
       ),
     );
   }
+
+  Widget _buildPriorityFilterBar() {
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        scrollDirection: Axis.horizontal,
+        itemCount: _priorityOptions.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final priority = _priorityOptions[index];
+          final selected = _priorityFilter == priority;
+          final color = priority == 'all' ? Colors.blue : PriorityBadge.colorFor(priority);
+          return ChoiceChip(
+            avatar: priority == 'all' ? null : Icon(Icons.flag, size: 14, color: color),
+            label: Text(priority == 'all' ? 'All priorities' : priority),
+            selected: selected,
+            onSelected: (_) => setState(() => _priorityFilter = priority),
+            selectedColor: color.withValues(alpha: 0.15),
+            side: BorderSide(color: color.withValues(alpha: 0.4)),
+            labelStyle: TextStyle(color: selected ? color : Colors.black87),
+          );
+        },
+      ),
+    );
+  }
 }
 
 class _AdminRequestSummaryCard extends StatelessWidget {
@@ -214,13 +250,7 @@ class _AdminRequestSummaryCard extends StatelessWidget {
     final priority = data['priority'] as String? ?? 'medium';
     final account = data['account'] as Map<String, dynamic>?;
     final photoCount = (data['photo_paths'] as List?)?.length ?? 0;
-
-    final priorityColor = switch (priority) {
-      'urgent' => Colors.red,
-      'high' => Colors.orange,
-      'low' => Colors.grey,
-      _ => Colors.blue,
-    };
+    final isUrgent = priority == 'urgent';
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),
@@ -228,7 +258,11 @@ class _AdminRequestSummaryCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
+          color: isUrgent ? Colors.red.withValues(alpha: 0.04) : null,
+          border: Border.all(
+            color: isUrgent ? Colors.red.shade200 : Colors.grey.shade300,
+            width: isUrgent ? 1.4 : 1,
+          ),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -254,10 +288,8 @@ class _AdminRequestSummaryCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.flag, size: 14, color: priorityColor),
-                const SizedBox(width: 4),
-                Text(priority, style: TextStyle(color: priorityColor, fontSize: 12, fontWeight: FontWeight.w600)),
-                const SizedBox(width: 16),
+                PriorityBadge(priority: priority, dense: true),
+                const SizedBox(width: 12),
                 const Icon(Icons.location_on_outlined, size: 14, color: Colors.grey),
                 const SizedBox(width: 4),
                 Expanded(
