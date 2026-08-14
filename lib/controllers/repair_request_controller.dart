@@ -24,20 +24,22 @@ class RepairRequestController {
     return repairRequestService.getRequestById(requestId);
   }
 
-  Future<void> setShelter(String requestId, String shelterName) async {
-    await repairRequestService.updateFields(requestId, {'shelter_name': shelterName});
+  Future<void> setFacility(String requestId, String facilityId) async {
+    await repairRequestService.updateFields(requestId, {'facility_id': facilityId});
   }
 
   Future<void> updateRequest(
       String requestId, {
         String? assistanceType,
         String? damageDescription,
-        String? shelterName,
+        String? facilityId,
+        Map<String, dynamic>? details,
       }) async {
     final updates = <String, dynamic>{};
     if (assistanceType != null) updates['assistance_type'] = assistanceType;
     if (damageDescription != null) updates['damage_description'] = damageDescription;
-    if (shelterName != null) updates['shelter_name'] = shelterName;
+    if (facilityId != null) updates['facility_id'] = facilityId;
+    if (details != null) updates['details'] = details;
     if (updates.isEmpty) return;
     await repairRequestService.updateFields(requestId, updates);
   }
@@ -46,7 +48,7 @@ class RepairRequestController {
     await repairRequestService.updateFields(requestId, {'status': 'cancelled'});
   }
 
-  /// For Helper
+  /// For Admin
 
   Future<List<Map<String, dynamic>>> getAdminOverview() {
     return repairRequestService.getAllRequestsWithAccountInfo();

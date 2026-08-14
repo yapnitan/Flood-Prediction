@@ -248,7 +248,30 @@ class _TaskCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          PriorityBadge(priority: request.priority, dense: true),
+          Row(
+            children: [
+              PriorityBadge(priority: request.priority, dense: true),
+              if (request.isCriticalMedical) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.red.shade300),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.warning_amber_rounded, size: 12, color: Colors.red.shade700),
+                      const SizedBox(width: 3),
+                      Text('Critical', style: TextStyle(color: Colors.red.shade700, fontSize: 11, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -276,7 +299,7 @@ class _TaskCard extends StatelessWidget {
               ),
             ],
           ),
-          if (request.shelterName != null) ...[
+          if (request.facilityId != null) ...[
             const SizedBox(height: 4),
             Row(
               children: [
@@ -284,7 +307,7 @@ class _TaskCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    'Shelter: ${request.shelterName}',
+                    'Shelter: ${request.facilityId }',
                     style: const TextStyle(color: Colors.grey, fontSize: 13),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -302,13 +325,15 @@ class _TaskCard extends StatelessWidget {
               ],
             ),
           ],
-          const SizedBox(height: 10),
-          Text(
-            request.damageDescription,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13),
-          ),
+          if (request.damageDescription != null && request.damageDescription!.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              request.damageDescription!,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ],
           const SizedBox(height: 14),
           if (status == 'assigned')
             SizedBox(
