@@ -63,7 +63,15 @@ class _RepairRequestAdminViewState extends State<RepairRequestAdminView> {
 
   Future<void> _refresh() async {
     if (!mounted) return;
-    setState(() => _requestsFuture = _requestController.getAdminOverview());
+    // Must be a block body `{ ... }`, not an arrow `=> expr` — an arrow body
+    // would make the assignment's *value* (a Future) the return value of the
+    // closure, and setState() only accepts callbacks that return void. That
+    // mismatch is what threw "setState() callback argument returned a
+    // Future" every time this ran (see the same note in
+    // user_management_view.dart's _refresh).
+    setState(() {
+      _requestsFuture = _requestController.getAdminOverview();
+    });
     await _requestsFuture;
   }
 
