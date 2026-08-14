@@ -7,6 +7,7 @@ import 'package:app_links/app_links.dart';
 
 import 'routes/app_routes.dart';
 import 'routes/route_generator.dart';
+import 'views/auth/auth_gate_view.dart';
 
 /// Lets the passwordRecovery listener below push a new screen without a
 /// BuildContext of its own (it fires from a top-level stream listener).
@@ -61,7 +62,7 @@ class MainApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
-      initialRoute: AppRoutes.login,
+      home: const AuthGateView(),
       onGenerateRoute: RouteGenerator.generateRoute,
     );
   }

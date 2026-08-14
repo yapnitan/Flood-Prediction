@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import '../../controllers/risk_assessment_controller.dart';
 import '../../controllers/historical_flood_controller.dart';
 import '../../controllers/environment_controller.dart';
@@ -11,6 +12,7 @@ import '../../utils/malaysia_geocoding.dart';
 import '../../utils/responsive.dart';
 import '../../routes/app_routes.dart';
 import '../../routes/route_arguments.dart';
+import 'pick_property_location_view.dart';
 
 class CreateSimulationView extends StatefulWidget {
   const CreateSimulationView({super.key});
@@ -33,6 +35,27 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
 
   bool _isSubmitting = false;
   String _errorMessage = '';
+
+  Future<void> _pickLocationOnMap() async {
+    final current = double.tryParse(_latitudeController.text.trim());
+    final currentLng = double.tryParse(_longitudeController.text.trim());
+    final initial = (current != null && currentLng != null)
+        ? LatLng(current, currentLng)
+        : null;
+
+    final picked = await Navigator.push<LatLng>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PickPropertyLocationView(initialLocation: initial),
+      ),
+    );
+
+    if (picked == null || !mounted) return;
+    setState(() {
+      _latitudeController.text = picked.latitude.toStringAsFixed(6);
+      _longitudeController.text = picked.longitude.toStringAsFixed(6);
+    });
+  }
 
   final _riskAssessmentController = RiskAssessmentController(
     HistoricalFloodController(HistoricalFloodService()),
@@ -167,10 +190,19 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Manual entry for now — a map picker is planned for a later task.',
+                    'Pick the property on the map, or enter coordinates manually below.',
                     style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _pickLocationOnMap,
+                      icon: const Icon(Icons.map_outlined),
+                      label: const Text('Pick location on map'),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     initialValue: _state,
                     decoration: _decoration('State'),

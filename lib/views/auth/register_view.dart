@@ -27,6 +27,10 @@ class _RegisterViewState extends State<RegistrationPage> {
   bool isSubmitting = false;
   bool codeSent = false;
 
+  /// 'user' (resident) or 'helper' — never 'admin'; admin accounts are only
+  /// created by an existing admin promoting a user in User Management.
+  String selectedRole = "user";
+
   Future<void> register() async {
     String name = nameController.text.trim();
     String email = emailController.text.trim();
@@ -35,6 +39,11 @@ class _RegisterViewState extends State<RegistrationPage> {
 
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
       setState(() => errorMessage = "Please fill in all fields");
+      return;
+    }
+
+    if (password.length < 8) {
+      setState(() => errorMessage = "Password must be at least 8 characters");
       return;
     }
 
@@ -48,7 +57,7 @@ class _RegisterViewState extends State<RegistrationPage> {
       errorMessage = "";
     });
 
-    final result = await authController.register(name, email, password);
+    final result = await authController.register(name, email, password, selectedRole);
 
     if (!mounted) return;
 
@@ -58,7 +67,7 @@ class _RegisterViewState extends State<RegistrationPage> {
       setState(() => codeSent = true);
     } else if (result['status'] == 'success') {
       // Auto-confirm was on for this project — no code needed, go straight in.
-      _goToUserHome();
+      _handleRegistrationSuccess();
     } else {
       setState(() => errorMessage = result['message'] ?? "Registration failed");
     }
@@ -80,12 +89,13 @@ class _RegisterViewState extends State<RegistrationPage> {
       email: emailController.text.trim(),
       token: code,
       name: nameController.text.trim(),
+      role: selectedRole,
     );
 
     if (!mounted) return;
 
     if (result['status'] == 'success') {
-      _goToUserHome();
+      _handleRegistrationSuccess();
     } else {
       setState(() {
         isSubmitting = false;
@@ -94,7 +104,29 @@ class _RegisterViewState extends State<RegistrationPage> {
     }
   }
 
-  void _goToUserHome() {
+  /// Residents land straight in the app. Helper sign-ups start with
+  /// [Account.status] 'pending' — they can't log in yet (see
+  /// [AuthService.loginValidate]), so send them back to Login with an
+  /// explanation instead of into the app.
+  void _handleRegistrationSuccess() {
+    if (selectedRole == 'helper') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Your helper application was submitted and is awaiting admin approval. '
+            "You'll be able to log in once it's approved.",
+          ),
+          duration: Duration(seconds: 5),
+        ),
+      );
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.login,
+            (route) => false,
+      );
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Account verified! Welcome to FloodWatch.')),
     );
@@ -209,6 +241,42 @@ class _RegisterViewState extends State<RegistrationPage> {
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
           decoration: _decoration(label: "Enter your name", hint: "John Doe", icon: Icons.person),
         ),
+        const SizedBox(height: 20),
+
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            "Register as",
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: ChoiceChip(
+                label: const Text("Resident"),
+                selected: selectedRole == "user",
+                onSelected: (_) => setState(() => selectedRole = "user"),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ChoiceChip(
+                label: const Text("Helper"),
+                selected: selectedRole == "helper",
+                onSelected: (_) => setState(() => selectedRole = "helper"),
+              ),
+            ),
+          ],
+        ),
+        if (selectedRole == "helper") ...[
+          const SizedBox(height: 8),
+          Text(
+            "Helper accounts need admin approval before you can log in.",
+            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+          ),
+        ],
         const SizedBox(height: 20),
 
         TextField(
