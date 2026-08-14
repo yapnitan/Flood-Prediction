@@ -123,6 +123,10 @@ class _RequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mode = request.fulfillmentMode;
+    final showsFacilityStatus = mode == FulfillmentMode.facility &&
+        (request.status == 'approved' || request.status == 'assigned' || request.status == 'in_progress');
+
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: onTap,
@@ -162,18 +166,19 @@ class _RequestCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (request.shelterName != null) ...[
+            if (showsFacilityStatus) ...[
               const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(Icons.home_work_outlined, size: 16, color: Colors.grey),
+                  Icon(
+                    request.facilityId != null ? Icons.home_work_outlined : Icons.hourglass_empty,
+                    size: 16,
+                    color: Colors.grey,
+                  ),
                   const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      'Assigned shelter: ${request.shelterName}',
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                  Text(
+                    request.facilityId != null ? 'Facility assigned — see details' : 'Awaiting facility assignment',
+                    style: const TextStyle(color: Colors.grey, fontSize: 13),
                   ),
                 ],
               ),

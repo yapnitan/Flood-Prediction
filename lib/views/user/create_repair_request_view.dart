@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../constants/nearby_locations.dart';
+import '../../controllers/property_controller.dart';
 import '../../controllers/repair_request_controller.dart';
+import '../../models/assistance_field_spec.dart';
+import '../../models/property.dart';
 import '../../models/repair_request.dart';
 import '../../services/location_service.dart';
+import '../../services/property_service.dart';
 import '../../services/repair_request_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/add_new_dropdown_item.dart';
+import '../../widgets/assistance_details_view.dart';
+import '../../widgets/dynamic_assistance_fields.dart';
 import '../../widgets/photo_preview.dart';
 import '../../widgets/review_card.dart';
 import '../../widgets/selectable_chip.dart';
 import '../../widgets/step_indicator.dart';
+import 'property_form_view.dart';
 
-/// Post-flood aid & repair request submission wizard (CLAUDE.md Task 10).
-/// Structurally mirrors [SubmitReportPage]'s 4-step flow (Location →
-/// Details → Photos → Review/Submit) with damage-specific fields instead
-/// of flood-specific ones. Pushed as its own route from the Home tab's
-/// "Report" chooser, rather than living in the bottom nav's `IndexedStack`
-/// like the flood report tab does — a one-off action doesn't need a
-/// permanent tab slot.
 class CreateRepairRequestView extends StatefulWidget {
   const CreateRepairRequestView({super.key});
 
@@ -41,6 +42,13 @@ class _CreateRepairRequestState extends State<CreateRepairRequestView> {
   final _detailsFormKey = GlobalKey<FormState>();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _contactController = TextEditingController();
+  final Map<String, dynamic> _details = {};
+
+  // Structural Repair: optional link to a saved property.
+  final _propertyController = PropertyController(PropertyService());
+  List<Property> _myProperties = [];
+  Property? _selectedProperty;
+  bool _isLoadingProperties = false;
 
   // Step 3 state
   final ImagePicker _imagePicker = ImagePicker();
@@ -82,6 +90,13 @@ class _CreateRepairRequestState extends State<CreateRepairRequestView> {
         return;
       }
       if (!(_detailsFormKey.currentState?.validate() ?? false)) {
+        return;
+      }
+      final missing = DynamicAssistanceFields.missingRequiredLabels(selectedAssistanceType!, _details);
+      if (missing.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Please fill in: ${missing.join(', ')}')),
+        );
         return;
       }
       setState(() => _currentStep = 3);
@@ -146,10 +161,42 @@ class _CreateRepairRequestState extends State<CreateRepairRequestView> {
     setState(() {});
   }
 
+  Future<void> _loadMyPropertiesIfNeeded() async {
+    if (_myProperties.isNotEmpty || _isLoadingProperties) return;
+    setState(() => _isLoadingProperties = true);
+    final properties = await _propertyController.getMyProperties();
+    if (!mounted) return;
+    setState(() {
+      _myProperties = properties;
+      _isLoadingProperties = false;
+    });
+  }
+
+  void _selectProperty(Property? property) {
+    setState(() {
+      _selectedProperty = property;
+      if (property != null) {
+        if (property.propertyType != null) _details['property_type'] = property.propertyType;
+        if (property.floors != null) _details['number_of_floors'] = property.floors;
+      }
+    });
+  }
+
+  Future<void> _addNewProperty() async {
+    final created = await Navigator.push<Property>(
+      context,
+      MaterialPageRoute(builder: (context) => PropertyFormView(controller: _propertyController)),
+    );
+    if (created == null || !mounted) return;
+    setState(() => _myProperties = [created, ..._myProperties]);
+    _selectProperty(created);
+  }
+
   Future<void> _submitRequest() async {
     if (_isSubmitting || _isSubmitted) return;
 
     setState(() => _isSubmitting = true);
+    final description = _descriptionController.text.trim();
     final submitted = await _repairRequestController.submit(
       RepairRequest(
         locationName: _locationNameController.text.trim(),
@@ -157,10 +204,11 @@ class _CreateRepairRequestState extends State<CreateRepairRequestView> {
         longitude: _selectedLongitude ?? 101.6869,
         assistanceType: selectedAssistanceType!,
         priority: RepairRequest.suggestedPriority(selectedAssistanceType!),
-        damageDescription: _descriptionController.text.trim(),
+        damageDescription: description.isEmpty ? null : description,
         contactNumber: _contactController.text.trim().isEmpty
             ? null
             : _contactController.text.trim(),
+        details: _details,
       ),
       _photos,
     );
@@ -492,42 +540,87 @@ class _CreateRepairRequestState extends State<CreateRepairRequestView> {
                   (type) => SelectableChip(
                     label: type,
                     selected: selectedAssistanceType == type,
-                    onTap: () => setState(() => selectedAssistanceType = type),
+                    onTap: () {
+                      setState(() => selectedAssistanceType = type);
+                      if (type == 'Structural Repair') _loadMyPropertiesIfNeeded();
+                    },
                   ),
                 )
                 .toList(),
           ),
-          const SizedBox(height: 24),
-          const Text('Damage Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          const SizedBox(height: 8),
-          const Text(
-            'Describe the damage so helpers know what to expect.',
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 20),
-          TextFormField(
-            controller: _descriptionController,
-            minLines: 4,
-            maxLines: 6,
-            decoration: const InputDecoration(
-              labelText: 'Damage description',
-              hintText: 'Describe the extent of the damage and what assistance is needed.',
-              alignLabelWithHint: true,
-              border: OutlineInputBorder(),
+          if (selectedAssistanceType != null) ...[
+            const SizedBox(height: 24),
+            Text(
+              '${selectedAssistanceType!} Details',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
-            validator: (value) =>
-                value == null || value.trim().isEmpty ? 'Enter a short description.' : null,
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _contactController,
-            keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(
-              labelText: 'Contact number (optional)',
-              prefixIcon: Icon(Icons.phone),
-              border: OutlineInputBorder(),
+            const SizedBox(height: 8),
+            const Text(
+              'These details help admins and helpers respond appropriately.',
+              style: TextStyle(color: Colors.grey),
             ),
-          ),
+            const SizedBox(height: 20),
+            if (selectedAssistanceType == 'Structural Repair') ...[
+              const Text('Linked property (optional)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              const SizedBox(height: 8),
+              _isLoadingProperties
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                    )
+                  : DropdownButtonFormField<String>(
+                      initialValue: _selectedProperty?.id.toString(),
+                      decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+                      hint: const Text('Select a saved property'),
+                      items: [
+                        ..._myProperties.map((p) => DropdownMenuItem(value: p.id.toString(), child: Text(p.displayLabel))),
+                        addNewMenuItem('Add new property'),
+                      ],
+                      onChanged: (value) {
+                        if (value == kAddNewValue) {
+                          _addNewProperty();
+                          return;
+                        }
+                        _selectProperty(_myProperties.firstWhere((p) => p.id.toString() == value));
+                      },
+                    ),
+              const SizedBox(height: 20),
+            ],
+            DynamicAssistanceFields(
+              key: ValueKey('$selectedAssistanceType-${_selectedProperty?.id}'),
+              assistanceType: selectedAssistanceType!,
+              values: _details,
+              onChanged: (key, value) => setState(() => _details[key] = value),
+            ),
+            if (descriptionLabelFor(selectedAssistanceType!) != null) ...[
+              TextFormField(
+                controller: _descriptionController,
+                minLines: 3,
+                maxLines: 6,
+                decoration: InputDecoration(
+                  labelText: isDescriptionRequiredFor(selectedAssistanceType!)
+                      ? '${descriptionLabelFor(selectedAssistanceType!)} *'
+                      : '${descriptionLabelFor(selectedAssistanceType!)} (optional)',
+                  alignLabelWithHint: true,
+                  border: const OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (!isDescriptionRequiredFor(selectedAssistanceType!)) return null;
+                  return value == null || value.trim().isEmpty ? 'Enter a short description.' : null;
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+            TextFormField(
+              controller: _contactController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Contact number (optional)',
+                prefixIcon: Icon(Icons.phone),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
           const SizedBox(height: 30),
         ],
       ),
@@ -629,7 +722,12 @@ class _CreateRepairRequestState extends State<CreateRepairRequestView> {
         const SizedBox(height: 20),
         ReviewCard(title: 'Location', value: _locationNameController.text.trim()),
         ReviewCard(title: 'Assistance type', value: selectedAssistanceType!),
-        ReviewCard(title: 'Damage description', value: _descriptionController.text.trim()),
+        AssistanceDetailsView(assistanceType: selectedAssistanceType!, details: _details),
+        if (_descriptionController.text.trim().isNotEmpty)
+          ReviewCard(
+            title: descriptionLabelFor(selectedAssistanceType!) ?? 'Description',
+            value: _descriptionController.text.trim(),
+          ),
         if (_contactController.text.trim().isNotEmpty)
           ReviewCard(title: 'Contact number', value: _contactController.text.trim()),
         ReviewCard(

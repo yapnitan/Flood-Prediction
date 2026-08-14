@@ -22,6 +22,12 @@ class RepairRequestService {
 
     try {
       final photoPaths = await _uploadPhotos(photos);
+      // Critical Medical Assistance requests always jump to 'urgent',
+      // overriding the type's normal default priority, so they surface
+      // above other requests without the admin having to notice the flag.
+      final priority = request.isCriticalMedical
+          ? 'urgent'
+          : RepairRequest.suggestedPriority(request.assistanceType);
       await _supabase.from(_table).insert(
         RepairRequest(
           requesterId: requesterId,
@@ -32,7 +38,8 @@ class RepairRequestService {
           damageDescription: request.damageDescription,
           contactNumber: request.contactNumber,
           photoPaths: photoPaths,
-          shelterName: request.shelterName,
+          priority: priority,
+          details: request.details,
         ).toJson(),
       );
       return true;

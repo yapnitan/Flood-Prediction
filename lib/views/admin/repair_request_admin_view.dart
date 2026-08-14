@@ -45,17 +45,20 @@ class _RepairRequestAdminViewState extends State<RepairRequestAdminView> {
   void initState() {
     super.initState();
     _requestsFuture = _requestController.getAdminOverview();
-    _loadHelpers();
+    _reloadHelpers();
   }
 
-  Future<void> _loadHelpers() async {
+  /// Fetches + filters active helpers, updates this tab's own list for the
+  /// dropdown filter bar, *and* returns the fresh list so
+  /// [RepairRequestAdminDetailView] (which keeps its own copy) can refresh
+  /// after its "+ Add Helper" shortcut returns from User Management.
+  Future<List<Account>> _reloadHelpers() async {
     final users = await _userController.listUsers();
-    if (!mounted) return;
-    setState(() {
-      _helpers = users
-          .where((u) => u.role == 'helper' && u.isActive && u.status == 'active')
-          .toList();
-    });
+    final helpers = users
+        .where((u) => u.role == 'helper' && u.isActive && u.status == 'active')
+        .toList();
+    if (mounted) setState(() => _helpers = helpers);
+    return helpers;
   }
 
   Future<void> _refresh() async {
@@ -98,7 +101,7 @@ class _RepairRequestAdminViewState extends State<RepairRequestAdminView> {
   }
 
   Future<void> _setShelter(String requestId, String shelterName) async {
-    await _requestController.updateRequest(requestId, shelterName: shelterName);
+    await _requestController.updateRequest(requestId, facilityId: shelterName);
     _refresh();
   }
 
@@ -168,6 +171,7 @@ class _RepairRequestAdminViewState extends State<RepairRequestAdminView> {
                                     data: requests[index],
                                     helpers: _helpers,
                                     controller: _requestController,
+                                    reloadHelpers: _reloadHelpers,
                                   ),
                                 ),
                               );
@@ -248,9 +252,13 @@ class _AdminRequestSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = data['status'] as String? ?? 'pending';
     final priority = data['priority'] as String? ?? 'medium';
+    final assistanceType = data['assistance_type'] as String? ?? '';
     final account = data['account'] as Map<String, dynamic>?;
     final photoCount = (data['photo_paths'] as List?)?.length ?? 0;
     final isUrgent = priority == 'urgent';
+    final mode = RepairRequest.fulfillmentModeFor(assistanceType);
+    final needsFacility = mode == FulfillmentMode.facility && data['facility_id'] == null;
+    final isCritical = (data['details'] as Map?)?['is_critical'] == true;
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),
@@ -273,13 +281,32 @@ class _AdminRequestSummaryCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    data['assistance_type'] as String? ?? '',
+                    assistanceType,
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                 ),
                 StatusBadge(status: status),
               ],
             ),
+            if (isCritical) ...[
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.red.shade300),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.warning_amber_rounded, size: 13, color: Colors.red.shade700),
+                    const SizedBox(width: 4),
+                    Text('Critical', style: TextStyle(color: Colors.red.shade700, fontSize: 11, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ],
             if (account != null) ...[
               const SizedBox(height: 4),
               Text('From: ${account['name'] ?? 'Unknown'}',
@@ -306,6 +333,19 @@ class _AdminRequestSummaryCard extends StatelessWidget {
                 ],
               ],
             ),
+            if (needsFacility && (status == 'approved' || status == 'assigned' || status == 'in_progress')) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, size: 14, color: Colors.orange.shade700),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Needs facility assignment',
+                    style: TextStyle(color: Colors.orange.shade700, fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

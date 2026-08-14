@@ -8,6 +8,10 @@ import '../../utils/responsive.dart';
 import 'user_management_view.dart';
 import 'repair_request_admin_view.dart';
 import '../shared/user_profile.dart';
+import 'facility_management_view.dart';
+import 'facility_form_view.dart';
+import '../../controllers/facility_controller.dart';
+import '../../services/facility_service.dart';
 
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
@@ -19,7 +23,7 @@ class AdminHome extends StatefulWidget {
 class _AdminHomeState extends State<AdminHome> {
   int currentIndex = 0;
 
-  final List<String> titles = ["Dashboard", "User Management", "Recovery", "Profile"];
+  final List<String> titles = ["Dashboard", "User Management", "Recovery", "Facilities", "Profile"];
 
   final _repairRequestController = RepairRequestController(RepairRequestService());
   int _pendingRepairCount = 0;
@@ -40,8 +44,6 @@ class _AdminHomeState extends State<AdminHome> {
 
   void _onNavTap(int index) {
     setState(() => currentIndex = index);
-    // Refresh the badge count whenever the admin leaves the Recovery tab,
-    // so it reflects any approve/reject actions taken while inside it.
     if (index != 2) {
       _loadPendingCount();
     }
@@ -61,6 +63,7 @@ class _AdminHomeState extends State<AdminHome> {
       const _AdminDashboardTab(),
       const UserManagementView(),
       RepairRequestAdminView(onRequestsChanged: _loadPendingCount),
+      const FacilityManagementView(),
       const ProfilePage(),
     ];
 
@@ -97,6 +100,10 @@ class _AdminHomeState extends State<AdminHome> {
                 label: const Text("Recovery"),
               ),
               const NavigationRailDestination(
+                icon: Icon(Icons.home_work_outlined),
+                label: Text("Facilities"),
+              ),
+              const NavigationRailDestination(
                 icon: Icon(Icons.person),
                 label: Text("Profile"),
               ),
@@ -112,12 +119,14 @@ class _AdminHomeState extends State<AdminHome> {
           : BottomNavigationBar(
         currentIndex: currentIndex,
         onTap: _onNavTap,
+        type: BottomNavigationBarType.fixed,
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
         items: [
           const BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: "Dashboard"),
           const BottomNavigationBarItem(icon: Icon(Icons.people_outline), label: "Users"),
           BottomNavigationBarItem(icon: _navIcon(Icons.assignment_outlined), label: "Recovery"),
+          const BottomNavigationBarItem(icon: Icon(Icons.home_work_outlined), label: "Facilities"),
           const BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
       ),

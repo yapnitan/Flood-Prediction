@@ -22,12 +22,6 @@ class _UserHomeState extends State<UserHome> {
   // Titles corresponding to each tab, in the same order as `pages`
   final List<String> titles = ["Flood Watch", "Submit Report", "Profile"];
 
-  /// The bottom nav's "Report" destination (index 1) no longer switches
-  /// tabs directly — it first asks whether this is a live flood report
-  /// (handled in-app, in the existing `SubmitReportPage` tab) or a
-  /// property damage / aid request (CLAUDE.md Task 10, pushed as its own
-  /// route since it's a one-off action, not something that needs a
-  /// permanent tab slot).
   void _onNavTap(int index) {
     if (index == 1) {
       _showReportChooser();
@@ -53,7 +47,7 @@ class _UserHomeState extends State<UserHome> {
             ),
             ListTile(
               leading: const Icon(Icons.home_repair_service_outlined, color: Colors.orange),
-              title: const Text('Report property damage'),
+              title: const Text('Submit Recovery Request'),
               subtitle: const Text('Request post-flood repair or aid assistance'),
               onTap: () {
                 Navigator.pop(context);
