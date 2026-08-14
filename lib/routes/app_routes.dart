@@ -5,6 +5,7 @@ class AppRoutes {
   static const String register = '/register';
   static const String forgotPassword = '/forgot-password';
   static const String resetPassword = '/reset-password';
+  static const String verifyEmail = '/verify-email';
 
   static const String adminHome = '/admin';
   static const String helperHome = '/helper';
@@ -20,6 +21,7 @@ class AppRoutes {
   static const String repairRequestAdmin = '/admin/repair-requests';
 
   static const String personalInformation = '/profile/personal-information';
+  static const String changePassword = '/profile/change-password';
   static const String notificationSettings = '/profile/notification-settings';
   static const String helpSupport = '/profile/help-support';
   static const String about = '/profile/about';

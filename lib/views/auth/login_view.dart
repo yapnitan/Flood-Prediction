@@ -66,6 +66,10 @@ class _LoginViewState extends State<LoginView> {
     Navigator.pushNamed(context, AppRoutes.register);
   }
 
+  void verifyEmail() {
+    Navigator.pushNamed(context, AppRoutes.verifyEmail);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -243,8 +247,12 @@ class _LoginViewState extends State<LoginView> {
                   ),
                   const SizedBox(height: 10),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      TextButton(
+                        onPressed: verifyEmail,
+                        child: const Text("Confirm email"),
+                      ),
                       TextButton(
                         onPressed: forgotPassword,
                         child: const Text("Forgot Password?"),

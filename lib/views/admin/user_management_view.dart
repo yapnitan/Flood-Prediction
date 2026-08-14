@@ -13,14 +13,47 @@ class UserManagementView extends StatefulWidget {
 
 class _UserManagementViewState extends State<UserManagementView> {
   static const _roles = ['user', 'helper', 'admin'];
+  static const _statuses = ['pending', 'active', 'rejected'];
+  static const _statusFilters = ['All', 'Pending', 'Active', 'Rejected'];
+  static const _roleFilters = ['All', 'User', 'Helper', 'Admin'];
 
   final _controller = UserManagementController(UserManagementService());
+  final _searchController = TextEditingController();
   late Future<List<Account>> _usersFuture;
+
+  String _searchQuery = '';
+  String _statusFilter = 'All';
+  String _roleFilter = 'All';
 
   @override
   void initState() {
     super.initState();
     _refresh();
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Account> _applyFilters(List<Account> accounts) {
+    return accounts.where((account) {
+      final matchesStatus = _statusFilter == 'All' ||
+          account.status == _statusFilter.toLowerCase();
+      if (!matchesStatus) return false;
+
+      final matchesRole = _roleFilter == 'All' ||
+          account.role == _roleFilter.toLowerCase();
+      if (!matchesRole) return false;
+
+      if (_searchQuery.isEmpty) return true;
+      return account.name.toLowerCase().contains(_searchQuery) ||
+          account.email.toLowerCase().contains(_searchQuery);
+    }).toList();
   }
 
   // NOTE: must be a block body `{ ... }`, not an arrow `=> expr`. An arrow
@@ -71,38 +104,6 @@ class _UserManagementViewState extends State<UserManagementView> {
     }
   }
 
-  Future<void> _confirmDelete(Account account) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove user?'),
-        content: Text('This will permanently delete ${account.name} (${account.email}).'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    final ok = await _controller.removeUser(account.id);
-    if (!mounted) return;
-    if (ok) {
-      _refresh();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to delete user')),
-      );
-    }
-  }
-
   Color _roleColor(String role) {
     switch (role) {
       case 'admin':
@@ -119,28 +120,102 @@ class _UserManagementViewState extends State<UserManagementView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FC),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async => _refresh(),
-          child: FutureBuilder<List<Account>>(
-            future: _usersFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                context.responsive(mobile: 16, tablet: 24, desktop: 32),
+                16,
+                context.responsive(mobile: 16, tablet: 24, desktop: 32),
+                8,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search by name or email',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _searchQuery.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: _searchController.clear,
+                            ),
+                      isDense: true,
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    children: _statusFilters.map((status) {
+                      return ChoiceChip(
+                        label: Text(status),
+                        selected: _statusFilter == status,
+                        onSelected: (_) => setState(() => _statusFilter = status),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: _roleFilters.map((role) {
+                      return ChoiceChip(
+                        label: Text(role),
+                        selected: _roleFilter == role,
+                        onSelected: (_) => setState(() => _roleFilter = role),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async => _refresh(),
+                child: FutureBuilder<List<Account>>(
+                  future: _usersFuture,
+                  builder: (context, snapshot) {
+                    // Only show the full-screen spinner on the very first
+                    // load. FutureBuilder keeps the previous snapshot.data
+                    // around while a new future is in flight, so reusing it
+                    // here (instead of blanking the list on every refresh)
+                    // keeps the same ListView mounted and its scroll
+                    // position intact after actions like toggling a user's
+                    // active state.
+                    if (snapshot.connectionState == ConnectionState.waiting &&
+                        !snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-              final users = snapshot.data ?? [];
-              if (users.isEmpty) {
-                return const Center(child: Text('No users found.'));
-              }
+                    final users = _applyFilters(snapshot.data ?? []);
+                    if (users.isEmpty) {
+                      return LayoutBuilder(
+                        builder: (context, constraints) => SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                            child: const Center(child: Text('No users found.')),
+                          ),
+                        ),
+                      );
+                    }
 
-              return ListView.builder(
-                padding: EdgeInsets.all(
-                  context.responsive(mobile: 16, tablet: 24, desktop: 32),
-                ),
-                itemCount: users.length,
-                itemBuilder: (context, index) {
-                  final account = users[index];
-                  final roleColor = _roleColor(account.role);
+                    return ListView.builder(
+                      padding: EdgeInsets.all(
+                        context.responsive(mobile: 16, tablet: 24, desktop: 32),
+                      ),
+                      itemCount: users.length,
+                      itemBuilder: (context, index) {
+                        final account = users[index];
+                        final roleColor = _roleColor(account.role);
 
                   return Container(
                     margin: const EdgeInsets.only(bottom: 10),
@@ -188,10 +263,6 @@ class _UserManagementViewState extends State<UserManagementView> {
                                   ),
                                 ],
                               ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.grey),
-                              onPressed: () => _confirmDelete(account),
                             ),
                           ],
                         ),
@@ -247,44 +318,44 @@ class _UserManagementViewState extends State<UserManagementView> {
                           ],
                         ),
                         const SizedBox(height: 10),
-                        if (account.status == 'pending')
-                          Row(
-                            children: [
-                              const Text(
-                                'Pending approval',
-                                style: TextStyle(
-                                  color: Colors.orange,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12,
-                                ),
+                        Row(
+                          children: [
+                            if (account.status == 'pending')
+                              const Padding(
+                                padding: EdgeInsets.only(right: 8),
+                                child: Icon(Icons.hourglass_top, size: 16, color: Colors.orange),
                               ),
-                              const Spacer(),
-                              TextButton(
-                                onPressed: () => _changeStatus(account, 'rejected'),
-                                child: const Text('Reject', style: TextStyle(color: Colors.red)),
-                              ),
-                              ElevatedButton(
-                                onPressed: () => _changeStatus(account, 'active'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
+                            Expanded(
+                              // Always editable, not just while pending —
+                              // lets admin approve/reject or reconsider a
+                              // past decision at any time, rather than
+                              // rejected being a dead end.
+                              child: DropdownButtonFormField<String>(
+                                initialValue:
+                                    _statuses.contains(account.status) ? account.status : null,
+                                hint: Text(account.status),
+                                isDense: true,
+                                decoration: InputDecoration(
+                                  labelText: 'Status',
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
                                 ),
-                                child: const Text(
-                                  'Approve',
-                                  style: TextStyle(color: Colors.white),
-                                ),
+                                items: _statuses
+                                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                                    .toList(),
+                                onChanged: (value) {
+                                  if (value != null) _changeStatus(account, value);
+                                },
                               ),
-                            ],
-                          )
-                        else
-                          Text(
-                            'Status: ${account.status}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: account.status == 'rejected'
-                                  ? Colors.red
-                                  : Colors.grey[600],
                             ),
-                          ),
+                          ],
+                        ),
                       ],
                     ),
                   );
@@ -292,6 +363,9 @@ class _UserManagementViewState extends State<UserManagementView> {
               );
             },
           ),
+        ),
+      ),
+          ],
         ),
       ),
     );

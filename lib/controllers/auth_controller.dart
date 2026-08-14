@@ -8,8 +8,13 @@ class AuthController {
 
   AuthController(this.authService);
 
-  Future<Map<String, dynamic>> register(String name, String email, String password) async {
-    return await authService.register(name, email, password);
+  Future<Map<String, dynamic>> register(
+    String name,
+    String email,
+    String password,
+    String role,
+  ) async {
+    return await authService.register(name, email, password, role);
   }
 
   Future<LoginResult> login(String email, String password) {
@@ -18,6 +23,16 @@ class AuthController {
 
   Future<void> logout() {
     return authService.logout();
+  }
+
+  Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) {
+    return authService.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
   }
 
   Future<Account?> getAccount(String id) {
@@ -39,9 +54,14 @@ class AuthController {
   Future<Map<String, dynamic>> verifySignupCode({
     required String email,
     required String token,
-    required String name,
+    String? name,
+    String? role,
   }) {
-    return authService.verifySignupCode(email: email, token: token, name: name);
+    return authService.verifySignupCode(email: email, token: token, name: name, role: role);
+  }
+
+  Future<Map<String, dynamic>> resendSignupCode(String email) {
+    return authService.resendSignupCode(email);
   }
 
   Future<bool> updateProfile({required String id, required String name}) {
