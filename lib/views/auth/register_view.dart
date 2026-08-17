@@ -1,0 +1,428 @@
+import 'package:flutter/material.dart';
+import '../../controllers/auth_controller.dart';
+import '../../services/auth_service.dart';
+import '../../utils/responsive.dart';
+import '../../routes/app_routes.dart';
+
+/// Registration flow, in two steps on one screen: fill in the form, then
+/// enter the verification code emailed by Supabase. No confirmation link,
+/// no browser hand-off — mirrors the forgot-password flow.
+class RegistrationPage extends StatefulWidget {
+  const RegistrationPage({super.key});
+
+  @override
+  State<RegistrationPage> createState() => _RegisterViewState();
+}
+
+class _RegisterViewState extends State<RegistrationPage> {
+  final nameController = TextEditingController();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
+  final codeController = TextEditingController();
+
+  final AuthController authController = AuthController(AuthService());
+
+  String errorMessage = "";
+  bool isSubmitting = false;
+  bool codeSent = false;
+
+  /// 'user' (resident) or 'helper' — never 'admin'; admin accounts are only
+  /// created by an existing admin promoting a user in User Management.
+  String selectedRole = "user";
+
+  Future<void> register() async {
+    String name = nameController.text.trim();
+    String email = emailController.text.trim();
+    String password = passwordController.text.trim();
+    String confirmPassword = confirmPasswordController.text.trim();
+
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+      setState(() => errorMessage = "Please fill in all fields");
+      return;
+    }
+
+    if (password.length < 8) {
+      setState(() => errorMessage = "Password must be at least 8 characters");
+      return;
+    }
+
+    if (password != confirmPassword) {
+      setState(() => errorMessage = "Password does not match");
+      return;
+    }
+
+    setState(() {
+      isSubmitting = true;
+      errorMessage = "";
+    });
+
+    final result = await authController.register(name, email, password, selectedRole);
+
+    if (!mounted) return;
+
+    setState(() => isSubmitting = false);
+
+    if (result['status'] == 'confirm_email') {
+      setState(() => codeSent = true);
+    } else if (result['status'] == 'success') {
+      // Auto-confirm was on for this project — no code needed, go straight in.
+      _handleRegistrationSuccess();
+    } else {
+      setState(() => errorMessage = result['message'] ?? "Registration failed");
+    }
+  }
+
+  Future<void> verifyCode() async {
+    final code = codeController.text.trim();
+    if (code.isEmpty) {
+      setState(() => errorMessage = 'Enter the code from your email');
+      return;
+    }
+
+    setState(() {
+      isSubmitting = true;
+      errorMessage = "";
+    });
+
+    final result = await authController.verifySignupCode(
+      email: emailController.text.trim(),
+      token: code,
+      name: nameController.text.trim(),
+      role: selectedRole,
+    );
+
+    if (!mounted) return;
+
+    if (result['status'] == 'success') {
+      _handleRegistrationSuccess();
+    } else {
+      setState(() {
+        isSubmitting = false;
+        errorMessage = result['message'] ?? 'Invalid or expired code. Please try again.';
+      });
+    }
+  }
+
+  /// Residents land straight in the app. Helper sign-ups start with
+  /// [Account.status] 'pending' — they can't log in yet (see
+  /// [AuthService.loginValidate]), so send them back to Login with an
+  /// explanation instead of into the app.
+  void _handleRegistrationSuccess() {
+    if (selectedRole == 'helper') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Your helper application was submitted and is awaiting admin approval. '
+            "You'll be able to log in once it's approved.",
+          ),
+          duration: Duration(seconds: 5),
+        ),
+      );
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.login,
+            (route) => false,
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Account verified! Welcome to FloodWatch.')),
+    );
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.userHome,
+          (route) => false,
+    );
+  }
+
+  void backToLogin() {
+    Navigator.pop(context);
+  }
+
+  InputDecoration _decoration({
+    required String label,
+    required String hint,
+    required IconData icon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(
+        fontSize: 16,
+        color: Colors.black,
+        fontWeight: FontWeight.bold,
+      ),
+      hintText: hint,
+      hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+      prefixIcon: Icon(icon, color: Colors.blue),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.grey, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.blue, width: 2),
+      ),
+      filled: true,
+      fillColor: Colors.white,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      resizeToAvoidBottomInset: true,
+      appBar: AppBar(
+        title: Text(
+          codeSent ? "Verify Your Email" : "Register Account",
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 5,
+      ),
+      body: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: context.responsive(mobile: 20, tablet: 32, desktop: 40),
+          vertical: 20,
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: context.responsive(mobile: 480, tablet: 520, desktop: 480),
+              ),
+              child: codeSent ? _buildCodeStep() : _buildFormStep(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFormStep() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+        Image.asset(
+          "assets/images/logo.png",
+          width: context.responsive(mobile: 120.0, tablet: 150.0),
+          height: context.responsive(mobile: 120.0, tablet: 150.0),
+        ),
+        const SizedBox(height: 30),
+
+        if (errorMessage.isNotEmpty) ...[
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  errorMessage,
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+        ],
+
+        TextField(
+          controller: nameController,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+          decoration: _decoration(label: "Enter your name", hint: "John Doe", icon: Icons.person),
+        ),
+        const SizedBox(height: 20),
+
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            "Register as",
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: ChoiceChip(
+                label: const Text("Resident"),
+                selected: selectedRole == "user",
+                onSelected: (_) => setState(() => selectedRole = "user"),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ChoiceChip(
+                label: const Text("Helper"),
+                selected: selectedRole == "helper",
+                onSelected: (_) => setState(() => selectedRole = "helper"),
+              ),
+            ),
+          ],
+        ),
+        if (selectedRole == "helper") ...[
+          const SizedBox(height: 8),
+          Text(
+            "Helper accounts need admin approval before you can log in.",
+            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+          ),
+        ],
+        const SizedBox(height: 20),
+
+        TextField(
+          controller: emailController,
+          keyboardType: TextInputType.emailAddress,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+          decoration: _decoration(
+            label: "Enter your email",
+            hint: "example@gmail.com",
+            icon: Icons.email,
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        TextField(
+          controller: passwordController,
+          obscureText: true,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+          decoration: _decoration(label: "Enter your password", hint: "********", icon: Icons.lock),
+        ),
+        const SizedBox(height: 20),
+
+        TextField(
+          controller: confirmPasswordController,
+          obscureText: true,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+          decoration: _decoration(
+            label: "Confirm your password",
+            hint: "********",
+            icon: Icons.lock_outline,
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: isSubmitting ? null : register,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: isSubmitting
+                ? const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+            )
+                : const Text(
+              "Register",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text("Already have an account?"),
+            TextButton(onPressed: backToLogin, child: const Text("Login")),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCodeStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+        const Icon(Icons.mark_email_read, size: 56, color: Colors.green),
+        const SizedBox(height: 16),
+        const Text(
+          'Check your inbox',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          "We've sent a verification code to ${emailController.text.trim()}. "
+              "Enter it below to activate your account.",
+          style: const TextStyle(color: Colors.grey),
+        ),
+        const SizedBox(height: 20),
+
+        if (errorMessage.isNotEmpty) ...[
+          Text(
+            errorMessage,
+            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+        ],
+
+        TextField(
+          controller: codeController,
+          keyboardType: TextInputType.number,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+          decoration: _decoration(
+            label: "Verification code",
+            hint: "Enter the code from your email",
+            icon: Icons.pin,
+          ),
+        ),
+
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: ElevatedButton(
+            onPressed: isSubmitting ? null : verifyCode,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: isSubmitting
+                ? const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+            )
+                : const Text(
+              'Verify & Continue',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Center(
+          child: TextButton(
+            onPressed: isSubmitting ? null : register,
+            child: const Text("Didn't get a code? Resend"),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+    codeController.dispose();
+    super.dispose();
+  }
+}

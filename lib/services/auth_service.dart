@@ -2,14 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import '../models/account.dart';
 
-/// Deep-link scheme the app registers so Supabase's password-reset email
-/// can open the app again and hand back a recovery session.
-/// Must match:
-///  - Supabase Dashboard > Authentication > URL Configuration > Redirect URLs
-///  - android/app/src/main/AndroidManifest.xml intent-filter
-///  - ios/Runner/Info.plist CFBundleURLTypes
-const String kPasswordResetRedirect =
-    'https://public-flutter.web.app/reset-callback';
+const String _avatarBucket = 'avatars';
 
 /// Result of a login attempt. [account] is non-null only on success;
 /// [error] gives a user-facing reason when it fails (wrong password,
@@ -26,13 +19,25 @@ class LoginResult {
 class AuthService {
   final supabase = Supabase.instance.client;
 
-  Future<Map<String, dynamic>> register(String name, String email, String password) async {
+  /// [role] is 'user' or 'helper' (never 'admin' — admins are promoted by an
+  /// existing admin in User Management, not self-registered). Helper
+  /// sign-ups start with [Account.status] 'pending' and need admin approval
+  /// before [loginValidate] will let them in.
+  Future<Map<String, dynamic>> register(
+    String name,
+    String email,
+    String password,
+    String role,
+  ) async {
     try {
-      // 1. Create authentication account
       final response = await supabase.auth.signUp(
         email: email,
         password: password,
-        data: {'name': name}, // stores name in user_metadata
+        // role is stashed in user metadata (not just passed around in
+        // widget state) so it survives even if the user abandons the app
+        // before entering the code and comes back later via the
+        // "resend confirmation code" flow on the login page.
+        data: {'name': name, 'role': role},
       );
 
       final user = response.user;
@@ -41,26 +46,69 @@ class AuthService {
         return {'status': 'error', 'message': 'Registration failed'};
       }
 
-      // 2. Check if a session exists (it won't if email confirmation is required)
+      // Supabase doesn't error on signUp() for an email that's already
+      // registered and confirmed — to avoid leaking which emails exist, it
+      // returns a look-alike successful response (a user object, but with
+      // an empty identities list) and sends nothing. Without this check the
+      // app would tell the user to "check their email" for a code that was
+      // never sent.
+      if (user.identities != null && user.identities!.isEmpty) {
+        return {
+          'status': 'error',
+          'message': 'This email is already registered. Please log in instead.',
+        };
+      }
+
       if (response.session == null) {
         return {
           'status': 'confirm_email',
           'message': 'Please check your email to confirm your account before logging in.',
+          'email': email,
         };
       }
 
-      // 3. Session exists (auto-confirmed) — safe to insert profile now
       final account = await supabase
           .from('account')
-          .insert({'id': user.id, 'name': name, 'email': email, 'role': 'user'})
+          .insert({
+        'id': user.id,
+        'name': name,
+        'email': email,
+        'role': role,
+        'status': role == 'helper' ? 'pending' : 'active',
+      })
           .select()
           .single();
 
       return {'status': 'success', 'account': Account.fromJson(account)};
+    } on AuthApiException catch (e) {
+      debugPrint("Register error: $e");
+      return {'status': 'error', 'message': _friendlySignUpError(e)};
     } catch (e) {
       debugPrint("Register error: $e");
-      return {'status': 'error', 'message': e.toString()};
+      return {'status': 'error', 'message': 'Something went wrong. Please try again.'};
     }
+  }
+
+  /// Maps Supabase's raw signUp() error text/codes to messages a user can
+  /// actually act on, instead of showing them `AuthApiException(...)`
+  /// verbatim.
+  String _friendlySignUpError(AuthApiException e) {
+    final message = e.message.toLowerCase();
+    if (e.code == 'user_already_exists' || message.contains('already registered')) {
+      return 'This email is already registered. Please log in instead.';
+    }
+    if (message.contains('rate limit')) {
+      return 'Too many attempts. Please wait a moment and try again.';
+    }
+    if (message.contains('password')) {
+      // Already a specific, actionable message (e.g. "Password should be
+      // at least 6 characters") — worth showing as-is.
+      return e.message;
+    }
+    if (message.contains('email') && (message.contains('invalid') || message.contains('valid'))) {
+      return 'Please enter a valid email address.';
+    }
+    return e.message;
   }
 
   /// Signs in with Supabase auth, then checks the matching `account` row.
@@ -79,7 +127,6 @@ class AuthService {
         return LoginResult.failure('Invalid email or password');
       }
 
-      // Try to fetch existing profile
       final existing = await supabase
           .from('account')
           .select()
@@ -90,15 +137,14 @@ class AuthService {
       if (existing != null) {
         account = Account.fromJson(existing);
       } else {
-        // No profile yet (first login after email confirmation) — create it now
         final inserted = await supabase
             .from('account')
             .insert({
-              'id': user.id,
-              'name': user.userMetadata?['name'] ?? '',
-              'email': user.email,
-              'role': 'user',
-            })
+          'id': user.id,
+          'name': user.userMetadata?['name'] ?? '',
+          'email': user.email,
+          'role': 'user',
+        })
             .select()
             .single();
         account = Account.fromJson(inserted);
@@ -120,6 +166,17 @@ class AuthService {
       }
 
       return LoginResult.success(account);
+    } on AuthApiException catch (e) {
+      debugPrint("Login error: $e");
+      // Supabase rejects signInWithPassword outright for an unconfirmed
+      // email — there's no account row to check yet at that point, so this
+      // has to be caught here rather than as an Account.status check above.
+      if (e.code == 'email_not_confirmed') {
+        return LoginResult.failure(
+          "Please confirm your email first — use \"Confirm email\" below to get a new code.",
+        );
+      }
+      return LoginResult.failure('Invalid email or password');
     } catch (e) {
       debugPrint("Login error: $e");
       return LoginResult.failure('Invalid email or password');
@@ -128,6 +185,35 @@ class AuthService {
 
   Future<void> logout() async {
     await supabase.auth.signOut();
+  }
+
+  /// Changes the password for the currently signed-in user. Re-verifies
+  /// [currentPassword] with a fresh sign-in first — Supabase's updateUser()
+  /// would happily change the password on an already-valid session without
+  /// asking for it, but requiring it here stops an unlocked/unattended
+  /// device from having its password silently changed.
+  Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final email = supabase.auth.currentUser?.email;
+    if (email == null) {
+      return {'status': 'error', 'message': 'Not signed in'};
+    }
+
+    try {
+      await supabase.auth.signInWithPassword(email: email, password: currentPassword);
+    } catch (e) {
+      return {'status': 'error', 'message': 'Current password is incorrect'};
+    }
+
+    try {
+      await supabase.auth.updateUser(UserAttributes(password: newPassword));
+      return {'status': 'success', 'message': 'Password updated successfully.'};
+    } catch (e) {
+      debugPrint('AuthService.changePassword error: $e');
+      return {'status': 'error', 'message': 'Failed to update password'};
+    }
   }
 
   /// Looks up the `account` row by its id (== the Supabase auth user id).
@@ -145,37 +231,137 @@ class AuthService {
     }
   }
 
-  /// Step 1 of "forgot password": emails the user a recovery link that
-  /// deep-links back into the app via [kPasswordResetRedirect]. Opening
-  /// that link fires an `AuthChangeEvent.passwordRecovery` event (handled
-  /// in main.dart), which is what actually lets [updatePassword] succeed.
-  Future<Map<String, dynamic>> sendPasswordResetEmail(String email) async {
+  /// Step 1 of "forgot password": Supabase emails a 6-digit code (email
+  /// template must use `{{ .Token }}`, not the confirmation link). Whole
+  /// flow stays in-app — no browser hand-off, no deep link.
+  Future<Map<String, dynamic>> sendPasswordResetCode(String email) async {
     try {
-      await supabase.auth.resetPasswordForEmail(
-        email,
-        redirectTo: kPasswordResetRedirect,
-      );
+      await supabase.auth.resetPasswordForEmail(email);
       return {
         'status': 'success',
-        'message':
-            'If an account exists for that email, a reset link has been sent. Please check your inbox.',
+        'message': 'If an account exists for that email, a verification code has been sent.',
       };
+    } on AuthApiException catch (e) {
+      debugPrint('AuthService.sendPasswordResetCode error: $e');
+      // e.message (not e.toString()) is kept as-is here rather than mapped
+      // to a generic string — for a rate-limit error it's the only place
+      // the "after N seconds" text lives, which the UI parses to show a
+      // countdown (see ForgotPasswordPage._extractRateLimitSeconds).
+      return {'status': 'error', 'message': e.message};
     } catch (e) {
-      debugPrint('AuthService.sendPasswordResetEmail error: $e');
-      return {'status': 'error', 'message': e.toString()};
+      debugPrint('AuthService.sendPasswordResetCode error: $e');
+      return {'status': 'error', 'message': 'Something went wrong. Please try again.'};
     }
   }
 
-  /// Step 2 of "forgot password": must be called while the temporary
-  /// recovery session from the emailed link is active (i.e. from
-  /// ResetPasswordView, right after the passwordRecovery event fires).
-  Future<Map<String, dynamic>> updatePassword(String newPassword) async {
+  /// Step 2: verifies the emailed code (exchanges it for a temporary
+  /// recovery session) and sets the new password in the same call.
+  Future<Map<String, dynamic>> verifyResetCode({
+    required String email,
+    required String token,
+    required String newPassword,
+  }) async {
     try {
+      await supabase.auth.verifyOTP(
+        email: email,
+        token: token,
+        type: OtpType.recovery,
+      );
       await supabase.auth.updateUser(UserAttributes(password: newPassword));
+      await supabase.auth.signOut();
       return {'status': 'success', 'message': 'Password updated successfully.'};
     } catch (e) {
-      debugPrint('AuthService.updatePassword error: $e');
-      return {'status': 'error', 'message': e.toString()};
+      debugPrint('AuthService.verifyResetCode error: $e');
+      return {'status': 'error', 'message': 'Invalid or expired code. Please try again.'};
+    }
+  }
+
+  /// Verifies the signup confirmation code (the "Confirm signup" email
+  /// template must use `{{ .Token }}`, not the confirmation link). On
+  /// success, creates the `account` row now — signUp() couldn't create it
+  /// earlier because no session existed yet before the email was confirmed.
+  ///
+  /// [name]/[role] are only needed when called right after [register] (which
+  /// already has them in memory). When this is called later from the
+  /// "resend confirmation code" flow on the login page — where the app has
+  /// no memory of the original registration form — they're omitted and
+  /// recovered from the signup's user metadata instead (see [register]).
+  Future<Map<String, dynamic>> verifySignupCode({
+    required String email,
+    required String token,
+    String? name,
+    String? role,
+  }) async {
+    try {
+      final response = await supabase.auth.verifyOTP(
+        email: email,
+        token: token,
+        type: OtpType.signup,
+      );
+
+      final user = response.user;
+      if (user == null) {
+        return {'status': 'error', 'message': 'Invalid or expired code. Please try again.'};
+      }
+
+      final existing = await supabase
+          .from('account')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
+
+      Account account;
+      if (existing != null) {
+        account = Account.fromJson(existing);
+      } else {
+        final resolvedName = name ?? user.userMetadata?['name'] as String? ?? '';
+        final resolvedRole = role ?? user.userMetadata?['role'] as String? ?? 'user';
+        final inserted = await supabase
+            .from('account')
+            .insert({
+          'id': user.id,
+          'name': resolvedName,
+          'email': email,
+          'role': resolvedRole,
+          'status': resolvedRole == 'helper' ? 'pending' : 'active',
+        })
+            .select()
+            .single();
+        account = Account.fromJson(inserted);
+      }
+
+      return {'status': 'success', 'account': account};
+    } catch (e) {
+      debugPrint('AuthService.verifySignupCode error: $e');
+      return {'status': 'error', 'message': 'Invalid or expired code. Please try again.'};
+    }
+  }
+
+  /// Re-sends the signup confirmation code for an account that was created
+  /// but never confirmed (the user closed the app before entering the
+  /// code). Reached from the login page, not the registration form.
+  Future<Map<String, dynamic>> resendSignupCode(String email) async {
+    try {
+      await supabase.auth.resend(type: OtpType.signup, email: email);
+      return {
+        'status': 'success',
+        'message': 'If that account is awaiting confirmation, a new code has been sent.',
+      };
+    } on AuthApiException catch (e) {
+      debugPrint('AuthService.resendSignupCode error: $e');
+      // Supabase rejects resend() outright (rather than silently no-op'ing,
+      // like signUp() does) when the account is already confirmed — surface
+      // that distinctly instead of a generic failure message.
+      if (e.message.toLowerCase().contains('already confirmed')) {
+        return {
+          'status': 'error',
+          'message': 'This email is already confirmed. Please log in instead.',
+        };
+      }
+      return {'status': 'error', 'message': e.message};
+    } catch (e) {
+      debugPrint('AuthService.resendSignupCode error: $e');
+      return {'status': 'error', 'message': 'Something went wrong. Please try again.'};
     }
   }
 
@@ -203,6 +389,39 @@ class AuthService {
     } catch (e) {
       debugPrint('AuthService.updateNotificationPrefs error: $e');
       return false;
+    }
+  }
+
+  /// Uploads [bytes] as the user's avatar (fixed path per user, so a
+  /// re-upload overwrites the old one instead of accumulating files),
+  /// saves the resulting public URL on the account row, and returns it.
+  /// A timestamp query param is appended so cached copies of the old
+  /// image at the same URL don't get shown after an update.
+  Future<String?> uploadAvatar({
+    required String id,
+    required Uint8List bytes,
+  }) async {
+    try {
+      final path = '$id/avatar.jpg';
+      await supabase.storage
+          .from(_avatarBucket)
+          .uploadBinary(
+        path,
+        bytes,
+        fileOptions: const FileOptions(
+          contentType: 'image/jpeg',
+          upsert: true,
+        ),
+      );
+
+      final publicUrl = supabase.storage.from(_avatarBucket).getPublicUrl(path);
+      final avatarUrl = '$publicUrl?updated=${DateTime.now().millisecondsSinceEpoch}';
+
+      await supabase.from('account').update({'avatar_url': avatarUrl}).eq('id', id);
+      return avatarUrl;
+    } catch (e) {
+      debugPrint('AuthService.uploadAvatar error: $e');
+      return null;
     }
   }
 }

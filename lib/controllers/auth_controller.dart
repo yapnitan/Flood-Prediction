@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../models/account.dart';
 import '../services/auth_service.dart';
 
@@ -6,8 +8,13 @@ class AuthController {
 
   AuthController(this.authService);
 
-  Future<Map<String, dynamic>> register(String name, String email, String password) async {
-    return await authService.register(name, email, password);
+  Future<Map<String, dynamic>> register(
+    String name,
+    String email,
+    String password,
+    String role,
+  ) async {
+    return await authService.register(name, email, password, role);
   }
 
   Future<LoginResult> login(String email, String password) {
@@ -18,16 +25,43 @@ class AuthController {
     return authService.logout();
   }
 
+  Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) {
+    return authService.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+  }
+
   Future<Account?> getAccount(String id) {
     return authService.getAccountById(id);
   }
 
-  Future<Map<String, dynamic>> sendPasswordReset(String email) {
-    return authService.sendPasswordResetEmail(email);
+  Future<Map<String, dynamic>> sendPasswordResetCode(String email) {
+    return authService.sendPasswordResetCode(email);
   }
 
-  Future<Map<String, dynamic>> updatePassword(String newPassword) {
-    return authService.updatePassword(newPassword);
+  Future<Map<String, dynamic>> verifyResetCode({
+    required String email,
+    required String token,
+    required String newPassword,
+  }) {
+    return authService.verifyResetCode(email: email, token: token, newPassword: newPassword);
+  }
+
+  Future<Map<String, dynamic>> verifySignupCode({
+    required String email,
+    required String token,
+    String? name,
+    String? role,
+  }) {
+    return authService.verifySignupCode(email: email, token: token, name: name, role: role);
+  }
+
+  Future<Map<String, dynamic>> resendSignupCode(String email) {
+    return authService.resendSignupCode(email);
   }
 
   Future<bool> updateProfile({required String id, required String name}) {
@@ -44,5 +78,9 @@ class AuthController {
       notifyEmail: notifyEmail,
       notifyPush: notifyPush,
     );
+  }
+
+  Future<String?> uploadAvatar({required String id, required Uint8List bytes}) {
+    return authService.uploadAvatar(id: id, bytes: bytes);
   }
 }
