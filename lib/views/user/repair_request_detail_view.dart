@@ -314,12 +314,6 @@ class _RepairRequestDetailViewState extends State<RepairRequestDetailView> {
     );
   }
 
-  /// The whole point of splitting by fulfillment mode: a resident waiting
-  /// on Structural Repair or Medical Assistance has nothing to navigate to
-  /// (the helper comes to them), so no map is shown at all. A resident
-  /// needing Temporary Shelter or Food & Water gets the facility's
-  /// location and directions once one is assigned. Financial Aid needs
-  /// neither.
   Widget _buildFulfillmentStatus(RepairRequest request, FulfillmentMode mode) {
     final isActive = request.status == 'approved' ||
         request.status == 'assigned' ||
@@ -328,6 +322,7 @@ class _RepairRequestDetailViewState extends State<RepairRequestDetailView> {
     switch (mode) {
       case FulfillmentMode.field:
         if (!isActive) return const SizedBox.shrink();
+        final helperAssigned = request.assignedHelperId != null;
         return Container(
           width: double.infinity,
           padding: const EdgeInsets.all(14),
@@ -339,11 +334,17 @@ class _RepairRequestDetailViewState extends State<RepairRequestDetailView> {
           ),
           child: Row(
             children: [
-              Icon(Icons.handyman_outlined, size: 18, color: Colors.blue.shade700),
+              Icon(
+                helperAssigned ? Icons.handyman_outlined : Icons.hourglass_top_outlined,
+                size: 18,
+                color: Colors.blue.shade700,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'A helper has been assigned and will come to your location. They may contact you directly.',
+                  helperAssigned
+                      ? 'A helper has been assigned and will come to your location. They may contact you directly.'
+                      : 'Your request has been approved. An admin will assign a helper to come to your location soon.',
                   style: TextStyle(color: Colors.blue.shade900, fontSize: 13),
                 ),
               ),

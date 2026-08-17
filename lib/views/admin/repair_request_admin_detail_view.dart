@@ -86,13 +86,15 @@ class _RepairRequestAdminDetailViewState extends State<RepairRequestAdminDetailV
     });
   }
 
-  /// "+ Add Helper" — there's no standalone "create helper" flow, so this
-  /// jumps to User Management where an admin promotes an existing user's
-  /// role, then reloads the (now hopefully longer) helper list on return.
   Future<void> _addHelper() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const UserManagementView()),
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(title: const Text('Add Helper'), centerTitle: true),
+          body: const UserManagementView(),
+        ),
+      ),
     );
     if (!mounted) return;
     final helpers = await widget.reloadHelpers();
@@ -150,6 +152,29 @@ class _RepairRequestAdminDetailViewState extends State<RepairRequestAdminDetailV
     await _run(
           () => widget.controller.rejectRequest(_id),
       localUpdate: {'status': 'rejected'},
+    );
+  }
+
+  Future<void> _cancel() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel this request?'),
+        content: const Text('This withdraws the request — the requester will see it as cancelled.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Back')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Cancel Request'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _run(
+          () => widget.controller.cancelRequest(_id),
+      localUpdate: {'status': 'cancelled'},
     );
   }
 
@@ -316,6 +341,22 @@ class _RepairRequestAdminDetailViewState extends State<RepairRequestAdminDetailV
 
                     // --- Fulfillment-mode-specific assignment section ---
                     if (canAssign) _buildFulfillmentSection(mode, assignedHelperId, assignedFacilityId),
+
+                    if (canAssign) ...[
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _cancel,
+                          icon: const Icon(Icons.cancel_outlined, size: 18),
+                          label: const Text('Cancel Request'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                          ),
+                        ),
+                      ),
+                    ],
 
                     const SizedBox(height: 20),
                   ],

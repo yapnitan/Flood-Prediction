@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 
@@ -12,30 +13,34 @@ class CurrentLocationDetails {
 
 /// Wraps device GPS access: checks/requests permission, then reads position.
 class LocationService {
-  static const _timeout = Duration(seconds: 8);
+  static const _checkTimeout = Duration(seconds: 8);
+  static const _positionTimeout = Duration(seconds: 20);
 
-  /// Never hangs indefinitely — returns null if location services/permission
-  /// are unavailable, denied, or acquisition takes longer than [_timeout].
   Future<Position?> getCurrentPosition() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled()
-          .timeout(_timeout);
+          .timeout(_checkTimeout);
       if (!serviceEnabled) return null;
 
-      var permission = await Geolocator.checkPermission().timeout(_timeout);
+      var permission = await Geolocator.checkPermission().timeout(_checkTimeout);
       if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission().timeout(_timeout);
+        permission = await Geolocator.requestPermission().timeout(_checkTimeout);
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         return null;
       }
 
-      return await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-        ),
-      ).timeout(_timeout);
+      try {
+        return await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+          ),
+        ).timeout(_positionTimeout);
+      } catch (error) {
+        debugPrint('LocationService: fresh position failed/timed out ($error), trying last known position');
+        return await Geolocator.getLastKnownPosition();
+      }
     } catch (_) {
       return null;
     }
@@ -55,7 +60,7 @@ class LocationService {
           'addressdetails': '1',
         }),
         headers: const {'User-Agent': 'FloodPrediction/1.0'},
-      ).timeout(_timeout);
+      ).timeout(_checkTimeout);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final displayName = data['display_name'] as String?;

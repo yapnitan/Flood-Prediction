@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../constants/nearby_locations.dart';
 import '../../controllers/property_controller.dart';
 import '../../controllers/repair_request_controller.dart';
 import '../../models/assistance_field_spec.dart';
@@ -11,6 +10,7 @@ import '../../services/property_service.dart';
 import '../../services/repair_request_service.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/add_new_dropdown_item.dart';
+import '../../widgets/address_search_field.dart';
 import '../../widgets/assistance_details_view.dart';
 import '../../widgets/dynamic_assistance_fields.dart';
 import '../../widgets/photo_preview.dart';
@@ -151,14 +151,6 @@ class _CreateRepairRequestState extends State<CreateRepairRequestView> {
       _selectedLatitude = details.position.latitude;
       _selectedLongitude = details.position.longitude;
     });
-  }
-
-  void _selectLocation(ReportLocation location) {
-    _locationNameController.text = location.name;
-    _selectedLatitude = location.latitude;
-    _selectedLongitude = location.longitude;
-    FocusManager.instance.primaryFocus?.unfocus();
-    setState(() {});
   }
 
   Future<void> _loadMyPropertiesIfNeeded() async {
@@ -405,91 +397,20 @@ class _CreateRepairRequestState extends State<CreateRepairRequestView> {
           style: TextStyle(color: Colors.grey),
         ),
         const SizedBox(height: 10),
-        RawAutocomplete<ReportLocation>(
-          textEditingController: _locationNameController,
+        AddressSearchField(
+          controller: _locationNameController,
           focusNode: _locationFocusNode,
-          optionsBuilder: (textEditingValue) {
-            final query = textEditingValue.text.trim().toLowerCase();
-            return kNearbyLocations.where(
-              (location) => query.isEmpty || location.name.toLowerCase().contains(query),
-            );
+          hintText: 'Search for your actual home address',
+          onQueryEdited: () {
+            _selectedLatitude = null;
+            _selectedLongitude = null;
           },
-          onSelected: _selectLocation,
-          displayStringForOption: (location) => location.name,
-          optionsViewBuilder: (context, onSelected, options) => Align(
-            alignment: Alignment.topLeft,
-            child: Material(
-              elevation: 4,
-              borderRadius: BorderRadius.circular(10),
-              color: Colors.white,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 250, maxWidth: 600),
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  shrinkWrap: true,
-                  children: [
-                    ListTile(
-                      leading: _isLocating
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.my_location, color: Colors.blue),
-                      title: const Text(
-                        'Use Current Location',
-                        style: TextStyle(color: Colors.blue, fontWeight: FontWeight.w600),
-                      ),
-                      subtitle: const Text('Detect location using GPS'),
-                      onTap: () {
-                        FocusManager.instance.primaryFocus?.unfocus();
-                        _useCurrentLocation();
-                      },
-                    ),
-                    const Divider(height: 1),
-                    ...options.map((location) {
-                      return ListTile(
-                        leading: const Icon(Icons.location_on_outlined, color: Colors.grey),
-                        title: Text(location.name),
-                        onTap: () => onSelected(location),
-                      );
-                    }),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) => TextField(
-            controller: controller,
-            focusNode: focusNode,
-            onChanged: (value) {
-              _locationNameController.value = controller.value;
-              _selectedLatitude = null;
-              _selectedLongitude = null;
-            },
-            decoration: InputDecoration(
-              labelText: 'Search location',
-              hintText: 'Tap to see nearby locations',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _isLocating
-                  ? const Padding(
-                      padding: EdgeInsets.all(12.0),
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : IconButton(
-                      icon: const Icon(Icons.my_location, color: Colors.blue),
-                      tooltip: 'Use Current Location',
-                      onPressed: _useCurrentLocation,
-                    ),
-              border: const OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(10)),
-              ),
-            ),
-          ),
+          onSelected: (name, lat, lng) {
+            setState(() {
+              _selectedLatitude = lat;
+              _selectedLongitude = lng;
+            });
+          },
         ),
         const SizedBox(height: 12),
         SizedBox(
