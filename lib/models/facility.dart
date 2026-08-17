@@ -6,6 +6,7 @@ class Facility {
     required this.latitude,
     required this.longitude,
     this.address,
+    this.state,
     this.capacity,
     this.contactNumber,
     this.isActive = true,
@@ -18,6 +19,11 @@ class Facility {
   final double latitude;
   final double longitude;
   final String? address;
+
+  /// Derived automatically from the location the admin picked when creating
+  /// or editing the facility (autocomplete suggestion or "Use Current
+  /// Location" reverse geocoding) — not a field the admin fills in directly.
+  final String? state;
   final int? capacity;
   final String? contactNumber;
   final bool isActive;
@@ -30,6 +36,7 @@ class Facility {
     latitude: (json['latitude'] as num).toDouble(),
     longitude: (json['longitude'] as num).toDouble(),
     address: json['address'] as String?,
+    state: json['state'] as String?,
     capacity: json['capacity'] as int?,
     contactNumber: json['contact_number'] as String?,
     isActive: json['is_active'] as bool? ?? true,
@@ -43,6 +50,7 @@ class Facility {
     'latitude': latitude,
     'longitude': longitude,
     'address': address,
+    'state': state,
     'capacity': capacity,
     'contact_number': contactNumber,
     'is_active': isActive,
@@ -54,6 +62,7 @@ class Facility {
     double? latitude,
     double? longitude,
     String? address,
+    String? state,
     int? capacity,
     String? contactNumber,
     bool? isActive,
@@ -65,6 +74,7 @@ class Facility {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       address: address ?? this.address,
+      state: state ?? this.state,
       capacity: capacity ?? this.capacity,
       contactNumber: contactNumber ?? this.contactNumber,
       isActive: isActive ?? this.isActive,

@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
+import '../../controllers/facility_controller.dart';
 import '../../controllers/repair_request_controller.dart';
-import '../../models/account.dart';
 import '../../controllers/user_management_controller.dart';
-import '../../services/evacuation_center_service.dart';
+import '../../models/account.dart';
+import '../../models/facility.dart';
+import '../../services/facility_service.dart';
 import '../../services/repair_request_service.dart';
 import '../../services/user_management_service.dart';
 import '../../utils/responsive.dart';
-import 'evacuation_center_management_view.dart';
-import 'user_management_view.dart';
-import 'repair_request_admin_view.dart';
-import '../shared/user_profile.dart';
 import 'facility_management_view.dart';
-import 'facility_form_view.dart';
-import '../../controllers/facility_controller.dart';
-import '../../services/facility_service.dart';
+import 'repair_request_admin_view.dart';
+import 'user_management_view.dart';
+import '../shared/user_profile.dart';
 
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
@@ -62,7 +60,7 @@ class _AdminHomeState extends State<AdminHome> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
-      const _AdminDashboardTab(),
+      _AdminDashboardTab(onManageEvacuationCenters: () => _onNavTap(3)),
       const UserManagementView(),
       RepairRequestAdminView(onRequestsChanged: _loadPendingCount),
       const FacilityManagementView(),
@@ -138,7 +136,9 @@ class _AdminHomeState extends State<AdminHome> {
 
 /// Quick at-a-glance counts of registered accounts by role.
 class _AdminDashboardTab extends StatefulWidget {
-  const _AdminDashboardTab();
+  const _AdminDashboardTab({required this.onManageEvacuationCenters});
+
+  final VoidCallback onManageEvacuationCenters;
 
   @override
   State<_AdminDashboardTab> createState() => _AdminDashboardTabState();
@@ -146,12 +146,15 @@ class _AdminDashboardTab extends StatefulWidget {
 
 class _AdminDashboardTabState extends State<_AdminDashboardTab> {
   final _controller = UserManagementController(UserManagementService());
+  final _facilityController = FacilityController(FacilityService());
   late Future<List<Account>> _usersFuture;
+  late Future<List<Facility>> _sheltersFuture;
 
   @override
   void initState() {
     super.initState();
     _usersFuture = _controller.listUsers();
+    _sheltersFuture = _facilityController.getAllFacilities();
   }
 
   @override
@@ -205,7 +208,10 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                 const SizedBox(height: 32),
 
                 // ---- Evacuation Center Demographics Section ----
-                const _EvacuationDemographicSection(),
+                _EvacuationDemographicSection(
+                  sheltersFuture: _sheltersFuture,
+                  onManageTap: widget.onManageEvacuationCenters,
+                ),
               ],
             ),
           ),
@@ -215,18 +221,85 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
   }
 }
 
-/// Horizontal bar chart showing the number of evacuation centers per state,
-/// plus a "Manage Evacuation Center" button.
+/// Horizontal bar chart showing each evacuation center (shelter) with its
+/// capacity, sourced live from the `facilities` table in Supabase, plus a
+/// "Manage Evacuation Center" button.
 class _EvacuationDemographicSection extends StatelessWidget {
-  const _EvacuationDemographicSection();
+  const _EvacuationDemographicSection({
+    required this.sheltersFuture,
+    required this.onManageTap,
+  });
+
+  final Future<List<Facility>> sheltersFuture;
+  final VoidCallback onManageTap;
 
   @override
   Widget build(BuildContext context) {
-    final demographics = EvacuationCenterService.stateCenterCounts;
-    final sorted = demographics.entries.toList()
+    return FutureBuilder<List<Facility>>(
+      future: sheltersFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return const _EvacuationSectionCard(
+            child: Text('Could not load evacuation centers.'),
+          );
+        }
+
+        final shelters = (snapshot.data ?? [])
+            .where((f) => f.facilityType == 'shelter')
+            .toList();
+
+        return _EvacuationDemographicChart(shelters: shelters, onManageTap: onManageTap);
+      },
+    );
+  }
+}
+
+class _EvacuationSectionCard extends StatelessWidget {
+  const _EvacuationSectionCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _EvacuationDemographicChart extends StatelessWidget {
+  const _EvacuationDemographicChart({required this.shelters, required this.onManageTap});
+
+  final List<Facility> shelters;
+  final VoidCallback onManageTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final countsByState = <String, int>{};
+    for (final facility in shelters) {
+      final state = facility.state ?? 'Unknown';
+      countsByState[state] = (countsByState[state] ?? 0) + 1;
+    }
+    final sorted = countsByState.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final maxValue = sorted.isNotEmpty ? sorted.first.value : 1;
-    final totalCenters = sorted.fold<int>(0, (sum, e) => sum + e.value);
+    final totalCenters = shelters.length;
 
     // A palette of distinct colours for each bar.
     const barColors = [
@@ -283,7 +356,9 @@ class _EvacuationDemographicSection extends StatelessWidget {
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      '$totalCenters centers across ${sorted.length} states',
+                      totalCenters == 0
+                          ? 'No evacuation centers yet'
+                          : '$totalCenters centers across ${sorted.length} states',
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ],
@@ -294,7 +369,8 @@ class _EvacuationDemographicSection extends StatelessWidget {
 
           const Divider(height: 28),
 
-          // Bar chart rows
+          // Bar chart rows — one per state, bar length proportional to how
+          // many evacuation centers are in that state.
           ...List.generate(sorted.length, (index) {
             final entry = sorted[index];
             final fraction = entry.value / maxValue;
@@ -366,14 +442,7 @@ class _EvacuationDemographicSection extends StatelessWidget {
             width: double.infinity,
             height: 48,
             child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const EvacuationCenterManagementView(),
-                  ),
-                );
-              },
+              onPressed: onManageTap,
               icon: const Icon(Icons.settings_outlined, color: Colors.white),
               label: const Text(
                 'Manage Evacuation Centers',

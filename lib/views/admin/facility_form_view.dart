@@ -34,9 +34,47 @@ class _FacilityFormViewState extends State<FacilityFormView> {
   String _facilityType = 'shelter';
   double? _latitude;
   double? _longitude;
+
+  /// Not entered directly — derived from whichever location text the admin
+  /// picked (autocomplete suggestion or reverse-geocoded current location),
+  /// by matching it against known Malaysian state names.
+  String? _state;
   bool _isActive = true;
   bool _isLocating = false;
   bool _isSaving = false;
+
+  // Malaysian states/federal territories, plus common aliases as they show
+  // up in free-text place names (e.g. Nominatim's "Penang" vs. the official
+  // "Pulau Pinang").
+  static const _stateAliases = <String, String>{
+    'Selangor': 'Selangor',
+    'Johor': 'Johor',
+    'Pahang': 'Pahang',
+    'Kelantan': 'Kelantan',
+    'Terengganu': 'Terengganu',
+    'Perak': 'Perak',
+    'Sarawak': 'Sarawak',
+    'Kedah': 'Kedah',
+    'Sabah': 'Sabah',
+    'Negeri Sembilan': 'Negeri Sembilan',
+    'Pulau Pinang': 'Pulau Pinang',
+    'Penang': 'Pulau Pinang',
+    'Melaka': 'Melaka',
+    'Malacca': 'Melaka',
+    'Perlis': 'Perlis',
+    'Putrajaya': 'WP Putrajaya',
+    'Labuan': 'WP Labuan',
+    'Kuala Lumpur': 'WP Kuala Lumpur',
+  };
+
+  static String? _deriveStateFromLocationText(String? text) {
+    if (text == null || text.trim().isEmpty) return null;
+    final lower = text.toLowerCase();
+    for (final alias in _stateAliases.entries) {
+      if (lower.contains(alias.key.toLowerCase())) return alias.value;
+    }
+    return null;
+  }
 
   bool get _isEditing => widget.existing != null;
 
@@ -53,6 +91,7 @@ class _FacilityFormViewState extends State<FacilityFormView> {
     _facilityType = existing?.facilityType ?? widget.initialFacilityType ?? 'shelter';
     _latitude = existing?.latitude;
     _longitude = existing?.longitude;
+    _state = existing?.state;
     _isActive = existing?.isActive ?? true;
     if (existing?.address != null) {
       _locationNameController.text = existing!.address!;
@@ -94,6 +133,7 @@ class _FacilityFormViewState extends State<FacilityFormView> {
         if (_addressController.text.trim().isEmpty) {
           _addressController.text = readable;
         }
+        _state = _deriveStateFromLocationText(readable);
       }
     });
   }
@@ -102,6 +142,7 @@ class _FacilityFormViewState extends State<FacilityFormView> {
     _locationNameController.text = location.name;
     _latitude = location.latitude;
     _longitude = location.longitude;
+    _state = _deriveStateFromLocationText(location.name);
     if (_addressController.text.trim().isEmpty) {
       _addressController.text = location.name;
     }
@@ -127,6 +168,7 @@ class _FacilityFormViewState extends State<FacilityFormView> {
       latitude: _latitude!,
       longitude: _longitude!,
       address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+      state: _state,
       capacity: int.tryParse(_capacityController.text.trim()),
       contactNumber: _contactController.text.trim().isEmpty ? null : _contactController.text.trim(),
       isActive: _isActive,
@@ -265,6 +307,10 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                   const SizedBox(height: 8),
                   Text(
                     'Coordinates: ${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}',
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  Text(
+                    _state != null ? 'State: $_state' : 'State: could not be detected from this location',
                     style: const TextStyle(color: Colors.grey, fontSize: 12),
                   ),
                 ],
