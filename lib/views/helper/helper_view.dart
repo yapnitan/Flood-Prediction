@@ -99,7 +99,12 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _tasksFuture = _controller.getMyAssignedTasks());
+    // Block body, not `=> expr` — an arrow body would make the assignment's
+    // *value* (a Future) the closure's return value, and setState() only
+    // accepts callbacks returning void.
+    setState(() {
+      _tasksFuture = _controller.getMyAssignedTasks();
+    });
     await _tasksFuture;
   }
 

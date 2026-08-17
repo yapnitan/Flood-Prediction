@@ -50,9 +50,17 @@ class _AuthGateViewState extends State<AuthGateView> {
     _goTo(destination);
   }
 
+  /// Deferred to after the current frame so this never fires synchronously
+  /// inside initState()'s call stack — when there's no session, [_resolve]
+  /// returns without ever hitting an `await`, so without this the push
+  /// would run while the Navigator is still mid-build on the very first
+  /// frame and hit Flutter's `!_debugLocked` assertion (red screen right
+  /// on launch, before login).
   void _goTo(String route) {
-    if (!mounted) return;
-    Navigator.of(context).pushNamedAndRemoveUntil(route, (_) => false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil(route, (_) => false);
+    });
   }
 
   @override

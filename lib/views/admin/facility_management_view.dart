@@ -26,7 +26,12 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _facilitiesFuture = _controller.getAllFacilities());
+    // Block body, not `=> expr` — an arrow body would make the assignment's
+    // *value* (a Future) the closure's return value, and setState() only
+    // accepts callbacks returning void.
+    setState(() {
+      _facilitiesFuture = _controller.getAllFacilities();
+    });
     await _facilitiesFuture;
   }
 

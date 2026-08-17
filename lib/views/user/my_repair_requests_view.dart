@@ -24,7 +24,12 @@ class _MyRepairRequestsViewState extends State<MyRepairRequestsView> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _requestsFuture = _controller.getMyRequests());
+    // Block body, not `=> expr` — an arrow body would make the assignment's
+    // *value* (a Future) the closure's return value, and setState() only
+    // accepts callbacks returning void.
+    setState(() {
+      _requestsFuture = _controller.getMyRequests();
+    });
     await _requestsFuture;
   }
 
