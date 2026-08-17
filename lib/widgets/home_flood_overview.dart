@@ -9,13 +9,17 @@ import '../controllers/area_risk_controller.dart';
 import '../controllers/environment_controller.dart';
 import '../controllers/flood_report_controller.dart';
 import '../controllers/historical_flood_controller.dart';
+import '../models/facility.dart';
 import '../models/flood_report.dart';
 import '../services/area_risk_service.dart';
+import '../services/facility_service.dart';
 import '../services/flood_report_service.dart';
 import '../services/historical_flood_service.dart';
 import '../services/location_service.dart';
 import '../services/terrain_service.dart';
 import '../services/weather_service.dart';
+import '../utils/geo_utils.dart';
+import '../utils/maps_launcher.dart';
 import 'info_box.dart';
 
 /// Home tab's "what's the flood situation right now" block: the combined
@@ -41,6 +45,7 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
 
   final _locationService = LocationService();
   final _floodReportService = FloodReportService();
+  final _facilityService = FacilityService();
   final _areaRiskController = AreaRiskController(
     HistoricalFloodController(HistoricalFloodService()),
     EnvironmentController(TerrainService(), WeatherService()),
@@ -54,6 +59,9 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
   List<FloodReport> _reports = const [];
   bool _isLoadingMap = true;
   String? _statusMessage;
+
+  List<Facility> _evacuationCenters = const [];
+  bool _isLoadingEvacuationCenters = true;
 
   AreaRiskResult? _areaRisk;
   double? _rainfallMm;
@@ -76,6 +84,7 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     // rather than both waiting on whichever input is slowest.
     unawaited(_loadMap(position));
     unawaited(_loadAreaRisk(position));
+    unawaited(_loadEvacuationCenters());
   }
 
   Future<void> _loadMap(Position? position) async {
@@ -89,6 +98,19 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
       } else {
         _statusMessage = 'Location unavailable — showing default area';
       }
+    });
+  }
+
+  /// Evacuation center markers are fetched independently of flood reports
+  /// (separate service, separate loading flag) so a slow/failed shelter
+  /// lookup never blocks the flood report markers from appearing, and
+  /// vice versa.
+  Future<void> _loadEvacuationCenters() async {
+    final centers = await _facilityService.getFacilitiesByType('shelter');
+    if (!mounted) return;
+    setState(() {
+      _evacuationCenters = centers;
+      _isLoadingEvacuationCenters = false;
     });
   }
 
@@ -117,7 +139,34 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
   /// `IndexedStack` rather than being recreated.
   Future<void> refresh() async {
     setState(() => _isLoadingAreaRisk = true);
-    await Future.wait([_loadMap(_position), _loadAreaRisk(_position)]);
+    await Future.wait([
+      _loadMap(_position),
+      _loadAreaRisk(_position),
+      _loadEvacuationCenters(),
+    ]);
+  }
+
+  /// The closest fetched evacuation center to the user's current position,
+  /// or `null` if the position or the center list isn't available yet.
+  Facility? get _nearestEvacuationCenter {
+    final location = _currentLocation;
+    if (location == null || _evacuationCenters.isEmpty) return null;
+
+    Facility? nearest;
+    double? nearestDistanceKm;
+    for (final center in _evacuationCenters) {
+      final distanceKm = haversineDistanceKm(
+        lat1: location.latitude,
+        lon1: location.longitude,
+        lat2: center.latitude,
+        lon2: center.longitude,
+      );
+      if (nearestDistanceKm == null || distanceKm < nearestDistanceKm) {
+        nearest = center;
+        nearestDistanceKm = distanceKm;
+      }
+    }
+    return nearest;
   }
 
   void _showAreaRiskDetail(AreaRiskResult risk) {
@@ -294,6 +343,65 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     );
   }
 
+  void _showEvacuationCenterInfo(Facility center) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.night_shelter, color: Colors.green),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    center.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (center.address != null) ...[
+              Text(center.address!),
+              const SizedBox(height: 4),
+            ],
+            if (center.capacity != null) ...[
+              Text('Capacity: ${center.capacity}'),
+              const SizedBox(height: 4),
+            ],
+            if (center.contactNumber != null)
+              Text('Contact: ${center.contactNumber}'),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => openDirections(
+                  context,
+                  latitude: center.latitude,
+                  longitude: center.longitude,
+                ),
+                icon: const Icon(Icons.directions),
+                label: const Text('View route'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.green,
+                  side: const BorderSide(color: Colors.green),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _openPhotoViewer(List<String> urls, int initialIndex) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -371,12 +479,37 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                               ),
                             ),
                           ),
+                          ..._evacuationCenters.map(
+                            (center) => Marker(
+                              point: LatLng(center.latitude, center.longitude),
+                              width: 36,
+                              height: 36,
+                              child: GestureDetector(
+                                onTap: () => _showEvacuationCenterInfo(center),
+                                child: const Icon(
+                                  Icons.night_shelter,
+                                  color: Colors.green,
+                                  size: 32,
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                       const RichAttributionWidget(
                         attributions: [TextSourceAttribution('OpenStreetMap contributors')],
                       ),
                     ],
+                  ),
+                if (!_isLoadingMap && _isLoadingEvacuationCenters)
+                  const Positioned(
+                    top: 8,
+                    right: 8,
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                   ),
                 if (_statusMessage != null)
                   Positioned(
@@ -442,6 +575,29 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                 ),
               ),
             ],
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // ---- Route to nearest evacuation center ----
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _nearestEvacuationCenter == null
+                ? null
+                : () => openDirections(
+                      context,
+                      latitude: _nearestEvacuationCenter!.latitude,
+                      longitude: _nearestEvacuationCenter!.longitude,
+                    ),
+            icon: const Icon(Icons.directions),
+            label: const Text('View Route to Nearest Evacuation Center'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.green,
+              side: const BorderSide(color: Colors.green),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
           ),
         ),
       ],

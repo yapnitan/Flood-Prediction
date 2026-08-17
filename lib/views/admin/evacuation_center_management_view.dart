@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/evacuation_center.dart';
-import '../services/evacuation_center_service.dart';
-import '../utils/responsive.dart';
+import '../../models/evacuation_center.dart';
+import '../../services/evacuation_center_service.dart';
+import '../../utils/responsive.dart';
 
 class EvacuationCenterManagementView extends StatefulWidget {
   const EvacuationCenterManagementView({super.key});
@@ -83,7 +83,7 @@ class _EvacuationCenterManagementViewState
     showDialog<void>(
       context: context,
       builder: (context) {
-        return StatefulWidget(
+        return StatefulBuilder(
           builder: (context, setModalState) {
             return AlertDialog(
               title: Text(

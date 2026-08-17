@@ -6,7 +6,7 @@ import '../../services/evacuation_center_service.dart';
 import '../../services/repair_request_service.dart';
 import '../../services/user_management_service.dart';
 import '../../utils/responsive.dart';
-import '../evacuation_center_management_view.dart';
+import 'evacuation_center_management_view.dart';
 import 'user_management_view.dart';
 import 'repair_request_admin_view.dart';
 import '../shared/user_profile.dart';
