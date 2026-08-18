@@ -9,6 +9,7 @@ import '../../services/repair_request_service.dart';
 import '../../services/user_management_service.dart';
 import '../../utils/responsive.dart';
 import 'facility_management_view.dart';
+import 'flood_report_admin_view.dart';
 import 'repair_request_admin_view.dart';
 import 'user_management_view.dart';
 import '../shared/user_profile.dart';
@@ -23,10 +24,26 @@ class AdminHome extends StatefulWidget {
 class _AdminHomeState extends State<AdminHome> {
   int currentIndex = 0;
 
-  final List<String> titles = ["Dashboard", "User Management", "Recovery", "Facilities", "Profile"];
+  final List<String> titles = [
+    "Dashboard",
+    "User Management",
+    "Recovery",
+    "Facilities",
+    "Profile",
+  ];
 
-  final _repairRequestController = RepairRequestController(RepairRequestService());
+  final _repairRequestController = RepairRequestController(
+    RepairRequestService(),
+  );
   int _pendingRepairCount = 0;
+
+  /// Which report type the "Report" tab (index 2) currently shows — chosen
+  /// via [_showReportChooser]. Kept as tab state (rather than pushing a
+  /// separate page) so the flood report list shares this same [Scaffold]'s
+  /// app bar and bottom navigation bar, exactly like the Recovery view.
+  bool _showFloodReports = false;
+
+  String get _reportTitle => _showFloodReports ? 'Flood Reports' : 'Recovery';
 
   @override
   void initState() {
@@ -38,23 +55,69 @@ class _AdminHomeState extends State<AdminHome> {
     final requests = await _repairRequestController.getAdminOverview();
     if (!mounted) return;
     setState(() {
-      _pendingRepairCount = requests.where((r) => r['status'] == 'pending').length;
+      _pendingRepairCount = requests
+          .where((r) => r['status'] == 'pending')
+          .length;
     });
   }
 
   void _onNavTap(int index) {
-    setState(() => currentIndex = index);
-    if (index != 2) {
-      _loadPendingCount();
+    if (index == 2) {
+      _showReportChooser();
+      return;
     }
+    setState(() => currentIndex = index);
+    _loadPendingCount();
+  }
+
+  /// "Report" doesn't navigate directly — same interaction pattern as
+  /// the User view's "Submit Report" chooser — it opens a sheet to pick
+  /// which report to view first.
+  void _showReportChooser() {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(
+                Icons.water_drop_outlined,
+                color: Colors.blue,
+              ),
+              title: const Text('View Flood Report'),
+              subtitle: const Text('Community-submitted flood conditions'),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() {
+                  _showFloodReports = true;
+                  currentIndex = 2;
+                });
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.assignment_outlined,
+                color: Colors.orange,
+              ),
+              title: const Text('View Recovery Report'),
+              subtitle: const Text('Repair and aid requests from residents'),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() {
+                  _showFloodReports = false;
+                  currentIndex = 2;
+                });
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _navIcon(IconData icon) {
     if (_pendingRepairCount == 0) return Icon(icon);
-    return Badge(
-      label: Text('$_pendingRepairCount'),
-      child: Icon(icon),
-    );
+    return Badge(label: Text('$_pendingRepairCount'), child: Icon(icon));
   }
 
   @override
@@ -62,7 +125,9 @@ class _AdminHomeState extends State<AdminHome> {
     final List<Widget> pages = [
       _AdminDashboardTab(onManageEvacuationCenters: () => _onNavTap(3)),
       const UserManagementView(),
-      RepairRequestAdminView(onRequestsChanged: _loadPendingCount),
+      _showFloodReports
+          ? const FloodReportAdminView()
+          : RepairRequestAdminView(onRequestsChanged: _loadPendingCount),
       const FacilityManagementView(),
       const ProfilePage(),
     ];
@@ -72,64 +137,83 @@ class _AdminHomeState extends State<AdminHome> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          titles[currentIndex],
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue),
+          currentIndex == 2 ? _reportTitle : titles[currentIndex],
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue,
+          ),
         ),
         centerTitle: true,
       ),
       body: useRail
           ? Row(
-        children: [
-          NavigationRail(
-            selectedIndex: currentIndex,
-            onDestinationSelected: _onNavTap,
-            labelType: NavigationRailLabelType.all,
-            selectedIconTheme: const IconThemeData(color: Colors.blue),
-            selectedLabelTextStyle: const TextStyle(color: Colors.blue),
-            destinations: [
-              const NavigationRailDestination(
-                icon: Icon(Icons.dashboard_outlined),
-                label: Text("Dashboard"),
-              ),
-              const NavigationRailDestination(
-                icon: Icon(Icons.people_outline),
-                label: Text("Users"),
-              ),
-              NavigationRailDestination(
-                icon: _navIcon(Icons.assignment_outlined),
-                label: const Text("Recovery"),
-              ),
-              const NavigationRailDestination(
-                icon: Icon(Icons.home_work_outlined),
-                label: Text("Facilities"),
-              ),
-              const NavigationRailDestination(
-                icon: Icon(Icons.person),
-                label: Text("Profile"),
-              ),
-            ],
-          ),
-          const VerticalDivider(width: 1),
-          Expanded(child: pages[currentIndex]),
-        ],
-      )
+              children: [
+                NavigationRail(
+                  selectedIndex: currentIndex,
+                  onDestinationSelected: _onNavTap,
+                  labelType: NavigationRailLabelType.all,
+                  selectedIconTheme: const IconThemeData(color: Colors.blue),
+                  selectedLabelTextStyle: const TextStyle(color: Colors.blue),
+                  destinations: [
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.dashboard_outlined),
+                      label: Text("Dashboard"),
+                    ),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.people_outline),
+                      label: Text("Users"),
+                    ),
+                    NavigationRailDestination(
+                      icon: _navIcon(Icons.assignment_outlined),
+                      label: const Text("Report"),
+                    ),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.home_work_outlined),
+                      label: Text("Facilities"),
+                    ),
+                    const NavigationRailDestination(
+                      icon: Icon(Icons.person),
+                      label: Text("Profile"),
+                    ),
+                  ],
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(child: pages[currentIndex]),
+              ],
+            )
           : pages[currentIndex],
       bottomNavigationBar: useRail
           ? null
           : BottomNavigationBar(
-        currentIndex: currentIndex,
-        onTap: _onNavTap,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
-        items: [
-          const BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: "Dashboard"),
-          const BottomNavigationBarItem(icon: Icon(Icons.people_outline), label: "Users"),
-          BottomNavigationBarItem(icon: _navIcon(Icons.assignment_outlined), label: "Recovery"),
-          const BottomNavigationBarItem(icon: Icon(Icons.home_work_outlined), label: "Facilities"),
-          const BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
-        ],
-      ),
+              currentIndex: currentIndex,
+              onTap: _onNavTap,
+              type: BottomNavigationBarType.fixed,
+              selectedItemColor: Colors.blue,
+              unselectedItemColor: Colors.grey,
+              items: [
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.dashboard_outlined),
+                  label: "Dashboard",
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.people_outline),
+                  label: "Users",
+                ),
+                BottomNavigationBarItem(
+                  icon: _navIcon(Icons.assignment_outlined),
+                  label: "Report",
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.home_work_outlined),
+                  label: "Facilities",
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.person),
+                  label: "Profile",
+                ),
+              ],
+            ),
     );
   }
 }
@@ -167,7 +251,11 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
         child: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
+              maxWidth: context.responsive(
+                mobile: 700,
+                tablet: 800,
+                desktop: 900,
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,23 +271,49 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                     final users = snapshot.data ?? [];
                     final total = users.length;
                     final admins = users.where((u) => u.role == 'admin').length;
-                    final helpers = users.where((u) => u.role == 'helper').length;
+                    final helpers = users
+                        .where((u) => u.role == 'helper')
+                        .length;
                     final regular = users.where((u) => u.role == 'user').length;
                     final disabled = users.where((u) => !u.isActive).length;
 
                     return GridView.count(
-                      crossAxisCount: context.responsive(mobile: 2, tablet: 3, desktop: 4),
+                      crossAxisCount: context.responsive(
+                        mobile: 2,
+                        tablet: 3,
+                        desktop: 4,
+                      ),
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       mainAxisSpacing: 12,
                       crossAxisSpacing: 12,
                       childAspectRatio: 1.3,
                       children: [
-                        _StatCard(label: 'Total Accounts', value: total, color: Colors.blue),
-                        _StatCard(label: 'Users', value: regular, color: Colors.green),
-                        _StatCard(label: 'Helpers', value: helpers, color: Colors.teal),
-                        _StatCard(label: 'Admins', value: admins, color: Colors.purple),
-                        _StatCard(label: 'Disabled', value: disabled, color: Colors.red),
+                        _StatCard(
+                          label: 'Total Accounts',
+                          value: total,
+                          color: Colors.blue,
+                        ),
+                        _StatCard(
+                          label: 'Users',
+                          value: regular,
+                          color: Colors.green,
+                        ),
+                        _StatCard(
+                          label: 'Helpers',
+                          value: helpers,
+                          color: Colors.teal,
+                        ),
+                        _StatCard(
+                          label: 'Admins',
+                          value: admins,
+                          color: Colors.purple,
+                        ),
+                        _StatCard(
+                          label: 'Disabled',
+                          value: disabled,
+                          color: Colors.red,
+                        ),
                       ],
                     );
                   },
@@ -251,7 +365,10 @@ class _EvacuationDemographicSection extends StatelessWidget {
             .where((f) => f.facilityType == 'shelter')
             .toList();
 
-        return _EvacuationDemographicChart(shelters: shelters, onManageTap: onManageTap);
+        return _EvacuationDemographicChart(
+          shelters: shelters,
+          onManageTap: onManageTap,
+        );
       },
     );
   }
@@ -284,7 +401,10 @@ class _EvacuationSectionCard extends StatelessWidget {
 }
 
 class _EvacuationDemographicChart extends StatelessWidget {
-  const _EvacuationDemographicChart({required this.shelters, required this.onManageTap});
+  const _EvacuationDemographicChart({
+    required this.shelters,
+    required this.onManageTap,
+  });
 
   final List<Facility> shelters;
   final VoidCallback onManageTap;
@@ -344,7 +464,10 @@ class _EvacuationDemographicChart extends StatelessWidget {
                   color: Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.other_houses_outlined, color: Colors.blue),
+                child: const Icon(
+                  Icons.other_houses_outlined,
+                  color: Colors.blue,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -353,7 +476,10 @@ class _EvacuationDemographicChart extends StatelessWidget {
                   children: [
                     const Text(
                       'Evacuation Centers by State',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
                       totalCenters == 0
@@ -381,7 +507,11 @@ class _EvacuationDemographicChart extends StatelessWidget {
               child: Row(
                 children: [
                   SizedBox(
-                    width: context.responsive(mobile: 100, tablet: 130, desktop: 140),
+                    width: context.responsive(
+                      mobile: 100,
+                      tablet: 130,
+                      desktop: 140,
+                    ),
                     child: Text(
                       entry.key,
                       style: const TextStyle(fontSize: 13),
@@ -471,7 +601,11 @@ class _StatCard extends StatelessWidget {
   final int value;
   final Color color;
 
-  const _StatCard({required this.label, required this.value, required this.color});
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -493,7 +627,11 @@ class _StatCard extends StatelessWidget {
         children: [
           Text(
             '$value',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color),
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
           ),
           const SizedBox(height: 4),
           Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),

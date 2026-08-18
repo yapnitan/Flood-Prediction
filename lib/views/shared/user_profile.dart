@@ -112,7 +112,9 @@ class _ProfileState extends State<ProfilePage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Log out?'),
-        content: const Text('You will need to log in again to access your account.'),
+        content: const Text(
+          'You will need to log in again to access your account.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -226,7 +228,9 @@ class _ProfileState extends State<ProfilePage> {
                     _ProfileTile(
                       icon: Icons.description_outlined,
                       label: "Report History",
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.pushNamed(context, AppRoutes.reportHistory);
+                      },
                     ),
                     _ProfileTile(
                       icon: Icons.help_outline,

@@ -111,8 +111,23 @@ class _SubmitReportState extends State<SubmitReportPage> {
     return true;
   }
 
+  /// Contact number is optional, but if entered must be 10 or 11 digits —
+  /// no spaces, dashes, or country-code symbols.
+  static final RegExp _contactNumberPattern = RegExp(r'^\d{10,11}$');
+
+  String? _validateContactNumber(String? value) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) return null;
+    if (!_contactNumberPattern.hasMatch(trimmed)) {
+      return 'Enter a 10 or 11 digit phone number.';
+    }
+    return null;
+  }
+
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _useCurrentLocation() async {
@@ -125,7 +140,9 @@ class _SubmitReportState extends State<SubmitReportPage> {
       setState(() => _isLocating = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Unable to access your location. You can enter it manually.'),
+          content: Text(
+            'Unable to access your location. You can enter it manually.',
+          ),
         ),
       );
       return;
@@ -152,12 +169,24 @@ class _SubmitReportState extends State<SubmitReportPage> {
     setState(() {});
   }
 
+  /// Flood reports describe recent, verifiable conditions — reports can't
+  /// be dated in the future, and anything older than 2 days is stale
+  /// enough that it belongs in historical records, not a live report.
+  static const Duration _maxReportAge = Duration(days: 2);
+
   Future<void> _selectDateTime() async {
     final now = DateTime.now();
+    final earliestAllowed = now.subtract(_maxReportAge);
+    final earliestAllowedDate = DateTime(
+      earliestAllowed.year,
+      earliestAllowed.month,
+      earliestAllowed.day,
+    );
+
     final date = await showDatePicker(
       context: context,
       initialDate: now,
-      firstDate: DateTime(now.year - 1),
+      firstDate: earliestAllowedDate,
       lastDate: now,
     );
     if (date == null || !mounted) return;
@@ -168,7 +197,27 @@ class _SubmitReportState extends State<SubmitReportPage> {
     );
     if (time == null || !mounted) return;
 
-    final selected = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    final selected = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+
+    // showDatePicker/showTimePicker are independent, so the calendar-day
+    // restriction above doesn't stop a future *time* on today's date, nor
+    // an earlier-than-allowed *time* on the oldest permitted day — recheck
+    // the combined instant against the exact 2-day window.
+    if (selected.isAfter(now)) {
+      _showSnack('The observed date and time cannot be in the future.');
+      return;
+    }
+    if (selected.isBefore(earliestAllowed)) {
+      _showSnack('Please select a date and time within the past 2 days.');
+      return;
+    }
+
     setState(() {
       _observedAt = selected;
       _dateTimeController.text =
@@ -240,7 +289,9 @@ class _SubmitReportState extends State<SubmitReportPage> {
 
   Future<void> _pickPhotos(ImageSource source) async {
     if (source == ImageSource.gallery) {
-      final selectedPhotos = await _imagePicker.pickMultiImage(imageQuality: 85);
+      final selectedPhotos = await _imagePicker.pickMultiImage(
+        imageQuality: 85,
+      );
       if (!mounted || selectedPhotos.isEmpty) return;
       setState(() => _photos.addAll(selectedPhotos));
       return;
@@ -411,7 +462,10 @@ class _SubmitReportState extends State<SubmitReportPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const Text(
+          'Location',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
         const SizedBox(height: 10),
         RawAutocomplete<ReportLocation>(
           textEditingController: _locationNameController,
@@ -419,7 +473,8 @@ class _SubmitReportState extends State<SubmitReportPage> {
           optionsBuilder: (textEditingValue) {
             final query = textEditingValue.text.trim().toLowerCase();
             return kNearbyLocations.where(
-              (location) => query.isEmpty || location.name.toLowerCase().contains(query),
+              (location) =>
+                  query.isEmpty || location.name.toLowerCase().contains(query),
             );
           },
           onSelected: _selectLocation,
@@ -431,7 +486,10 @@ class _SubmitReportState extends State<SubmitReportPage> {
               borderRadius: BorderRadius.circular(10),
               color: Colors.white,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 250, maxWidth: 600),
+                constraints: const BoxConstraints(
+                  maxHeight: 250,
+                  maxWidth: 600,
+                ),
                 child: ListView(
                   padding: EdgeInsets.zero,
                   shrinkWrap: true,
@@ -460,7 +518,10 @@ class _SubmitReportState extends State<SubmitReportPage> {
                     const Divider(height: 1),
                     ...options.map((location) {
                       return ListTile(
-                        leading: const Icon(Icons.location_on_outlined, color: Colors.grey),
+                        leading: const Icon(
+                          Icons.location_on_outlined,
+                          color: Colors.grey,
+                        ),
                         title: Text(location.name),
                         onTap: () => onSelected(location),
                       );
@@ -470,37 +531,41 @@ class _SubmitReportState extends State<SubmitReportPage> {
               ),
             ),
           ),
-          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) => TextField(
-            controller: controller,
-            focusNode: focusNode,
-            onChanged: (value) {
-              _locationNameController.value = controller.value;
-              _selectedLatitude = null;
-              _selectedLongitude = null;
-            },
-            decoration: InputDecoration(
-              labelText: 'Search location',
-              hintText: 'Tap to see nearby locations',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _isLocating
-                  ? const Padding(
-                      padding: EdgeInsets.all(12.0),
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : IconButton(
-                      icon: const Icon(Icons.my_location, color: Colors.blue),
-                      tooltip: 'Use Current Location',
-                      onPressed: _useCurrentLocation,
-                    ),
-              border: const OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(10)),
+          fieldViewBuilder:
+              (context, controller, focusNode, onFieldSubmitted) => TextField(
+                controller: controller,
+                focusNode: focusNode,
+                onChanged: (value) {
+                  _locationNameController.value = controller.value;
+                  _selectedLatitude = null;
+                  _selectedLongitude = null;
+                },
+                decoration: InputDecoration(
+                  labelText: 'Search location',
+                  hintText: 'Tap to see nearby locations',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _isLocating
+                      ? const Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          icon: const Icon(
+                            Icons.my_location,
+                            color: Colors.blue,
+                          ),
+                          tooltip: 'Use Current Location',
+                          onPressed: _useCurrentLocation,
+                        ),
+                  border: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
+                  ),
+                ),
               ),
-            ),
-          ),
         ),
         const SizedBox(height: 12),
         SizedBox(
@@ -526,13 +591,52 @@ class _SubmitReportState extends State<SubmitReportPage> {
           ),
         ),
         const SizedBox(height: 24),
-        const Text('Type of Flooding', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const Text(
+          'Type of Flooding',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
         const SizedBox(height: 10),
-        GridView.count(crossAxisCount: gridColumns, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 2.6, children: floodTypes.map((type) => SelectableChip(label: type, selected: selectedFloodType == type, onTap: () => setState(() => selectedFloodType = type))).toList()),
+        GridView.count(
+          crossAxisCount: gridColumns,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 2.6,
+          children: floodTypes
+              .map(
+                (type) => SelectableChip(
+                  label: type,
+                  selected: selectedFloodType == type,
+                  onTap: () => setState(() => selectedFloodType = type),
+                ),
+              )
+              .toList(),
+        ),
         const SizedBox(height: 24),
-        const Text('Water Level (Approx.)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const Text(
+          'Water Level (Approx.)',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
         const SizedBox(height: 10),
-        Row(children: waterLevels.map((level) => Expanded(child: Padding(padding: const EdgeInsets.only(right: 10), child: SelectableChip(label: level['label']!, sublabel: level['sub'], selected: selectedWaterLevel == level['label'], onTap: () => setState(() => selectedWaterLevel = level['label']))))).toList()),
+        Row(
+          children: waterLevels
+              .map(
+                (level) => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: SelectableChip(
+                      label: level['label']!,
+                      sublabel: level['sub'],
+                      selected: selectedWaterLevel == level['label'],
+                      onTap: () =>
+                          setState(() => selectedWaterLevel = level['label']),
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
         const SizedBox(height: 30),
       ],
     );
@@ -544,30 +648,55 @@ class _SubmitReportState extends State<SubmitReportPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Flood Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const Text(
+            'Flood Details',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
           const SizedBox(height: 8),
-          const Text('Tell us when the flooding occurred and any useful information.', style: TextStyle(color: Colors.grey)),
+          const Text(
+            'Tell us when the flooding occurred and any useful information.',
+            style: TextStyle(color: Colors.grey),
+          ),
           const SizedBox(height: 20),
           TextFormField(
             controller: _dateTimeController,
             readOnly: true,
             onTap: _selectDateTime,
-            decoration: const InputDecoration(labelText: 'Date and time observed', prefixIcon: Icon(Icons.calendar_today), border: OutlineInputBorder()),
-            validator: (value) => value == null || value.isEmpty ? 'Select when you observed the flooding.' : null,
+            decoration: const InputDecoration(
+              labelText: 'Date and time observed',
+              prefixIcon: Icon(Icons.calendar_today),
+              border: OutlineInputBorder(),
+            ),
+            validator: (value) => value == null || value.isEmpty
+                ? 'Select when you observed the flooding.'
+                : null,
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: _descriptionController,
             minLines: 4,
             maxLines: 6,
-            decoration: const InputDecoration(labelText: 'Description', hintText: 'Describe the flooding, road conditions, or immediate hazards.', alignLabelWithHint: true, border: OutlineInputBorder()),
-            validator: (value) => value == null || value.trim().isEmpty ? 'Enter a short description.' : null,
+            decoration: const InputDecoration(
+              labelText: 'Description',
+              hintText:
+                  'Describe the flooding, road conditions, or immediate hazards.',
+              alignLabelWithHint: true,
+              border: OutlineInputBorder(),
+            ),
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'Enter a short description.'
+                : null,
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: _contactController,
             keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(labelText: 'Contact number (optional)', prefixIcon: Icon(Icons.phone), border: OutlineInputBorder()),
+            decoration: const InputDecoration(
+              labelText: 'Contact number (optional)',
+              prefixIcon: Icon(Icons.phone),
+              border: OutlineInputBorder(),
+            ),
+            validator: _validateContactNumber,
           ),
           const SizedBox(height: 30),
         ],
@@ -642,7 +771,11 @@ class _SubmitReportState extends State<SubmitReportPage> {
           padding: const EdgeInsets.only(top: 56),
           child: Column(
             children: [
-              const Icon(Icons.check_circle_outline, color: Colors.green, size: 72),
+              const Icon(
+                Icons.check_circle_outline,
+                color: Colors.green,
+                size: 72,
+              ),
               const SizedBox(height: 16),
               const Text(
                 'Report submitted',
@@ -685,10 +818,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
         ),
         ReviewCard(title: 'Flood type', value: selectedFloodType!),
         ReviewCard(title: 'Water level', value: selectedWaterLevel!),
-        ReviewCard(
-          title: 'Observed',
-          value: _dateTimeController.text,
-        ),
+        ReviewCard(title: 'Observed', value: _dateTimeController.text),
         ReviewCard(
           title: 'Description',
           value: _descriptionController.text.trim(),
@@ -709,4 +839,3 @@ class _SubmitReportState extends State<SubmitReportPage> {
     );
   }
 }
-

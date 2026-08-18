@@ -20,6 +20,8 @@ class AppRoutes {
   static const String repairRequestDetail = '/repair-requests/detail';
   static const String repairRequestAdmin = '/admin/repair-requests';
 
+  static const String reportHistory = '/reports/mine';
+
   static const String personalInformation = '/profile/personal-information';
   static const String changePassword = '/profile/change-password';
   static const String notificationSettings = '/profile/notification-settings';

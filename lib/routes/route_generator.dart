@@ -14,6 +14,7 @@ import '../views/user/simulation_detail_view.dart';
 import '../views/user/create_repair_request_view.dart';
 import '../views/user/my_repair_requests_view.dart';
 import '../views/user/repair_request_detail_view.dart';
+import '../views/user/report_history_view.dart';
 import '../views/shared/personal_information_view.dart';
 import '../views/shared/change_password_view.dart';
 import '../views/shared/notification_settings_view.dart';
@@ -65,7 +66,9 @@ class RouteGenerator {
         );
 
       case AppRoutes.createRepairRequest:
-        return MaterialPageRoute(builder: (_) => const CreateRepairRequestView());
+        return MaterialPageRoute(
+          builder: (_) => const CreateRepairRequestView(),
+        );
 
       case AppRoutes.myRepairRequests:
         return MaterialPageRoute(builder: (_) => const MyRepairRequestsView());
@@ -77,7 +80,12 @@ class RouteGenerator {
         );
 
       case AppRoutes.repairRequestAdmin:
-        return MaterialPageRoute(builder: (_) => const RepairRequestAdminView());
+        return MaterialPageRoute(
+          builder: (_) => const RepairRequestAdminView(),
+        );
+
+      case AppRoutes.reportHistory:
+        return MaterialPageRoute(builder: (_) => const ReportHistoryView());
 
       case AppRoutes.personalInformation:
         final args = settings.arguments as PersonalInformationArgs;
@@ -101,9 +109,7 @@ class RouteGenerator {
         return MaterialPageRoute(builder: (_) => const AboutView());
 
       default:
-        return MaterialPageRoute(
-          builder: (_) => const LoginView(),
-        );
+        return MaterialPageRoute(builder: (_) => const LoginView());
     }
   }
 }

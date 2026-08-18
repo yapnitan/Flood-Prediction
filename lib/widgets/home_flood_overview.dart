@@ -21,6 +21,7 @@ import '../services/weather_service.dart';
 import '../utils/geo_utils.dart';
 import '../utils/maps_launcher.dart';
 import 'info_box.dart';
+import 'photo_gallery_viewer.dart';
 
 /// Home tab's "what's the flood situation right now" block: the combined
 /// flood-status badge (historical baseline + live rainfall + nearby
@@ -146,6 +147,29 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     ]);
   }
 
+  /// Unlike [refresh], re-runs the full GPS acquisition (including the
+  /// permission check/request) instead of reusing [_position]. Called by
+  /// [UserHome]'s pull-to-refresh so a user who previously denied location
+  /// access gets prompted again; if it's granted this time, location-based
+  /// content updates, and if denied again the page keeps working off the
+  /// fallback center.
+  Future<void> refreshLocation() async {
+    setState(() {
+      _isLoadingMap = true;
+      _isLoadingAreaRisk = true;
+      _isLoadingEvacuationCenters = true;
+      _statusMessage = null;
+    });
+    final position = await _locationService.getCurrentPosition();
+    if (!mounted) return;
+    _position = position;
+    await Future.wait([
+      _loadMap(position),
+      _loadAreaRisk(position),
+      _loadEvacuationCenters(),
+    ]);
+  }
+
   /// The closest fetched evacuation center to the user's current position,
   /// or `null` if the position or the center list isn't available yet.
   Facility? get _nearestEvacuationCenter {
@@ -183,17 +207,26 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
           children: [
             Row(
               children: [
-                Icon(_areaRiskIcon(risk.level), color: _areaRiskColor(risk.level)),
+                Icon(
+                  _areaRiskIcon(risk.level),
+                  color: _areaRiskColor(risk.level),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     '${risk.level} flood risk right now',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
                 Text(
                   '${risk.score.toStringAsFixed(0)}/100',
-                  style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -214,7 +247,10 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                           ),
                           Text(
                             factor.factorValue,
-                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
@@ -268,7 +304,10 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                 Expanded(
                   child: Text(
                     report.locationName,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ],
@@ -310,7 +349,8 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                     return ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: urls.length,
-                      separatorBuilder: (context, index) => const SizedBox(width: 8),
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(width: 8),
                       itemBuilder: (context, index) => GestureDetector(
                         onTap: () => _openPhotoViewer(urls, index),
                         child: ClipRRect(
@@ -320,15 +360,22 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                             width: 90,
                             height: 90,
                             fit: BoxFit.cover,
-                            loadingBuilder: (context, child, progress) => progress == null
+                            loadingBuilder: (context, child, progress) =>
+                                progress == null
                                 ? child
                                 : const Center(
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
                                   ),
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              color: Colors.grey.shade200,
-                              child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
-                            ),
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                                  color: Colors.grey.shade200,
+                                  child: const Icon(
+                                    Icons.broken_image_outlined,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                           ),
                         ),
                       ),
@@ -362,7 +409,10 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                 Expanded(
                   child: Text(
                     center.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ],
@@ -406,7 +456,8 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (context) => _ReportPhotoViewer(urls: urls, initialIndex: initialIndex),
+        builder: (context) =>
+            PhotoGalleryViewer(urls: urls, initialIndex: initialIndex),
       ),
     );
   }
@@ -420,7 +471,9 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
         _FloodRiskCard(
           areaRisk: _areaRisk,
           isLoading: _isLoadingAreaRisk,
-          onTap: _areaRisk == null ? null : () => _showAreaRiskDetail(_areaRisk!),
+          onTap: _areaRisk == null
+              ? null
+              : () => _showAreaRiskDetail(_areaRisk!),
         ),
 
         const SizedBox(height: 20),
@@ -448,7 +501,8 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.example.flood_prediction',
                       ),
                       MarkerLayer(
@@ -497,7 +551,9 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                         ],
                       ),
                       const RichAttributionWidget(
-                        attributions: [TextSourceAttribution('OpenStreetMap contributors')],
+                        attributions: [
+                          TextSourceAttribution('OpenStreetMap contributors'),
+                        ],
                       ),
                     ],
                   ),
@@ -517,14 +573,20 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                     left: 8,
                     right: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         _statusMessage!,
-                        style: const TextStyle(color: Colors.white, fontSize: 11),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
                   ),
@@ -587,10 +649,10 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
             onPressed: _nearestEvacuationCenter == null
                 ? null
                 : () => openDirections(
-                      context,
-                      latitude: _nearestEvacuationCenter!.latitude,
-                      longitude: _nearestEvacuationCenter!.longitude,
-                    ),
+                    context,
+                    latitude: _nearestEvacuationCenter!.latitude,
+                    longitude: _nearestEvacuationCenter!.longitude,
+                  ),
             icon: const Icon(Icons.directions),
             label: const Text('View Route to Nearest Evacuation Center'),
             style: OutlinedButton.styleFrom(
@@ -633,7 +695,11 @@ class _FloodRiskCard extends StatelessWidget {
               height: 48,
               child: isLoading
                   ? const CircularProgressIndicator()
-                  : Icon(_areaRiskIcon(level), size: 48, color: _areaRiskColor(level)),
+                  : Icon(
+                      _areaRiskIcon(level),
+                      size: 48,
+                      color: _areaRiskColor(level),
+                    ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -652,8 +718,13 @@ class _FloodRiskCard extends StatelessWidget {
                     )
                   else
                     Text(
-                      areaRisk != null ? '${areaRisk!.level} risk' : 'Unavailable',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: _areaRiskColor(level)),
+                      areaRisk != null
+                          ? '${areaRisk!.level} risk'
+                          : 'Unavailable',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _areaRiskColor(level),
+                      ),
                     ),
                   if (areaRisk != null) ...[
                     const SizedBox(height: 2),
@@ -746,35 +817,6 @@ class _StatBox extends StatelessWidget {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-/// Full-screen, swipeable, pinch-to-zoom viewer for a report's photos,
-/// opened by tapping a thumbnail in [HomeFloodOverviewState._showReportInfo].
-class _ReportPhotoViewer extends StatelessWidget {
-  final List<String> urls;
-  final int initialIndex;
-
-  const _ReportPhotoViewer({required this.urls, required this.initialIndex});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: PageView.builder(
-        controller: PageController(initialPage: initialIndex),
-        itemCount: urls.length,
-        itemBuilder: (context, index) => InteractiveViewer(
-          child: Center(
-            child: Image.network(urls[index], fit: BoxFit.contain),
-          ),
-        ),
       ),
     );
   }

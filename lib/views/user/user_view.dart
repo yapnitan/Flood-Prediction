@@ -37,7 +37,10 @@ class _UserHomeState extends State<UserHome> {
         child: Wrap(
           children: [
             ListTile(
-              leading: const Icon(Icons.water_drop_outlined, color: Colors.blue),
+              leading: const Icon(
+                Icons.water_drop_outlined,
+                color: Colors.blue,
+              ),
               title: const Text('Report a flood'),
               subtitle: const Text('Share live flood conditions in your area'),
               onTap: () {
@@ -46,9 +49,14 @@ class _UserHomeState extends State<UserHome> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.home_repair_service_outlined, color: Colors.orange),
+              leading: const Icon(
+                Icons.home_repair_service_outlined,
+                color: Colors.orange,
+              ),
               title: const Text('Submit Recovery Request'),
-              subtitle: const Text('Request post-flood repair or aid assistance'),
+              subtitle: const Text(
+                'Request post-flood repair or aid assistance',
+              ),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, AppRoutes.createRepairRequest);
@@ -61,75 +69,91 @@ class _UserHomeState extends State<UserHome> {
   }
 
   Widget _buildHomePage() {
-    return SingleChildScrollView(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: context.responsive(
-              mobile: 700,
-              tablet: 800,
-              desktop: 900,
+    return RefreshIndicator(
+      onRefresh: () async {
+        await _homeOverviewKey.currentState?.refreshLocation();
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: context.responsive(
+                mobile: 700,
+                tablet: 800,
+                desktop: 900,
+              ),
             ),
-          ),
-          child: Padding(
-            padding: EdgeInsets.all(
-              context.responsive(mobile: 20, tablet: 28, desktop: 32),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ---- Flood risk simulator entry point ----
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pushNamed(context, AppRoutes.simulationList);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: EdgeInsets.all(
+                context.responsive(mobile: 20, tablet: 28, desktop: 32),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ---- Flood risk simulator entry point ----
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(context, AppRoutes.simulationList);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(
+                        Icons.analytics_outlined,
+                        color: Colors.white,
+                      ),
+                      label: const Text(
+                        "Am I Safe? Run a Flood Risk Assessment",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                    icon: const Icon(Icons.analytics_outlined, color: Colors.white),
-                    label: const Text(
-                      "Am I Safe? Run a Flood Risk Assessment",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  // ---- My repair/aid requests entry point ----
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MyRepairRequestsView(),
+                          ),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.orange,
+                        side: const BorderSide(color: Colors.orange),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.assignment_outlined),
+                      label: const Text(
+                        "My Repair & Aid Requests",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                // ---- My repair/aid requests entry point ----
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const MyRepairRequestsView()),
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.orange,
-                      side: const BorderSide(color: Colors.orange),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: const Icon(Icons.assignment_outlined),
-                    label: const Text(
-                      "My Repair & Aid Requests",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                // ---- Flood status + alert icon + current-location map +
-                //      rainfall / water level / nearby report count ----
-                HomeFloodOverview(key: _homeOverviewKey),
-              ],
+                  // ---- Flood status + alert icon + current-location map +
+                  //      rainfall / water level / nearby report count ----
+                  HomeFloodOverview(key: _homeOverviewKey),
+                ],
+              ),
             ),
           ),
         ),
@@ -211,10 +235,7 @@ class _UserHomeState extends State<UserHome> {
               unselectedItemColor: Colors.grey,
 
               items: const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.home),
-                  label: "Home",
-                ),
+                BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
                 BottomNavigationBarItem(icon: Icon(Icons.add), label: "Report"),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.person),

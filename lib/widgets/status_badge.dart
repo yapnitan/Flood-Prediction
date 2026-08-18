@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Colored pill showing a repair_request status value.
+/// Colored pill showing a repair_request/flood_report status value.
 class StatusBadge extends StatelessWidget {
   const StatusBadge({super.key, required this.status});
 
@@ -14,6 +14,9 @@ class StatusBadge extends StatelessWidget {
     'in_progress': Colors.indigo,
     'completed': Colors.green,
     'cancelled': Colors.grey,
+    'submitted': Colors.blue,
+    'verified': Colors.teal,
+    'resolved': Colors.green,
   };
 
   static const Map<String, String> _labels = {
@@ -24,6 +27,9 @@ class StatusBadge extends StatelessWidget {
     'in_progress': 'In Progress',
     'completed': 'Completed',
     'cancelled': 'Cancelled',
+    'submitted': 'Submitted',
+    'verified': 'Verified',
+    'resolved': 'Resolved',
   };
 
   @override
@@ -40,7 +46,11 @@ class StatusBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

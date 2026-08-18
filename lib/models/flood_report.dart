@@ -11,6 +11,7 @@ class FloodReport {
     required this.description,
     this.contactNumber,
     this.photoPaths = const [],
+    this.status = 'submitted',
     this.createdAt,
   });
 
@@ -25,6 +26,7 @@ class FloodReport {
   final String description;
   final String? contactNumber;
   final List<String> photoPaths;
+  final String status;
   final DateTime? createdAt;
 
   factory FloodReport.fromJson(Map<String, dynamic> json) => FloodReport(
@@ -35,7 +37,10 @@ class FloodReport {
     longitude: (json['longitude'] as num).toDouble(),
     floodType: json['flood_type'] as String,
     waterLevel: json['water_level'] as String,
-    observedAt: DateTime.parse(json['observed_at'] as String),
+    // Stored as UTC (see toJson); converted back to local time here so
+    // displaying `.day`/`.month`/`.hour` etc. matches what the user
+    // actually picked, rather than the UTC calendar date/time.
+    observedAt: DateTime.parse(json['observed_at'] as String).toLocal(),
     description: json['description'] as String,
     contactNumber: json['contact_number'] as String?,
     photoPaths:
@@ -43,8 +48,9 @@ class FloodReport {
             ?.map((e) => e as String)
             .toList() ??
         const [],
+    status: json['status'] as String? ?? 'submitted',
     createdAt: json['created_at'] != null
-        ? DateTime.parse(json['created_at'] as String)
+        ? DateTime.parse(json['created_at'] as String).toLocal()
         : null,
   );
 

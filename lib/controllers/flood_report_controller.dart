@@ -16,6 +16,15 @@ class FloodReportController {
     return floodReportService.getRecent(limit: limit);
   }
 
+  Future<List<FloodReport>> getMyReports({int limit = 100}) {
+    return floodReportService.getMyReports(limit: limit);
+  }
+
+  /// For Admin
+  Future<List<Map<String, dynamic>>> getAdminOverview() {
+    return floodReportService.getAllReportsWithAccountInfo();
+  }
+
   Future<List<FloodReport>> getNearby({
     required double latitude,
     required double longitude,

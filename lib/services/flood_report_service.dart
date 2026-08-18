@@ -62,6 +62,38 @@ class FloodReportService {
     }
   }
 
+  /// Reports submitted by the currently authenticated user, most recent
+  /// first — backs the Report History page. Errors propagate (rather than
+  /// being swallowed like [getRecent]/[getNearby]) so the page can tell
+  /// "load failed" apart from "no reports yet".
+  Future<List<FloodReport>> getMyReports({int limit = 100}) async {
+    final reporterId = _supabase.auth.currentUser?.id;
+    if (reporterId == null) return [];
+
+    final rows = await _supabase
+        .from(_table)
+        .select()
+        .eq('reporter_id', reporterId)
+        .order('created_at', ascending: false)
+        .limit(limit);
+    return (rows as List)
+        .map((row) => FloodReport.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Every flood report, most recent first, joined with the reporter's
+  /// account so the admin list can show who submitted each one. Relies on
+  /// the "Administrators can read flood reports" RLS policy (0004 migration)
+  /// to see reports beyond the caller's own — same join pattern as
+  /// [RepairRequestService.getAllRequestsWithAccountInfo].
+  Future<List<Map<String, dynamic>>> getAllReportsWithAccountInfo() async {
+    final rows = await _supabase
+        .from(_table)
+        .select('*, account:reporter_id(name, email)')
+        .order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(rows);
+  }
+
   /// Reports within [radiusKm] of the given coordinates, reported within
   /// the last [maxAge] — a live "what's happening near here right now"
   /// signal, as opposed to [getRecent]'s global recent-reports list.
@@ -125,7 +157,10 @@ class FloodReportService {
       final results = await _supabase.storage
           .from(_photoBucket)
           .createSignedUrlsResult(paths, expiresInSeconds);
-      return results.whereType<SignedUrlSuccess>().map((r) => r.signedUrl).toList();
+      return results
+          .whereType<SignedUrlSuccess>()
+          .map((r) => r.signedUrl)
+          .toList();
     } catch (error) {
       debugPrint('FloodReportService.getPhotoUrls error: $error');
       return [];
@@ -143,11 +178,13 @@ class FloodReportService {
     for (var index = 0; index < photos.length; index++) {
       final Uint8List bytes = await photos[index].readAsBytes();
       final path = '$uploaderId/$uploadBatch/photo_$index.jpg';
-      await _supabase.storage.from(_photoBucket).uploadBinary(
-        path,
-        bytes,
-        fileOptions: const FileOptions(contentType: 'image/jpeg'),
-      );
+      await _supabase.storage
+          .from(_photoBucket)
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: const FileOptions(contentType: 'image/jpeg'),
+          );
       paths.add(path);
     }
     return paths;
