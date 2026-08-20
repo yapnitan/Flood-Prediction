@@ -10,6 +10,7 @@ import '../../services/location_service.dart';
 import '../../services/property_service.dart';
 import '../../services/repair_request_service.dart';
 import '../../utils/responsive.dart';
+import '../../utils/validators.dart';
 import '../../widgets/add_new_dropdown_item.dart';
 import '../../widgets/assistance_details_view.dart';
 import '../../widgets/dynamic_assistance_fields.dart';
@@ -619,6 +620,7 @@ class _CreateRepairRequestState extends State<CreateRepairRequestView> {
                 prefixIcon: Icon(Icons.phone),
                 border: OutlineInputBorder(),
               ),
+              validator: validatePhoneNumber,
             ),
           ],
           const SizedBox(height: 30),

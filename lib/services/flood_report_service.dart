@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/flood_report.dart';
 import '../utils/geo_utils.dart';
+import 'connectivity_service.dart';
+import 'offline_sync_service.dart';
 
 class FloodReportService {
   FloodReportService({SupabaseClient? client})
@@ -54,7 +56,16 @@ class FloodReportService {
   /// nothing else in this schema uses pg_cron.
   static const Duration _activeReportWindow = Duration(days: 7);
 
+  static const _cacheKeyRecent = 'flood_report_recent';
+
+  /// Task 14 offline support — reads from the local cache when offline (or
+  /// when the live fetch fails despite [ConnectivityService] thinking we're
+  /// online), so the community map/feed still shows the last-known reports
+  /// instead of going empty.
   Future<List<FloodReport>> getRecent({int limit = 50}) async {
+    if (!ConnectivityService.instance.isOnline) {
+      return _reportsFromCache(_cacheKeyRecent);
+    }
     try {
       final cutoff = DateTime.now().toUtc().subtract(_activeReportWindow);
       final rows = await _supabase
@@ -63,13 +74,19 @@ class FloodReportService {
           .gte('created_at', cutoff.toIso8601String())
           .order('created_at', ascending: false)
           .limit(limit);
-      return (rows as List)
-          .map((row) => FloodReport.fromJson(row as Map<String, dynamic>))
-          .toList();
+      final list = List<Map<String, dynamic>>.from(rows as List);
+      await OfflineSyncService.instance.cacheList(_cacheKeyRecent, list);
+      return list.map((row) => FloodReport.fromJson(row)).toList();
     } catch (error) {
       debugPrint('FloodReportService.getRecent error: $error');
-      return [];
+      return _reportsFromCache(_cacheKeyRecent);
     }
+  }
+
+  Future<List<FloodReport>> _reportsFromCache(String key) async {
+    final cached = await OfflineSyncService.instance.getCachedList(key);
+    if (cached == null) return [];
+    return cached.map((row) => FloodReport.fromJson(row)).toList();
   }
 
   Future<FloodReport?> getById(String id) async {
@@ -135,22 +152,32 @@ class FloodReportService {
   }
 
   /// Reports submitted by the currently authenticated user, most recent
-  /// first — backs the Report History page. Errors propagate (rather than
-  /// being swallowed like [getRecent]/[getNearby]) so the page can tell
-  /// "load failed" apart from "no reports yet".
+  /// first — backs the Report History page. Falls back to the offline
+  /// cache (same as [getRecent]) when offline or the live fetch fails, so
+  /// "no cache yet" reads as an empty list rather than a distinct error
+  /// state.
   Future<List<FloodReport>> getMyReports({int limit = 100}) async {
     final reporterId = _supabase.auth.currentUser?.id;
     if (reporterId == null) return [];
+    final cacheKey = 'flood_report_mine_$reporterId';
 
-    final rows = await _supabase
-        .from(_table)
-        .select()
-        .eq('reporter_id', reporterId)
-        .order('created_at', ascending: false)
-        .limit(limit);
-    return (rows as List)
-        .map((row) => FloodReport.fromJson(row as Map<String, dynamic>))
-        .toList();
+    if (!ConnectivityService.instance.isOnline) {
+      return _reportsFromCache(cacheKey);
+    }
+    try {
+      final rows = await _supabase
+          .from(_table)
+          .select()
+          .eq('reporter_id', reporterId)
+          .order('created_at', ascending: false)
+          .limit(limit);
+      final list = List<Map<String, dynamic>>.from(rows as List);
+      await OfflineSyncService.instance.cacheList(cacheKey, list);
+      return list.map((row) => FloodReport.fromJson(row)).toList();
+    } catch (error) {
+      debugPrint('FloodReportService.getMyReports error: $error');
+      return _reportsFromCache(cacheKey);
+    }
   }
 
   /// Every flood report, most recent first, joined with the reporter's

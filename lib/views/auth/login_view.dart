@@ -21,16 +21,11 @@ class _LoginViewState extends State<LoginView> {
   String errorMessage = "";
 
   Future<void> login() async {
-    String email = emailController.text;
+    String email = emailController.text.trim();
     String password = passwordController.text;
 
-    // TEMPORARY: hardcoded test accounts, bypasses Supabase
-    if (email == "admin" && password == "123") {
-      Navigator.pushNamed(context, AppRoutes.adminHome);
-      return;
-    }
-    if (email == "user" && password == "123") {
-      Navigator.pushNamed(context, AppRoutes.userHome);
+    if (email.isEmpty || password.isEmpty) {
+      setState(() => errorMessage = "Please enter both email and password");
       return;
     }
 

@@ -543,6 +543,26 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                             'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.example.flood_prediction',
                       ),
+                      // Task 13 "heatmap" — flutter_map_heatmap has no
+                      // release compatible with flutter_map 8.x (its latest
+                      // pins flutter_map <8.0.0), so density is approximated
+                      // with flutter_map's own CircleLayer instead: one
+                      // translucent, severity-colored circle per report,
+                      // overlapping circles in a dense area visually "add up"
+                      // into a hotter patch without an extra dependency.
+                      CircleLayer(
+                        circles: _reports
+                            .map(
+                              (report) => CircleMarker(
+                                point: LatLng(report.latitude, report.longitude),
+                                radius: _reportHeatRadius(report.waterLevel),
+                                useRadiusInMeter: true,
+                                color: _areaRiskColor(report.waterLevel).withValues(alpha: 0.18),
+                                borderStrokeWidth: 0,
+                              ),
+                            )
+                            .toList(),
+                      ),
                       // Reports are clustered — a busy area can have many
                       // overlapping pins at low zoom, so group them into a
                       // count bubble that expands as the user zooms in.
@@ -558,9 +578,9 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                                   height: 36,
                                   child: GestureDetector(
                                     onTap: () => _showReportInfo(report),
-                                    child: const Icon(
+                                    child: Icon(
                                       Icons.location_on,
-                                      color: Colors.red,
+                                      color: _areaRiskColor(report.waterLevel),
                                       size: 32,
                                     ),
                                   ),
@@ -817,6 +837,19 @@ IconData _areaRiskIcon(String? level) {
       return Icons.check_circle;
     default:
       return Icons.help_outline;
+  }
+}
+
+/// Approximate "heat" radius (meters) for a report's density circle —
+/// higher water level reads as a wider hazard footprint.
+double _reportHeatRadius(String waterLevel) {
+  switch (waterLevel) {
+    case 'High':
+      return 250;
+    case 'Medium':
+      return 150;
+    default:
+      return 80;
   }
 }
 

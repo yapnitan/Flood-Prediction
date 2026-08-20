@@ -17,7 +17,14 @@ class LoginResult {
 }
 
 class AuthService {
-  final supabase = Supabase.instance.client;
+  // A getter, not a field initialized once at construction — AuthController
+  // (and therefore AuthService) gets built as a State field in LoginView/
+  // RegisterView, which would otherwise force Supabase.initialize() to have
+  // already run just to *construct* the widget, before any auth method is
+  // even called. Deferring the lookup to each access means the widget can
+  // be built (e.g. in a widget test) without that precondition, as long as
+  // nothing actually calls an auth method before Supabase is ready.
+  SupabaseClient get supabase => Supabase.instance.client;
 
   /// [role] is 'user' or 'helper' (never 'admin' — admins are promoted by an
   /// existing admin in User Management, not self-registered). Helper

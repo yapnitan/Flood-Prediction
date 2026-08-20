@@ -3,6 +3,7 @@ import '../../models/account.dart';
 import '../../controllers/user_management_controller.dart';
 import '../../services/user_management_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/empty_state.dart';
 
 class UserManagementView extends StatefulWidget {
   const UserManagementView({super.key});
@@ -197,14 +198,9 @@ class _UserManagementViewState extends State<UserManagementView> {
 
                     final users = _applyFilters(snapshot.data ?? []);
                     if (users.isEmpty) {
-                      return LayoutBuilder(
-                        builder: (context, constraints) => SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                            child: const Center(child: Text('No users found.')),
-                          ),
-                        ),
+                      return const EmptyState(
+                        icon: Icons.people_outline,
+                        title: 'No users found.',
                       );
                     }
 

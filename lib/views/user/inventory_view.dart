@@ -4,6 +4,7 @@ import '../../controllers/planner_controller.dart';
 import '../../models/inventory_item.dart';
 import '../../services/planner_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/empty_state.dart';
 
 /// Inventory CRUD (CLAUDE.md Task 8), plus Task 9's search + categories.
 class InventoryView extends StatefulWidget {
@@ -222,23 +223,10 @@ class _InventoryViewState extends State<InventoryView> {
                         }
                         final items = _applyFilters(snapshot.data ?? []);
                         if (items.isEmpty) {
-                          return LayoutBuilder(
-                            builder: (context, constraints) => SingleChildScrollView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                                child: const Center(
-                                  child: Padding(
-                                    padding: EdgeInsets.all(32),
-                                    child: Text(
-                                      'No inventory items yet — tap + to add one.',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(color: Colors.grey),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
+                          return const EmptyState(
+                            icon: Icons.inventory_2_outlined,
+                            title: 'No inventory items yet',
+                            subtitle: 'Tap + to add one.',
                           );
                         }
 

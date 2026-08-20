@@ -7,6 +7,7 @@ import '../../services/repair_request_service.dart';
 import '../../services/user_management_service.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/priority_badge.dart';
+import '../../widgets/severity_badge.dart';
 import '../../widgets/status_badge.dart';
 import 'repair_request_admin_detail_view.dart';
 
@@ -75,50 +76,6 @@ class _RepairRequestAdminViewState extends State<RepairRequestAdminView> {
     await _requestsFuture;
   }
 
-  Future<void> _approve(String requestId) async {
-    await _requestController.approveRequest(requestId);
-    await _refresh();
-    widget.onRequestsChanged?.call();
-  }
-
-  Future<void> _reject(String requestId) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reject this request?'),
-        content: const Text('The requester will see this as rejected.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Back')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Reject'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    await _requestController.rejectRequest(requestId);
-    _refresh();
-    widget.onRequestsChanged?.call();
-  }
-
-  Future<void> _setPriority(String requestId, String priority) async {
-    await _requestController.setPriority(requestId, priority);
-    _refresh();
-  }
-
-  Future<void> _setShelter(String requestId, String shelterName) async {
-    await _requestController.updateRequest(requestId, facilityId: shelterName);
-    _refresh();
-  }
-
-  Future<void> _assignHelper(String requestId, String helperId) async {
-    await _requestController.assignHelper(requestId, helperId);
-    _refresh();
-    widget.onRequestsChanged?.call();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -131,6 +88,13 @@ class _RepairRequestAdminViewState extends State<RepairRequestAdminView> {
             ),
             child: Column(
               children: [
+                FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _requestsFuture,
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const SizedBox.shrink();
+                    return _RecoveryStatsHeader(requests: snapshot.data!);
+                  },
+                ),
                 _buildFilterBar(),
                 _buildPriorityFilterBar(),
                 Expanded(
@@ -250,6 +214,85 @@ class _RepairRequestAdminViewState extends State<RepairRequestAdminView> {
   }
 }
 
+/// Task 11 "recovery statistics" — totals across every request the admin
+/// can see, independent of the status/priority filter applied to the list
+/// below (this reflects the whole dataset, not just what's currently
+/// shown), computed client-side from the same admin-overview fetch.
+class _RecoveryStatsHeader extends StatelessWidget {
+  const _RecoveryStatsHeader({required this.requests});
+
+  final List<Map<String, dynamic>> requests;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = requests.length;
+    final completed = requests.where((r) => r['status'] == 'completed').length;
+    final pending = requests.where((r) => r['status'] == 'pending').length;
+    final urgent = requests.where((r) => r['priority'] == 'urgent').length;
+    final completionRate = total == 0 ? 0.0 : completed / total;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2)),
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: _AdminStat(label: 'Total', value: '$total', color: Colors.blue)),
+                Expanded(child: _AdminStat(label: 'Pending', value: '$pending', color: Colors.orange)),
+                Expanded(child: _AdminStat(label: 'Urgent', value: '$urgent', color: Colors.red)),
+                Expanded(child: _AdminStat(label: 'Completed', value: '$completed', color: Colors.green)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: completionRate,
+                minHeight: 8,
+                backgroundColor: Colors.grey.shade200,
+                valueColor: const AlwaysStoppedAnimation(Colors.green),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${(completionRate * 100).toStringAsFixed(0)}% completion rate',
+              style: const TextStyle(color: Colors.grey, fontSize: 11),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminStat extends StatelessWidget {
+  const _AdminStat({required this.label, required this.value, required this.color});
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+      ],
+    );
+  }
+}
+
 class _AdminRequestSummaryCard extends StatelessWidget {
   const _AdminRequestSummaryCard({required this.data, required this.onTap});
 
@@ -267,6 +310,7 @@ class _AdminRequestSummaryCard extends StatelessWidget {
     final mode = RepairRequest.fulfillmentModeFor(assistanceType);
     final needsFacility = mode == FulfillmentMode.facility && data['facility_id'] == null;
     final isCritical = (data['details'] as Map?)?['is_critical'] == true;
+    final severity = (data['details'] as Map?)?['severity'] as String?;
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),
@@ -324,6 +368,10 @@ class _AdminRequestSummaryCard extends StatelessWidget {
             Row(
               children: [
                 PriorityBadge(priority: priority, dense: true),
+                if (severity != null) ...[
+                  const SizedBox(width: 8),
+                  SeverityBadge(severity: severity, dense: true),
+                ],
                 const SizedBox(width: 12),
                 const Icon(Icons.location_on_outlined, size: 14, color: Colors.grey),
                 const SizedBox(width: 4),

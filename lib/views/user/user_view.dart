@@ -5,6 +5,7 @@ import 'package:flood_prediction/utils/responsive.dart';
 import 'package:flood_prediction/widgets/home_flood_overview.dart';
 import 'package:flood_prediction/routes/app_routes.dart';
 import 'package:flood_prediction/services/realtime_alert_service.dart';
+import 'package:flood_prediction/widgets/offline_banner.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'my_repair_requests_view.dart';
 
@@ -110,6 +111,8 @@ class _UserHomeState extends State<UserHome> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const OfflineBanner(),
+                  const SizedBox(height: 12),
                   // ---- Flood risk simulator entry point ----
                   SizedBox(
                     width: double.infinity,

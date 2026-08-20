@@ -4,6 +4,7 @@ import '../../controllers/facility_controller.dart';
 import '../../models/facility.dart';
 import '../../services/location_service.dart';
 import '../../utils/responsive.dart';
+import '../../utils/validators.dart';
 import '../../widgets/selectable_chip.dart';
 
 class FacilityFormView extends StatefulWidget {
@@ -349,6 +350,7 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                     prefixIcon: Icon(Icons.phone),
                     border: OutlineInputBorder(),
                   ),
+                  validator: validatePhoneNumber,
                 ),
                 const SizedBox(height: 8),
                 SwitchListTile(

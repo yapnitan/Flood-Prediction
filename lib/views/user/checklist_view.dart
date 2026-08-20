@@ -6,6 +6,7 @@ import '../../models/checklist_item.dart';
 import '../../models/emergency_checklist.dart';
 import '../../services/planner_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/empty_state.dart';
 
 /// Emergency Checklist CRUD (CLAUDE.md Task 8) — a user can keep several
 /// named checklists (e.g. "Home go-bag"), each with its own checked-off
@@ -158,23 +159,10 @@ class _ChecklistViewState extends State<ChecklistView> {
                   }
                   final checklists = snapshot.data ?? [];
                   if (checklists.isEmpty) {
-                    return LayoutBuilder(
-                      builder: (context, constraints) => SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                          child: const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(32),
-                              child: Text(
-                                'No checklists yet — tap + to create one.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+                    return const EmptyState(
+                      icon: Icons.checklist_outlined,
+                      title: 'No checklists yet',
+                      subtitle: 'Tap + to create one.',
                     );
                   }
 
@@ -298,12 +286,12 @@ class _ChecklistCardState extends State<_ChecklistCard> {
                       secondary: IconButton(
                         icon: const Icon(Icons.delete_outline, size: 20, color: Colors.grey),
                         onPressed: () async {
-                          await widget.controller.deleteItem(item.id!);
+                          await widget.controller.deleteItem(item.id!, widget.checklist.id!);
                           _reloadItems();
                         },
                       ),
                       onChanged: (checked) async {
-                        await widget.controller.setItemChecked(item.id!, checked ?? false);
+                        await widget.controller.setItemChecked(item.id!, checked ?? false, widget.checklist.id!);
                         _reloadItems();
                       },
                     ),

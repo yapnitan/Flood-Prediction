@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/flood_simulation.dart';
 import '../models/simulation_factor.dart';
+import 'connectivity_service.dart';
+import 'offline_sync_service.dart';
 
 /// All Supabase access for the `flood_simulation` / `simulation_factor`
 /// tables (Task 3: Flood Risk Assessment).
@@ -41,7 +43,15 @@ class FloodSimulationService {
     }
   }
 
+  /// Task 14 offline support — cached for offline viewing. Simulations
+  /// themselves can't be *created* offline (running a fresh assessment
+  /// needs live terrain/weather/historical-flood API calls), so unlike
+  /// PlannerService there's no write queue here, only a read cache.
   Future<List<FloodSimulation>> getSimulations(String accountId) async {
+    final cacheKey = 'flood_simulation_$accountId';
+    if (!ConnectivityService.instance.isOnline) {
+      return _simulationsFromCache(cacheKey);
+    }
     try {
       final rows = await supabase
           .from(_simulationTable)
@@ -49,13 +59,19 @@ class FloodSimulationService {
           .eq('account_id', accountId)
           .order('created_at', ascending: false);
 
-      return (rows as List)
-          .map((r) => FloodSimulation.fromJson(r as Map<String, dynamic>))
-          .toList();
+      final list = List<Map<String, dynamic>>.from(rows as List);
+      await OfflineSyncService.instance.cacheList(cacheKey, list);
+      return list.map((r) => FloodSimulation.fromJson(r)).toList();
     } catch (e) {
       debugPrint('FloodSimulationService.getSimulations error: $e');
-      return [];
+      return _simulationsFromCache(cacheKey);
     }
+  }
+
+  Future<List<FloodSimulation>> _simulationsFromCache(String key) async {
+    final cached = await OfflineSyncService.instance.getCachedList(key);
+    if (cached == null) return [];
+    return cached.map((r) => FloodSimulation.fromJson(r)).toList();
   }
 
   Future<FloodSimulation?> getSimulationById(String id) async {

@@ -5,6 +5,7 @@ import '../../models/flood_report.dart';
 import '../../services/flood_report_service.dart';
 import '../../services/location_service.dart';
 import '../../utils/responsive.dart';
+import '../../utils/validators.dart';
 import '../../widgets/photo_preview.dart';
 import '../../widgets/review_card.dart';
 import '../../widgets/selectable_chip.dart';
@@ -136,18 +137,6 @@ class _SubmitReportState extends State<SubmitReportPage> {
     return true;
   }
 
-  /// Contact number is optional, but if entered must be 10 or 11 digits —
-  /// no spaces, dashes, or country-code symbols.
-  static final RegExp _contactNumberPattern = RegExp(r'^\d{10,11}$');
-
-  String? _validateContactNumber(String? value) {
-    final trimmed = value?.trim() ?? '';
-    if (trimmed.isEmpty) return null;
-    if (!_contactNumberPattern.hasMatch(trimmed)) {
-      return 'Enter a 10 or 11 digit phone number.';
-    }
-    return null;
-  }
 
   void _showSnack(String message) {
     ScaffoldMessenger.of(
@@ -735,7 +724,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
               prefixIcon: Icon(Icons.phone),
               border: OutlineInputBorder(),
             ),
-            validator: _validateContactNumber,
+            validator: validatePhoneNumber,
           ),
           const SizedBox(height: 30),
         ],

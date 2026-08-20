@@ -4,6 +4,7 @@ import '../../controllers/flood_report_controller.dart';
 import '../../models/flood_report.dart';
 import '../../services/flood_report_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/status_badge.dart';
 import 'report_detail_view.dart';
 
@@ -125,18 +126,18 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
                         }
 
                         if (snapshot.hasError) {
-                          return _buildMessage(
+                          return const EmptyState(
                             icon: Icons.error_outline,
-                            text:
-                                'Could not load your report history. Pull down to try again.',
+                            title: 'Could not load your report history',
+                            subtitle: 'Pull down to try again.',
                           );
                         }
 
                         final reports = _applyFilters(snapshot.data ?? []);
                         if (reports.isEmpty) {
-                          return _buildMessage(
+                          return const EmptyState(
                             icon: Icons.inbox_outlined,
-                            text: 'No reports found.',
+                            title: 'No reports found.',
                           );
                         }
 
@@ -170,33 +171,6 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
     );
   }
 
-  Widget _buildMessage({required IconData icon, required String text}) {
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, size: 56, color: Colors.grey),
-                  const SizedBox(height: 12),
-                  Text(
-                    text,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _ReportCard extends StatelessWidget {

@@ -8,6 +8,7 @@ import '../../services/facility_service.dart';
 import '../../services/repair_request_service.dart';
 import '../../services/user_management_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/animated_tab.dart';
 import 'facility_management_view.dart';
 import 'flood_report_admin_view.dart';
 import 'repair_request_admin_view.dart';
@@ -167,10 +168,10 @@ class _AdminHomeState extends State<AdminHome> {
                   ],
                 ),
                 const VerticalDivider(width: 1),
-                Expanded(child: pages[currentIndex]),
+                Expanded(child: AnimatedTab(index: currentIndex, child: pages[currentIndex])),
               ],
             )
-          : pages[currentIndex],
+          : AnimatedTab(index: currentIndex, child: pages[currentIndex]),
       bottomNavigationBar: useRail
           ? null
           : BottomNavigationBar(

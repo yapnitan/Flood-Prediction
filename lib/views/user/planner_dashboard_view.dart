@@ -5,6 +5,7 @@ import '../../routes/app_routes.dart';
 import '../../services/notification_service.dart';
 import '../../services/planner_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/offline_banner.dart';
 
 /// Module 3 entry point (CLAUDE.md Task 8) — preparation progress plus
 /// cards into Checklist, Inventory, Emergency Contacts, and the Nearby PPS
@@ -60,7 +61,11 @@ class _PlannerDashboardViewState extends State<PlannerDashboardView> {
       backgroundColor: const Color(0xFFF4F7FC),
       appBar: AppBar(title: const Text('Preparedness Planner')),
       body: SafeArea(
-        child: Center(
+        child: Column(
+          children: [
+            const OfflineBanner(),
+            Expanded(
+              child: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
@@ -156,6 +161,9 @@ class _PlannerDashboardViewState extends State<PlannerDashboardView> {
               ),
             ),
           ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -16,6 +16,7 @@ import '../../utils/responsive.dart';
 import '../../routes/app_routes.dart';
 import '../../routes/route_arguments.dart';
 import '../../services/notification_service.dart';
+import '../../utils/validators.dart';
 import 'pick_property_location_view.dart';
 
 class CreateSimulationView extends StatefulWidget {
@@ -104,6 +105,11 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
     }
     if (latitude == null || longitude == null) {
       setState(() => _errorMessage = 'Latitude/longitude must be numbers');
+      return;
+    }
+    final coordError = validateLatitude(latitude) ?? validateLongitude(longitude);
+    if (coordError != null) {
+      setState(() => _errorMessage = coordError);
       return;
     }
 

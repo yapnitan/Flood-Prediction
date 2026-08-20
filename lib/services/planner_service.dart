@@ -5,12 +5,22 @@ import '../models/checklist_item.dart';
 import '../models/emergency_checklist.dart';
 import '../models/emergency_contact.dart';
 import '../models/inventory_item.dart';
+import 'connectivity_service.dart';
+import 'offline_sync_service.dart';
 
 /// All Supabase access for Module 3 (Evacuation & Inventory Planner) —
 /// checklists/items, inventory, and emergency contacts. One service per
 /// CLAUDE.md's naming (`PlannerService`), covering all four tables since
 /// they're simple, closely-related, account-scoped CRUD — same rationale
 /// as FacilityService covering one table's full CRUD in one place.
+///
+/// Task 14 offline support: every read here falls back to
+/// [OfflineSyncService]'s local cache when offline, and every write below
+/// (except [createChecklist] — see its doc comment) queues instead of
+/// failing outright, replayed once connectivity returns. This is the one
+/// part of the app where full offline CRUD makes sense: nothing here
+/// depends on a live external API or a file upload the way flood report
+/// photos or a risk assessment's terrain/weather lookups do.
 class PlannerService {
   PlannerService({SupabaseClient? client}) : _supabase = client ?? Supabase.instance.client;
 
@@ -21,18 +31,101 @@ class PlannerService {
 
   final SupabaseClient _supabase;
 
-  // ---- Checklists ----
+  // ---- Shared read/write helpers ----
 
-  Future<List<EmergencyChecklist>> getChecklists(String accountId) async {
-    final data = await _supabase
-        .from(_checklistTable)
-        .select()
-        .eq('account_id', accountId)
-        .order('created_at');
-    return (data as List).map((e) => EmergencyChecklist.fromJson(e)).toList();
+  Future<List<T>> _cachedList<T>(
+    String cacheKey,
+    Future<List<Map<String, dynamic>>> Function() fetch,
+    T Function(Map<String, dynamic>) fromJson,
+  ) async {
+    if (!ConnectivityService.instance.isOnline) {
+      final cached = await OfflineSyncService.instance.getCachedList(cacheKey);
+      return (cached ?? []).map(fromJson).toList();
+    }
+    try {
+      final rows = await fetch();
+      await OfflineSyncService.instance.cacheList(cacheKey, rows);
+      return rows.map(fromJson).toList();
+    } catch (error) {
+      debugPrint('PlannerService: fetch for "$cacheKey" failed, falling back to cache: $error');
+      final cached = await OfflineSyncService.instance.getCachedList(cacheKey);
+      return (cached ?? []).map(fromJson).toList();
+    }
   }
 
+  /// Queues [payload] when offline (also patching [cacheKey]'s cached list
+  /// so the change shows immediately), otherwise writes straight through.
+  /// [rowId] must be an existing row's id — this helper doesn't handle
+  /// insert-then-reference-the-new-id chains (see [createChecklist]).
+  Future<bool> _write({
+    required String table,
+    required String opType,
+    String? rowId,
+    required Map<String, dynamic> payload,
+    required String cacheKey,
+    String? baseUpdatedAt,
+  }) async {
+    if (!ConnectivityService.instance.isOnline) {
+      final localId = rowId ?? 'local_${DateTime.now().microsecondsSinceEpoch}';
+      await OfflineSyncService.instance.queueOperation(
+        table: table,
+        opType: opType,
+        rowId: rowId,
+        payload: payload,
+        baseUpdatedAt: baseUpdatedAt,
+      );
+      await OfflineSyncService.instance.applyOptimisticChange(
+        cacheKey,
+        opType: opType,
+        rowId: rowId ?? localId,
+        payload: opType == 'insert' ? {...payload, 'id': localId} : payload,
+      );
+      return true;
+    }
+    try {
+      switch (opType) {
+        case 'insert':
+          await _supabase.from(table).insert(payload);
+        case 'update':
+          await _supabase.from(table).update(payload).eq('id', rowId!);
+        case 'delete':
+          await _supabase.from(table).delete().eq('id', rowId!);
+      }
+      return true;
+    } catch (error) {
+      debugPrint('PlannerService: $opType on $table failed: $error');
+      return false;
+    }
+  }
+
+  // ---- Checklists ----
+
+  Future<List<EmergencyChecklist>> getChecklists(String accountId) {
+    return _cachedList(
+      'planner_checklists_$accountId',
+      () async {
+        final data = await _supabase
+            .from(_checklistTable)
+            .select()
+            .eq('account_id', accountId)
+            .order('created_at');
+        return List<Map<String, dynamic>>.from(data);
+      },
+      EmergencyChecklist.fromJson,
+    );
+  }
+
+  /// Not offline-queueable like the rest of this service — a checklist's
+  /// id is server-generated, and its items reference that id as a foreign
+  /// key. Queuing the insert here would mean every item added under it
+  /// while still offline points at a local placeholder id that no longer
+  /// matches once the checklist itself syncs and gets its real id. Simpler
+  /// and more honest to require connectivity for this one operation.
   Future<EmergencyChecklist?> createChecklist(EmergencyChecklist checklist) async {
+    if (!ConnectivityService.instance.isOnline) {
+      debugPrint('PlannerService.createChecklist: offline, new checklists need a connection.');
+      return null;
+    }
     try {
       final row = await _supabase.from(_checklistTable).insert(checklist.toJson()).select().single();
       return EmergencyChecklist.fromJson(row);
@@ -42,157 +135,183 @@ class PlannerService {
     }
   }
 
-  Future<bool> renameChecklist(String id, String title) async {
-    try {
-      await _supabase.from(_checklistTable).update({'title': title}).eq('id', id);
-      return true;
-    } catch (error) {
-      debugPrint('PlannerService.renameChecklist error: $error');
-      return false;
-    }
+  Future<bool> renameChecklist(String id, String title, String accountId) {
+    return _write(
+      table: _checklistTable,
+      opType: 'update',
+      rowId: id,
+      payload: {'title': title},
+      cacheKey: 'planner_checklists_$accountId',
+    );
   }
 
-  Future<bool> deleteChecklist(String id) async {
-    try {
-      await _supabase.from(_checklistTable).delete().eq('id', id);
-      return true;
-    } catch (error) {
-      debugPrint('PlannerService.deleteChecklist error: $error');
-      return false;
-    }
+  Future<bool> deleteChecklist(String id, String accountId) {
+    return _write(
+      table: _checklistTable,
+      opType: 'delete',
+      rowId: id,
+      payload: const {},
+      cacheKey: 'planner_checklists_$accountId',
+    );
   }
 
   // ---- Checklist items ----
 
-  Future<List<ChecklistItem>> getItems(String checklistId) async {
-    final data = await _supabase
-        .from(_checklistItemTable)
-        .select()
-        .eq('checklist_id', checklistId)
-        .order('sort_order')
-        .order('created_at');
-    return (data as List).map((e) => ChecklistItem.fromJson(e)).toList();
+  Future<List<ChecklistItem>> getItems(String checklistId) {
+    return _cachedList(
+      'planner_items_$checklistId',
+      () async {
+        final data = await _supabase
+            .from(_checklistItemTable)
+            .select()
+            .eq('checklist_id', checklistId)
+            .order('sort_order')
+            .order('created_at');
+        return List<Map<String, dynamic>>.from(data);
+      },
+      ChecklistItem.fromJson,
+    );
   }
 
   /// All items across all of [accountId]'s checklists — used to compute
-  /// overall preparation progress without N+1-fetching per checklist.
-  Future<List<ChecklistItem>> getAllItems(String accountId) async {
-    final data = await _supabase
-        .from(_checklistItemTable)
-        .select('*, emergency_checklist!inner(account_id)')
-        .eq('emergency_checklist.account_id', accountId);
-    return (data as List).map((e) => ChecklistItem.fromJson(e)).toList();
+  /// overall preparation progress without N+1-fetching per checklist. Its
+  /// own cache entry, kept separate from the per-checklist [getItems]
+  /// caches; offline item writes below patch the per-checklist cache but
+  /// not this one, so the progress % can be slightly stale until the next
+  /// successful online refresh — an acceptable trade-off for how small
+  /// that drift is.
+  Future<List<ChecklistItem>> getAllItems(String accountId) {
+    return _cachedList(
+      'planner_all_items_$accountId',
+      () async {
+        final data = await _supabase
+            .from(_checklistItemTable)
+            .select('*, emergency_checklist!inner(account_id)')
+            .eq('emergency_checklist.account_id', accountId);
+        return List<Map<String, dynamic>>.from(data);
+      },
+      ChecklistItem.fromJson,
+    );
   }
 
-  Future<bool> addItem(ChecklistItem item) async {
-    try {
-      await _supabase.from(_checklistItemTable).insert(item.toJson());
-      return true;
-    } catch (error) {
-      debugPrint('PlannerService.addItem error: $error');
-      return false;
-    }
+  Future<bool> addItem(ChecklistItem item) {
+    return _write(
+      table: _checklistItemTable,
+      opType: 'insert',
+      payload: item.toJson(),
+      cacheKey: 'planner_items_${item.checklistId}',
+    );
   }
 
-  Future<bool> setItemChecked(String id, bool checked) async {
-    try {
-      await _supabase.from(_checklistItemTable).update({'is_checked': checked}).eq('id', id);
-      return true;
-    } catch (error) {
-      debugPrint('PlannerService.setItemChecked error: $error');
-      return false;
-    }
+  Future<bool> setItemChecked(String id, bool checked, String checklistId) {
+    return _write(
+      table: _checklistItemTable,
+      opType: 'update',
+      rowId: id,
+      payload: {'is_checked': checked},
+      cacheKey: 'planner_items_$checklistId',
+    );
   }
 
-  Future<bool> deleteItem(String id) async {
-    try {
-      await _supabase.from(_checklistItemTable).delete().eq('id', id);
-      return true;
-    } catch (error) {
-      debugPrint('PlannerService.deleteItem error: $error');
-      return false;
-    }
+  Future<bool> deleteItem(String id, String checklistId) {
+    return _write(
+      table: _checklistItemTable,
+      opType: 'delete',
+      rowId: id,
+      payload: const {},
+      cacheKey: 'planner_items_$checklistId',
+    );
   }
 
   // ---- Inventory ----
 
-  Future<List<InventoryItem>> getInventory(String accountId) async {
-    final data = await _supabase
-        .from(_inventoryTable)
-        .select()
-        .eq('account_id', accountId)
-        .order('name');
-    return (data as List).map((e) => InventoryItem.fromJson(e)).toList();
+  Future<List<InventoryItem>> getInventory(String accountId) {
+    return _cachedList(
+      'planner_inventory_$accountId',
+      () async {
+        final data = await _supabase
+            .from(_inventoryTable)
+            .select()
+            .eq('account_id', accountId)
+            .order('name');
+        return List<Map<String, dynamic>>.from(data);
+      },
+      InventoryItem.fromJson,
+    );
   }
 
-  Future<bool> createInventoryItem(InventoryItem item) async {
-    try {
-      await _supabase.from(_inventoryTable).insert(item.toJson());
-      return true;
-    } catch (error) {
-      debugPrint('PlannerService.createInventoryItem error: $error');
-      return false;
-    }
+  Future<bool> createInventoryItem(InventoryItem item) {
+    return _write(
+      table: _inventoryTable,
+      opType: 'insert',
+      payload: item.toJson(),
+      cacheKey: 'planner_inventory_${item.accountId}',
+    );
   }
 
-  Future<bool> updateInventoryItem(String id, Map<String, dynamic> updates) async {
-    try {
-      await _supabase.from(_inventoryTable).update(updates).eq('id', id);
-      return true;
-    } catch (error) {
-      debugPrint('PlannerService.updateInventoryItem error: $error');
-      return false;
-    }
+  Future<bool> updateInventoryItem(String id, Map<String, dynamic> updates, String accountId) {
+    return _write(
+      table: _inventoryTable,
+      opType: 'update',
+      rowId: id,
+      payload: updates,
+      cacheKey: 'planner_inventory_$accountId',
+    );
   }
 
-  Future<bool> deleteInventoryItem(String id) async {
-    try {
-      await _supabase.from(_inventoryTable).delete().eq('id', id);
-      return true;
-    } catch (error) {
-      debugPrint('PlannerService.deleteInventoryItem error: $error');
-      return false;
-    }
+  Future<bool> deleteInventoryItem(String id, String accountId) {
+    return _write(
+      table: _inventoryTable,
+      opType: 'delete',
+      rowId: id,
+      payload: const {},
+      cacheKey: 'planner_inventory_$accountId',
+    );
   }
 
   // ---- Emergency contacts ----
 
-  Future<List<EmergencyContact>> getContacts(String accountId) async {
-    final data = await _supabase
-        .from(_contactTable)
-        .select()
-        .eq('account_id', accountId)
-        .order('name');
-    return (data as List).map((e) => EmergencyContact.fromJson(e)).toList();
+  Future<List<EmergencyContact>> getContacts(String accountId) {
+    return _cachedList(
+      'planner_contacts_$accountId',
+      () async {
+        final data = await _supabase
+            .from(_contactTable)
+            .select()
+            .eq('account_id', accountId)
+            .order('name');
+        return List<Map<String, dynamic>>.from(data);
+      },
+      EmergencyContact.fromJson,
+    );
   }
 
-  Future<bool> createContact(EmergencyContact contact) async {
-    try {
-      await _supabase.from(_contactTable).insert(contact.toJson());
-      return true;
-    } catch (error) {
-      debugPrint('PlannerService.createContact error: $error');
-      return false;
-    }
+  Future<bool> createContact(EmergencyContact contact) {
+    return _write(
+      table: _contactTable,
+      opType: 'insert',
+      payload: contact.toJson(),
+      cacheKey: 'planner_contacts_${contact.accountId}',
+    );
   }
 
-  Future<bool> updateContact(String id, Map<String, dynamic> updates) async {
-    try {
-      await _supabase.from(_contactTable).update(updates).eq('id', id);
-      return true;
-    } catch (error) {
-      debugPrint('PlannerService.updateContact error: $error');
-      return false;
-    }
+  Future<bool> updateContact(String id, Map<String, dynamic> updates, String accountId) {
+    return _write(
+      table: _contactTable,
+      opType: 'update',
+      rowId: id,
+      payload: updates,
+      cacheKey: 'planner_contacts_$accountId',
+    );
   }
 
-  Future<bool> deleteContact(String id) async {
-    try {
-      await _supabase.from(_contactTable).delete().eq('id', id);
-      return true;
-    } catch (error) {
-      debugPrint('PlannerService.deleteContact error: $error');
-      return false;
-    }
+  Future<bool> deleteContact(String id, String accountId) {
+    return _write(
+      table: _contactTable,
+      opType: 'delete',
+      rowId: id,
+      payload: const {},
+      cacheKey: 'planner_contacts_$accountId',
+    );
   }
 }

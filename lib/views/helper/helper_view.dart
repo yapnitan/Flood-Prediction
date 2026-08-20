@@ -8,7 +8,10 @@ import '../../services/realtime_alert_service.dart';
 import '../../services/repair_request_service.dart';
 import '../../utils/maps_launcher.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/animated_tab.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/priority_badge.dart';
+import '../../widgets/severity_badge.dart';
 import '../../widgets/status_badge.dart';
 import '../shared/user_profile.dart';
 import 'repair_request_helper_detail_view.dart';
@@ -72,10 +75,10 @@ class _HelperHomeState extends State<HelperHome> {
             ],
           ),
           const VerticalDivider(width: 1),
-          Expanded(child: pages[currentIndex]),
+          Expanded(child: AnimatedTab(index: currentIndex, child: pages[currentIndex])),
         ],
       )
-          : pages[currentIndex],
+          : AnimatedTab(index: currentIndex, child: pages[currentIndex]),
       bottomNavigationBar: useRail
           ? null
           : BottomNavigationBar(
@@ -165,8 +168,9 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
                 }
 
                 if (snapshot.hasError) {
-                  return _buildEmptyState(
+                  return const EmptyState(
                     icon: Icons.error_outline,
+                    iconColor: Colors.blue,
                     title: 'Could not load your tasks',
                     subtitle: 'Pull down to try again.',
                   );
@@ -174,8 +178,9 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
 
                 final tasks = _sortedByUrgency(snapshot.data ?? []);
                 if (tasks.isEmpty) {
-                  return _buildEmptyState(
+                  return const EmptyState(
                     icon: Icons.volunteer_activism_outlined,
+                    iconColor: Colors.blue,
                     title: 'No tasks assigned yet',
                     subtitle: 'Requests an admin assigns to you will show up here.',
                   );
@@ -183,9 +188,12 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
 
                 return ListView.separated(
                   padding: EdgeInsets.all(context.responsive(mobile: 16, tablet: 24, desktop: 24)),
-                  itemCount: tasks.length,
+                  itemCount: tasks.length + 1,
                   separatorBuilder: (context, index) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) => InkWell(
+                  itemBuilder: (context, rawIndex) {
+                    if (rawIndex == 0) return _VolunteerStatsHeader(tasks: tasks);
+                    final index = rawIndex - 1;
+                    return InkWell(
                     borderRadius: BorderRadius.circular(12),
                     onTap: () async {
                       await Navigator.push(
@@ -206,7 +214,8 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
                           ? _facilityNames[tasks[index].facilityId]
                           : null,
                     ),
-                  ),
+                  );
+                  },
                 );
               },
             ),
@@ -216,33 +225,82 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
     );
   }
 
-  Widget _buildEmptyState({required IconData icon, required String title, required String subtitle}) {
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: Center(
-            child: Padding(
-              padding: EdgeInsets.all(context.responsive(mobile: 20, tablet: 28, desktop: 32)),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, size: 64, color: Colors.blue),
-                  const SizedBox(height: 16),
-                  Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(subtitle, style: const TextStyle(color: Colors.grey), textAlign: TextAlign.center),
-                ],
-              ),
+}
+
+/// Task 11 "volunteer dashboard" — assigned/completed counts and average
+/// turnaround, computed client-side from the already-fetched task list
+/// (no extra query — there's no separate stats endpoint, and this
+/// helper's own task count is small enough that it's cheap either way).
+class _VolunteerStatsHeader extends StatelessWidget {
+  const _VolunteerStatsHeader({required this.tasks});
+
+  final List<RepairRequest> tasks;
+
+  String _formatDuration(Duration d) {
+    if (d.inDays > 0) return '${d.inDays}d ${d.inHours % 24}h';
+    if (d.inHours > 0) return '${d.inHours}h ${d.inMinutes % 60}m';
+    return '${d.inMinutes}m';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final active = tasks.where((t) => t.status == 'assigned' || t.status == 'in_progress').length;
+    final completed = tasks.where((t) => t.status == 'completed').toList();
+
+    Duration? avgCompletion;
+    final completedWithTimestamps = completed
+        .where((t) => t.createdAt != null && t.updatedAt != null)
+        .toList();
+    if (completedWithTimestamps.isNotEmpty) {
+      final totalMicros = completedWithTimestamps.fold<int>(
+        0,
+        (sum, t) => sum + t.updatedAt!.difference(t.createdAt!).inMicroseconds,
+      );
+      avgCompletion = Duration(microseconds: totalMicros ~/ completedWithTimestamps.length);
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _StatColumn(label: 'Active', value: '$active', color: Colors.indigo)),
+          Expanded(child: _StatColumn(label: 'Completed', value: '${completed.length}', color: Colors.green)),
+          Expanded(
+            child: _StatColumn(
+              label: 'Avg. completion',
+              value: avgCompletion != null ? _formatDuration(avgCompletion) : '—',
+              color: Colors.blue,
             ),
           ),
-        ),
+        ],
       ),
+    );
+  }
+}
+
+class _StatColumn extends StatelessWidget {
+  const _StatColumn({required this.label, required this.value, required this.color});
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center),
+      ],
     );
   }
 }
@@ -288,6 +346,10 @@ class _TaskCard extends StatelessWidget {
           Row(
             children: [
               PriorityBadge(priority: request.priority, dense: true),
+              if (request.details['severity'] is String) ...[
+                const SizedBox(width: 8),
+                SeverityBadge(severity: request.details['severity'] as String, dense: true),
+              ],
               if (request.isCriticalMedical) ...[
                 const SizedBox(width: 8),
                 Container(

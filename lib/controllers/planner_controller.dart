@@ -27,9 +27,17 @@ class PlannerController {
     return plannerService.createChecklist(EmergencyChecklist(accountId: accountId, title: title));
   }
 
-  Future<bool> renameChecklist(String id, String title) => plannerService.renameChecklist(id, title);
+  Future<bool> renameChecklist(String id, String title) {
+    final accountId = _accountId;
+    if (accountId == null) return Future.value(false);
+    return plannerService.renameChecklist(id, title, accountId);
+  }
 
-  Future<bool> deleteChecklist(String id) => plannerService.deleteChecklist(id);
+  Future<bool> deleteChecklist(String id) {
+    final accountId = _accountId;
+    if (accountId == null) return Future.value(false);
+    return plannerService.deleteChecklist(id, accountId);
+  }
 
   // ---- Checklist items ----
 
@@ -39,9 +47,11 @@ class PlannerController {
     return plannerService.addItem(ChecklistItem(checklistId: checklistId, label: label));
   }
 
-  Future<bool> setItemChecked(String id, bool checked) => plannerService.setItemChecked(id, checked);
+  Future<bool> setItemChecked(String id, bool checked, String checklistId) {
+    return plannerService.setItemChecked(id, checked, checklistId);
+  }
 
-  Future<bool> deleteItem(String id) => plannerService.deleteItem(id);
+  Future<bool> deleteItem(String id, String checklistId) => plannerService.deleteItem(id, checklistId);
 
   /// Preparation progress across every checklist this account owns —
   /// checked items / total items, 0 when there are none yet.
@@ -78,10 +88,16 @@ class PlannerController {
   }
 
   Future<bool> updateInventoryItem(String id, Map<String, dynamic> updates) {
-    return plannerService.updateInventoryItem(id, updates);
+    final accountId = _accountId;
+    if (accountId == null) return Future.value(false);
+    return plannerService.updateInventoryItem(id, updates, accountId);
   }
 
-  Future<bool> deleteInventoryItem(String id) => plannerService.deleteInventoryItem(id);
+  Future<bool> deleteInventoryItem(String id) {
+    final accountId = _accountId;
+    if (accountId == null) return Future.value(false);
+    return plannerService.deleteInventoryItem(id, accountId);
+  }
 
   // ---- Emergency contacts ----
 
@@ -106,8 +122,14 @@ class PlannerController {
   }
 
   Future<bool> updateContact(String id, Map<String, dynamic> updates) {
-    return plannerService.updateContact(id, updates);
+    final accountId = _accountId;
+    if (accountId == null) return Future.value(false);
+    return plannerService.updateContact(id, updates, accountId);
   }
 
-  Future<bool> deleteContact(String id) => plannerService.deleteContact(id);
+  Future<bool> deleteContact(String id) {
+    final accountId = _accountId;
+    if (accountId == null) return Future.value(false);
+    return plannerService.deleteContact(id, accountId);
+  }
 }

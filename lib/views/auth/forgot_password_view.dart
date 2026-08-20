@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../controllers/auth_controller.dart';
 import '../../services/auth_service.dart';
 import '../../utils/responsive.dart';
-import '../../routes/app_routes.dart';
 import 'dart:async';
 
 /// Whole "forgot password" flow lives on this one screen — request a

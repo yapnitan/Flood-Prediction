@@ -5,6 +5,8 @@ import '../../controllers/planner_controller.dart';
 import '../../models/emergency_contact.dart';
 import '../../services/planner_service.dart';
 import '../../utils/responsive.dart';
+import '../../utils/validators.dart';
+import '../../widgets/empty_state.dart';
 
 /// Emergency Contacts CRUD (CLAUDE.md Task 8).
 class ContactsView extends StatefulWidget {
@@ -33,6 +35,7 @@ class _ContactsViewState extends State<ContactsView> {
     final phoneController = TextEditingController(text: existing?.phoneNumber ?? '');
     final notesController = TextEditingController(text: existing?.notes ?? '');
     String? relationship = existing?.relationship;
+    String? phoneError;
 
     final saved = await showDialog<bool>(
       context: context,
@@ -52,7 +55,7 @@ class _ContactsViewState extends State<ContactsView> {
                 TextField(
                   controller: phoneController,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'Phone number'),
+                  decoration: InputDecoration(labelText: 'Phone number', errorText: phoneError),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -81,7 +84,12 @@ class _ContactsViewState extends State<ContactsView> {
               onPressed: () async {
                 final name = nameController.text.trim();
                 final phone = phoneController.text.trim();
-                if (name.isEmpty || phone.isEmpty) return;
+                if (name.isEmpty) return;
+                final error = requiredPhoneNumber(phone);
+                if (error != null) {
+                  setDialogState(() => phoneError = error);
+                  return;
+                }
                 final contact = EmergencyContact(
                   id: existing?.id,
                   name: name,
@@ -139,23 +147,10 @@ class _ContactsViewState extends State<ContactsView> {
                   }
                   final contacts = snapshot.data ?? [];
                   if (contacts.isEmpty) {
-                    return LayoutBuilder(
-                      builder: (context, constraints) => SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                          child: const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(32),
-                              child: Text(
-                                'No emergency contacts yet — tap + to add one.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+                    return const EmptyState(
+                      icon: Icons.contact_phone_outlined,
+                      title: 'No emergency contacts yet',
+                      subtitle: 'Tap + to add one.',
                     );
                   }
 
