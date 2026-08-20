@@ -88,11 +88,15 @@ class RepairRequestService {
     return data == null ? null : RepairRequest.fromJson(data);
   }
 
+  /// Rows are returned newest-first; sort by [RepairRequest.priorityRank]
+  /// (not the raw `priority` text column — alphabetically that orders
+  /// urgent/medium/low/high, not urgent>high>medium>low) is the caller's
+  /// job since this row shape also carries the joined account info that
+  /// doesn't map onto [RepairRequest].
   Future<List<Map<String, dynamic>>> getAllRequestsWithAccountInfo() async {
     final data = await _supabase
         .from(_table)
         .select('*, account:requester_id(name, email)')
-        .order('priority', ascending: false)
         .order('created_at', ascending: false);
     return List<Map<String, dynamic>>.from(data);
   }

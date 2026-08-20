@@ -27,10 +27,12 @@ class FloodReportAdminView extends StatefulWidget {
 
 class _FloodReportAdminViewState extends State<FloodReportAdminView> {
   final _controller = FloodReportController(FloodReportService());
+  final _searchController = TextEditingController();
 
   late Future<List<Map<String, dynamic>>> _reportsFuture;
   String _floodTypeFilter = 'all';
   String _waterLevelFilter = 'all';
+  String _searchQuery = '';
 
   // Same options offered on the submission form (submit_report.dart), so
   // the filter values always line up with what a report can actually have.
@@ -47,6 +49,15 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
   void initState() {
     super.initState();
     _reportsFuture = _controller.getAdminOverview();
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -76,6 +87,24 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
             ),
             child: Column(
               children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search by location, type, or description',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _searchQuery.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: _searchController.clear,
+                            ),
+                      isDense: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
                 _buildFilterBar(
                   options: _floodTypeOptions,
                   selected: _floodTypeFilter,
@@ -122,6 +151,16 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
                               )
                               .toList();
                         }
+                        if (_searchQuery.isNotEmpty) {
+                          rows = rows.where((r) {
+                            final location = (r['location_name'] as String? ?? '').toLowerCase();
+                            final description = (r['description'] as String? ?? '').toLowerCase();
+                            final floodType = (r['flood_type'] as String? ?? '').toLowerCase();
+                            return location.contains(_searchQuery) ||
+                                description.contains(_searchQuery) ||
+                                floodType.contains(_searchQuery);
+                          }).toList();
+                        }
 
                         if (rows.isEmpty) {
                           return const Center(
@@ -142,14 +181,17 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
                             return _AdminReportSummaryCard(
                               report: report,
                               reporterName: reporterName,
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => ReportDetailView(
-                                    report: report,
-                                    reporterName: reporterName,
+                              onTap: () async {
+                                await Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ReportDetailView(
+                                      report: report,
+                                      reporterName: reporterName,
+                                    ),
                                   ),
-                                ),
-                              ),
+                                );
+                                _refresh();
+                              },
                             );
                           },
                         );

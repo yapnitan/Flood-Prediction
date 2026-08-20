@@ -20,6 +20,14 @@ class NotificationSettingsArgs {
   const NotificationSettingsArgs(this.account);
 }
 
+class CreateSimulationArgs {
+  /// When set, the form opens pre-filled for editing this simulation
+  /// instead of starting a new one.
+  final FloodSimulation? existing;
+
+  const CreateSimulationArgs({this.existing});
+}
+
 class SimulationDetailArgs {
   final FloodSimulation simulation;
 

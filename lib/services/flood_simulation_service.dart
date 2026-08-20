@@ -90,6 +90,31 @@ class FloodSimulationService {
     }
   }
 
+  /// Overwrites an existing simulation's saved property/inputs/result and
+  /// replaces its factor breakdown (delete + re-insert, same shape as a
+  /// fresh [createSimulation] — factors have no independent identity worth
+  /// preserving across an edit).
+  Future<bool> updateSimulation(
+    String id,
+    FloodSimulation simulation,
+    List<SimulationFactor> factors,
+  ) async {
+    try {
+      await supabase.from(_simulationTable).update(simulation.toJson()).eq('id', id);
+
+      await supabase.from(_factorTable).delete().eq('simulation_id', id);
+      if (factors.isNotEmpty) {
+        await supabase
+            .from(_factorTable)
+            .insert(factors.map((f) => f.copyWith(simulationId: id).toJson()).toList());
+      }
+      return true;
+    } catch (e) {
+      debugPrint('FloodSimulationService.updateSimulation error: $e');
+      return false;
+    }
+  }
+
   Future<bool> deleteSimulation(String id) async {
     try {
       await supabase.from(_simulationTable).delete().eq('id', id);

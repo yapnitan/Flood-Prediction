@@ -4,6 +4,8 @@ import 'package:flood_prediction/views/shared/user_profile.dart';
 import 'package:flood_prediction/utils/responsive.dart';
 import 'package:flood_prediction/widgets/home_flood_overview.dart';
 import 'package:flood_prediction/routes/app_routes.dart';
+import 'package:flood_prediction/services/realtime_alert_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'my_repair_requests_view.dart';
 
 class UserHome extends StatefulWidget {
@@ -21,6 +23,23 @@ class _UserHomeState extends State<UserHome> {
 
   // Titles corresponding to each tab, in the same order as `pages`
   final List<String> titles = ["Flood Watch", "Submit Report", "Profile"];
+
+  @override
+  void initState() {
+    super.initState();
+    // Task 12 "aid assignment updates" — notifies this resident when one
+    // of their own repair/aid requests changes status.
+    final accountId = Supabase.instance.client.auth.currentUser?.id;
+    if (accountId != null) {
+      RealtimeAlertService.instance.watchOwnRepairRequests(accountId);
+    }
+  }
+
+  @override
+  void dispose() {
+    RealtimeAlertService.instance.stopRepairRequestWatch();
+    super.dispose();
+  }
 
   void _onNavTap(int index) {
     if (index == 1) {
@@ -148,6 +167,30 @@ class _UserHomeState extends State<UserHome> {
                   ),
 
                   const SizedBox(height: 20),
+                  // ---- Preparedness planner entry point ----
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(context, AppRoutes.planner);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.teal,
+                        side: const BorderSide(color: Colors.teal),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.checklist_outlined),
+                      label: const Text(
+                        "Preparedness Planner",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
 
                   // ---- Flood status + alert icon + current-location map +
                   //      rainfall / water level / nearby report count ----
@@ -180,17 +223,7 @@ class _UserHomeState extends State<UserHome> {
     final bool useRail = !context.isMobile;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          titles[currentIndex],
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: Colors.blue,
-          ),
-        ),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: Text(titles[currentIndex])),
 
       body: useRail
           ? Row(
@@ -199,8 +232,6 @@ class _UserHomeState extends State<UserHome> {
                   selectedIndex: currentIndex,
                   onDestinationSelected: _onNavTap,
                   labelType: NavigationRailLabelType.all,
-                  selectedIconTheme: const IconThemeData(color: Colors.blue),
-                  selectedLabelTextStyle: const TextStyle(color: Colors.blue),
                   destinations: const [
                     NavigationRailDestination(
                       icon: Icon(Icons.home),
@@ -230,9 +261,6 @@ class _UserHomeState extends State<UserHome> {
               currentIndex: currentIndex,
 
               onTap: _onNavTap,
-
-              selectedItemColor: Colors.blue,
-              unselectedItemColor: Colors.grey,
 
               items: const [
                 BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../controllers/facility_controller.dart';
 import '../../controllers/repair_request_controller.dart';
 import '../../models/repair_request.dart';
+import '../../services/facility_service.dart';
+import '../../services/realtime_alert_service.dart';
 import '../../services/repair_request_service.dart';
 import '../../utils/maps_launcher.dart';
 import '../../utils/responsive.dart';
@@ -22,6 +26,23 @@ class _HelperHomeState extends State<HelperHome> {
   final List<String> titles = ["Dashboard", "Profile"];
 
   @override
+  void initState() {
+    super.initState();
+    // Task 12 "aid assignment updates" — notifies this helper when a
+    // request is newly assigned to them.
+    final accountId = Supabase.instance.client.auth.currentUser?.id;
+    if (accountId != null) {
+      RealtimeAlertService.instance.watchAssignedTasks(accountId);
+    }
+  }
+
+  @override
+  void dispose() {
+    RealtimeAlertService.instance.stopRepairRequestWatch();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final List<Widget> pages = const [
       _HelperDashboardTab(),
@@ -31,13 +52,7 @@ class _HelperHomeState extends State<HelperHome> {
     final bool useRail = !context.isMobile;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          titles[currentIndex],
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue),
-        ),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: Text(titles[currentIndex])),
       body: useRail
           ? Row(
         children: [
@@ -45,8 +60,6 @@ class _HelperHomeState extends State<HelperHome> {
             selectedIndex: currentIndex,
             onDestinationSelected: (index) => setState(() => currentIndex = index),
             labelType: NavigationRailLabelType.all,
-            selectedIconTheme: const IconThemeData(color: Colors.blue),
-            selectedLabelTextStyle: const TextStyle(color: Colors.blue),
             destinations: const [
               NavigationRailDestination(
                 icon: Icon(Icons.dashboard_outlined),
@@ -68,8 +81,6 @@ class _HelperHomeState extends State<HelperHome> {
           : BottomNavigationBar(
         currentIndex: currentIndex,
         onTap: (index) => setState(() => currentIndex = index),
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: "Dashboard"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
@@ -90,12 +101,26 @@ class _HelperDashboardTab extends StatefulWidget {
 
 class _HelperDashboardTabState extends State<_HelperDashboardTab> {
   final _controller = RepairRequestController(RepairRequestService());
+  final _facilityController = FacilityController(FacilityService());
   late Future<List<RepairRequest>> _tasksFuture;
+
+  /// facility_id -> facility name, loaded once so task cards can show a
+  /// real shelter name instead of the raw facility_id UUID.
+  Map<String, String> _facilityNames = {};
 
   @override
   void initState() {
     super.initState();
     _tasksFuture = _controller.getMyAssignedTasks();
+    _loadFacilityNames();
+  }
+
+  Future<void> _loadFacilityNames() async {
+    final facilities = await _facilityController.getAllFacilities();
+    if (!mounted) return;
+    setState(() {
+      _facilityNames = {for (final f in facilities) if (f.id != null) f.id!: f.name};
+    });
   }
 
   Future<void> _refresh() async {
@@ -174,7 +199,13 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
                       );
                       _refresh();
                     },
-                    child: _TaskCard(request: tasks[index], onUpdateStatus: _updateStatus),
+                    child: _TaskCard(
+                      request: tasks[index],
+                      onUpdateStatus: _updateStatus,
+                      facilityName: tasks[index].facilityId != null
+                          ? _facilityNames[tasks[index].facilityId]
+                          : null,
+                    ),
                   ),
                 );
               },
@@ -217,10 +248,11 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
 }
 
 class _TaskCard extends StatelessWidget {
-  const _TaskCard({required this.request, required this.onUpdateStatus});
+  const _TaskCard({required this.request, required this.onUpdateStatus, this.facilityName});
 
   final RepairRequest request;
   final Future<void> Function(String requestId, String status) onUpdateStatus;
+  final String? facilityName;
 
   @override
   Widget build(BuildContext context) {
@@ -312,7 +344,7 @@ class _TaskCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    'Shelter: ${request.facilityId }',
+                    'Shelter: ${facilityName ?? "Loading…"}',
                     style: const TextStyle(color: Colors.grey, fontSize: 13),
                     overflow: TextOverflow.ellipsis,
                   ),

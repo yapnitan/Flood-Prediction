@@ -5,8 +5,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import 'package:app_links/app_links.dart';
 
+import 'constants/app_theme.dart';
 import 'routes/app_routes.dart';
 import 'routes/route_generator.dart';
+import 'services/notification_service.dart';
 import 'views/auth/auth_gate_view.dart';
 
 /// Lets the passwordRecovery listener below push a new screen without a
@@ -23,6 +25,8 @@ Future<void> main() async {
     url: dotenv.env['SUPABASE_URL']!,
     publishableKey: dotenv.env['SUPABASE_PUBLISHABLE_KEY']!,
   );
+
+  await NotificationService.instance.initialize();
 
   // App was cold-started BY tapping the reset link — grab it directly.
   final initialUri = await _appLinks.getInitialLink();
@@ -62,6 +66,7 @@ class MainApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
       home: const AuthGateView(),
       onGenerateRoute: RouteGenerator.generateRoute,
     );

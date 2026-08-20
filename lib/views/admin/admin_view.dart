@@ -135,17 +135,7 @@ class _AdminHomeState extends State<AdminHome> {
     final bool useRail = !context.isMobile;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          currentIndex == 2 ? _reportTitle : titles[currentIndex],
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: Colors.blue,
-          ),
-        ),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: Text(currentIndex == 2 ? _reportTitle : titles[currentIndex])),
       body: useRail
           ? Row(
               children: [
@@ -153,8 +143,6 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedIndex: currentIndex,
                   onDestinationSelected: _onNavTap,
                   labelType: NavigationRailLabelType.all,
-                  selectedIconTheme: const IconThemeData(color: Colors.blue),
-                  selectedLabelTextStyle: const TextStyle(color: Colors.blue),
                   destinations: [
                     const NavigationRailDestination(
                       icon: Icon(Icons.dashboard_outlined),
@@ -189,8 +177,6 @@ class _AdminHomeState extends State<AdminHome> {
               currentIndex: currentIndex,
               onTap: _onNavTap,
               type: BottomNavigationBarType.fixed,
-              selectedItemColor: Colors.blue,
-              unselectedItemColor: Colors.grey,
               items: [
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.dashboard_outlined),

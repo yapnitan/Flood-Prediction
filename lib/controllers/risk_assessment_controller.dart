@@ -131,6 +131,104 @@ class RiskAssessmentController {
     );
   }
 
+  /// Same pipeline as [runAssessment] (re-gathers historical/terrain/weather
+  /// data, since the property's location or protections may have changed),
+  /// but overwrites [simulationId] instead of inserting a new row.
+  Future<SimulationOutcome> updateAssessment({
+    required String simulationId,
+    required String propertyName,
+    required String structureType,
+    required double latitude,
+    required double longitude,
+    required String state,
+    required String district,
+    double? userElevationMeters,
+    bool hasFloodBarriers = false,
+    bool hasRaisedFoundation = false,
+  }) async {
+    final accountId = Supabase.instance.client.auth.currentUser?.id;
+    if (accountId == null) {
+      return SimulationOutcome(
+        simulation: null,
+        factors: [],
+        recommendations: [],
+        error: 'You must be logged in to update an assessment.',
+      );
+    }
+
+    final nearbyFloods = await historicalFloodController.getNearby(
+      latitude: latitude,
+      longitude: longitude,
+      radiusKm: 20,
+    );
+
+    final terrain = await environmentController.getTerrain(
+      latitude: latitude,
+      longitude: longitude,
+    );
+
+    final baselineCoord = MalaysiaGeocoder.centroidFor(state: state, district: district);
+    final baselineTerrain = baselineCoord != null
+        ? await environmentController.getTerrain(
+            latitude: baselineCoord.$1,
+            longitude: baselineCoord.$2,
+          )
+        : null;
+
+    final weather = await environmentController.getWeather(
+      latitude: latitude,
+      longitude: longitude,
+    );
+
+    final propertyElevation = userElevationMeters ?? terrain?.elevationMeters;
+
+    final result = riskAssessmentService.assess(
+      RiskAssessmentInput(
+        nearbyFloodCount: nearbyFloods.length,
+        propertyElevationMeters: propertyElevation,
+        baselineElevationMeters: baselineTerrain?.elevationMeters,
+        structureType: structureType,
+        hasFloodBarriers: hasFloodBarriers,
+        hasRaisedFoundation: hasRaisedFoundation,
+      ),
+    );
+
+    final simulation = FloodSimulation(
+      id: simulationId,
+      accountId: accountId,
+      propertyName: propertyName,
+      structureType: structureType,
+      latitude: latitude,
+      longitude: longitude,
+      state: state,
+      district: district,
+      userElevationMeters: userElevationMeters,
+      terrainElevationMeters: terrain?.elevationMeters,
+      baselineElevationMeters: baselineTerrain?.elevationMeters,
+      hasFloodBarriers: hasFloodBarriers,
+      hasRaisedFoundation: hasRaisedFoundation,
+      nearbyFloodCount: nearbyFloods.length,
+      currentWeatherSummary: weather != null
+          ? '${weather.description}, ${weather.temperatureCelsius.toStringAsFixed(1)}°C, ${weather.rainfallMm.toStringAsFixed(1)}mm rain'
+          : null,
+      riskScore: result.score,
+      riskLevel: result.level,
+    );
+
+    final saved = await floodSimulationService.updateSimulation(
+      simulationId,
+      simulation,
+      result.factors,
+    );
+
+    return SimulationOutcome(
+      simulation: saved ? simulation : null,
+      factors: result.factors,
+      recommendations: result.recommendations,
+      error: saved ? null : 'Failed to update the assessment.',
+    );
+  }
+
   Future<List<FloodSimulation>> listSimulations() async {
     final accountId = Supabase.instance.client.auth.currentUser?.id;
     if (accountId == null) return [];

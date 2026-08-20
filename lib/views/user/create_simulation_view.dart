@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
+import '../../models/flood_simulation.dart';
 import '../../controllers/risk_assessment_controller.dart';
 import '../../controllers/historical_flood_controller.dart';
 import '../../controllers/environment_controller.dart';
@@ -12,10 +15,15 @@ import '../../utils/malaysia_geocoding.dart';
 import '../../utils/responsive.dart';
 import '../../routes/app_routes.dart';
 import '../../routes/route_arguments.dart';
+import '../../services/notification_service.dart';
 import 'pick_property_location_view.dart';
 
 class CreateSimulationView extends StatefulWidget {
-  const CreateSimulationView({super.key});
+  /// When set, the form opens pre-filled to edit this simulation instead
+  /// of starting a fresh assessment.
+  final FloodSimulation? existing;
+
+  const CreateSimulationView({super.key, this.existing});
 
   @override
   State<CreateSimulationView> createState() => _CreateSimulationViewState();
@@ -28,13 +36,30 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
   final _longitudeController = TextEditingController();
   final _elevationController = TextEditingController();
 
-  String _structureType = RiskAssessmentService.structureTypeOptions.first;
-  String _state = MalaysiaGeocoder.states.first;
-  bool _hasFloodBarriers = false;
-  bool _hasRaisedFoundation = false;
+  late String _structureType;
+  late String _state;
+  late bool _hasFloodBarriers;
+  late bool _hasRaisedFoundation;
 
   bool _isSubmitting = false;
   String _errorMessage = '';
+
+  bool get _isEditing => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    _propertyNameController.text = existing?.propertyName ?? '';
+    _districtController.text = existing?.district ?? '';
+    _latitudeController.text = existing?.latitude.toStringAsFixed(6) ?? '';
+    _longitudeController.text = existing?.longitude.toStringAsFixed(6) ?? '';
+    _elevationController.text = existing?.userElevationMeters?.toString() ?? '';
+    _structureType = existing?.structureType ?? RiskAssessmentService.structureTypeOptions.first;
+    _state = existing?.state ?? MalaysiaGeocoder.states.first;
+    _hasFloodBarriers = existing?.hasFloodBarriers ?? false;
+    _hasRaisedFoundation = existing?.hasRaisedFoundation ?? false;
+  }
 
   Future<void> _pickLocationOnMap() async {
     final current = double.tryParse(_latitudeController.text.trim());
@@ -87,17 +112,31 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
       _errorMessage = '';
     });
 
-    final outcome = await _riskAssessmentController.runAssessment(
-      propertyName: propertyName,
-      structureType: _structureType,
-      latitude: latitude,
-      longitude: longitude,
-      state: _state,
-      district: district,
-      userElevationMeters: userElevation,
-      hasFloodBarriers: _hasFloodBarriers,
-      hasRaisedFoundation: _hasRaisedFoundation,
-    );
+    final existingId = widget.existing?.id;
+    final outcome = existingId != null
+        ? await _riskAssessmentController.updateAssessment(
+            simulationId: existingId,
+            propertyName: propertyName,
+            structureType: _structureType,
+            latitude: latitude,
+            longitude: longitude,
+            state: _state,
+            district: district,
+            userElevationMeters: userElevation,
+            hasFloodBarriers: _hasFloodBarriers,
+            hasRaisedFoundation: _hasRaisedFoundation,
+          )
+        : await _riskAssessmentController.runAssessment(
+            propertyName: propertyName,
+            structureType: _structureType,
+            latitude: latitude,
+            longitude: longitude,
+            state: _state,
+            district: district,
+            userElevationMeters: userElevation,
+            hasFloodBarriers: _hasFloodBarriers,
+            hasRaisedFoundation: _hasRaisedFoundation,
+          );
 
     if (!mounted) return;
 
@@ -108,6 +147,15 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
       });
       return;
     }
+
+    // Task 12 "simulation completion" notification — fired here rather
+    // than waited-on, so it doesn't delay navigating to the result.
+    unawaited(NotificationService.instance.showNow(
+      id: NotificationService.idSimulationCompletion,
+      title: _isEditing ? 'Assessment updated' : 'Risk assessment complete',
+      body:
+          '${outcome.simulation!.propertyName}: ${outcome.simulation!.riskLevel} risk (${outcome.simulation!.riskScore.toStringAsFixed(0)}/100).',
+    ));
 
     Navigator.pushReplacementNamed(
       context,
@@ -134,8 +182,7 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Risk Assessment'),
-        centerTitle: true,
+        title: Text(_isEditing ? 'Edit Risk Assessment' : 'New Risk Assessment'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -297,9 +344,9 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text(
-                              'Run Assessment',
-                              style: TextStyle(
+                          : Text(
+                              _isEditing ? 'Update Assessment' : 'Run Assessment',
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,

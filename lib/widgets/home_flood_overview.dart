@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -16,6 +17,8 @@ import '../services/facility_service.dart';
 import '../services/flood_report_service.dart';
 import '../services/historical_flood_service.dart';
 import '../services/location_service.dart';
+import '../services/notification_service.dart';
+import '../services/realtime_alert_service.dart';
 import '../services/terrain_service.dart';
 import '../services/weather_service.dart';
 import '../utils/geo_utils.dart';
@@ -69,10 +72,21 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
   List<FloodReport> _nearbyReports = const [];
   bool _isLoadingAreaRisk = true;
 
+  /// Task 12 "weather warnings" — notifies once when rainfall crosses this
+  /// threshold, not on every refresh while it stays high.
+  static const double _heavyRainfallThresholdMm = 20;
+  bool _heavyRainfallWarned = false;
+
   @override
   void initState() {
     super.initState();
     _loadAll();
+  }
+
+  @override
+  void dispose() {
+    RealtimeAlertService.instance.stopFloodReportWatch();
+    super.dispose();
   }
 
   Future<void> _loadAll() async {
@@ -120,6 +134,14 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
       if (mounted) setState(() => _isLoadingAreaRisk = false);
       return;
     }
+
+    // Task 12 "nearby flood reports" — arms a session-based Realtime watch
+    // around the user's current location once it's known.
+    RealtimeAlertService.instance.watchNearbyFloodReports(
+      latitude: position.latitude,
+      longitude: position.longitude,
+    );
+
     final assessment = await _areaRiskController.assessCurrentLocation(
       latitude: position.latitude,
       longitude: position.longitude,
@@ -131,6 +153,22 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
       _nearbyReports = assessment.nearbyReports;
       _isLoadingAreaRisk = false;
     });
+
+    _checkWeatherWarning(assessment.currentRainfallMm);
+  }
+
+  void _checkWeatherWarning(double? rainfallMm) {
+    final isHeavy = rainfallMm != null && rainfallMm >= _heavyRainfallThresholdMm;
+    if (isHeavy && !_heavyRainfallWarned) {
+      _heavyRainfallWarned = true;
+      NotificationService.instance.showNow(
+        id: NotificationService.idWeatherWarning,
+        title: 'Heavy rainfall warning',
+        body: '${rainfallMm.toStringAsFixed(1)}mm of rain recorded near your current location.',
+      );
+    } else if (!isHeavy) {
+      _heavyRainfallWarned = false;
+    }
   }
 
   /// Re-fetches report markers and recomputes the area risk badge, reusing
@@ -505,6 +543,47 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                             'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.example.flood_prediction',
                       ),
+                      // Reports are clustered — a busy area can have many
+                      // overlapping pins at low zoom, so group them into a
+                      // count bubble that expands as the user zooms in.
+                      MarkerClusterLayerWidget(
+                        options: MarkerClusterLayerOptions(
+                          maxClusterRadius: 45,
+                          size: const Size(36, 36),
+                          markers: _reports
+                              .map(
+                                (report) => Marker(
+                                  point: LatLng(report.latitude, report.longitude),
+                                  width: 36,
+                                  height: 36,
+                                  child: GestureDetector(
+                                    onTap: () => _showReportInfo(report),
+                                    child: const Icon(
+                                      Icons.location_on,
+                                      color: Colors.red,
+                                      size: 32,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          builder: (context, markers) => Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${markers.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                       MarkerLayer(
                         markers: [
                           if (_currentLocation != null)
@@ -518,21 +597,6 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                                 size: 32,
                               ),
                             ),
-                          ..._reports.map(
-                            (report) => Marker(
-                              point: LatLng(report.latitude, report.longitude),
-                              width: 36,
-                              height: 36,
-                              child: GestureDetector(
-                                onTap: () => _showReportInfo(report),
-                                child: const Icon(
-                                  Icons.location_on,
-                                  color: Colors.red,
-                                  size: 32,
-                                ),
-                              ),
-                            ),
-                          ),
                           ..._evacuationCenters.map(
                             (center) => Marker(
                               point: LatLng(center.latitude, center.longitude),

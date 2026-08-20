@@ -1,36 +1,150 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../controllers/flood_report_controller.dart';
 import '../../models/flood_report.dart';
 import '../../services/flood_report_service.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/photo_gallery_viewer.dart';
 import '../../widgets/review_card.dart';
 import '../../widgets/status_badge.dart';
+import 'submit_report.dart';
 
 /// Full detail view for a single flood report, opened by tapping a card in
 /// [ReportHistoryView] (the reporting user) or the admin flood report list
-/// (`FloodReportAdminView`). Read-only — the report itself is already in
-/// memory, so this just lays it out in full plus the uploaded evidence
-/// photos.
-class ReportDetailView extends StatelessWidget {
+/// (`FloodReportAdminView`). Mostly a read-only layout plus the uploaded
+/// evidence photos, but also hosts edit/delete for the report's own
+/// reporter (while still `submitted`) and verify/unverify for admins.
+class ReportDetailView extends StatefulWidget {
   const ReportDetailView({super.key, required this.report, this.reporterName});
 
   final FloodReport report;
 
   /// Only passed by the admin view, which already has it from the
   /// reporter-account join — the reporting user obviously knows it's their
-  /// own report, so [ReportHistoryView] never needs to pass this.
+  /// own report, so [ReportHistoryView] never needs to pass this. Doubles
+  /// as the "am I looking at this as an admin" flag.
   final String? reporterName;
 
   @override
+  State<ReportDetailView> createState() => _ReportDetailViewState();
+}
+
+class _ReportDetailViewState extends State<ReportDetailView> {
+  final _controller = FloodReportController(FloodReportService());
+  final _service = FloodReportService();
+
+  late FloodReport _report;
+  bool _isBusy = false;
+
+  bool get _isAdminViewer => widget.reporterName != null;
+  bool get _isOwner =>
+      _report.reporterId != null &&
+      _report.reporterId == Supabase.instance.client.auth.currentUser?.id;
+  bool get _canEditOrDelete => _isOwner && _report.status == 'submitted';
+
+  @override
+  void initState() {
+    super.initState();
+    _report = widget.report;
+  }
+
+  Future<void> _edit() async {
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => SubmitReportPage(existing: _report)),
+    );
+    if (updated != true || !mounted) return;
+    setState(() => _isBusy = true);
+    final fresh = await _controller.getById(_report.id!);
+    if (!mounted) return;
+    setState(() {
+      _isBusy = false;
+      if (fresh != null) _report = fresh;
+    });
+  }
+
+  Future<void> _delete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete this report?'),
+        content: const Text('This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isBusy = true);
+    final ok = await _controller.deleteReport(_report.id!);
+    if (!mounted) return;
+    if (ok) {
+      Navigator.of(context).pop(true);
+    } else {
+      setState(() => _isBusy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not delete the report. Please try again.')),
+      );
+    }
+  }
+
+  Future<void> _toggleVerified() async {
+    setState(() => _isBusy = true);
+    final verified = _report.status != 'verified';
+    final ok = await _controller.setVerified(_report.id!, verified);
+    if (!mounted) return;
+    setState(() {
+      _isBusy = false;
+      if (ok) _report = _report.copyWith(status: verified ? 'verified' : 'submitted');
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final service = FloodReportService();
+    final report = _report;
+    final service = _service;
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Report Details'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('Report Details'),
+        centerTitle: true,
+        actions: [
+          if (_isAdminViewer)
+            IconButton(
+              tooltip: report.status == 'verified' ? 'Unverify' : 'Verify',
+              icon: Icon(
+                report.status == 'verified' ? Icons.verified : Icons.verified_outlined,
+                color: report.status == 'verified' ? Colors.teal : null,
+              ),
+              onPressed: _isBusy ? null : _toggleVerified,
+            ),
+          if (_canEditOrDelete) ...[
+            IconButton(
+              tooltip: 'Edit report',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: _isBusy ? null : _edit,
+            ),
+            IconButton(
+              tooltip: 'Delete report',
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              onPressed: _isBusy ? null : _delete,
+            ),
+          ],
+        ],
+      ),
       body: SafeArea(
-        child: Center(
+        child: AbsorbPointer(
+          absorbing: _isBusy,
+          child: Stack(
+            children: [
+              Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: context.responsive(
@@ -60,8 +174,8 @@ class ReportDetailView extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  if (reporterName != null && reporterName!.isNotEmpty)
-                    ReviewCard(title: 'Reported by', value: reporterName!),
+                  if (widget.reporterName != null && widget.reporterName!.isNotEmpty)
+                    ReviewCard(title: 'Reported by', value: widget.reporterName!),
                   ReviewCard(title: 'Location', value: report.locationName),
                   ReviewCard(title: 'Water level', value: report.waterLevel),
                   ReviewCard(
@@ -116,8 +230,8 @@ class ReportDetailView extends StatelessWidget {
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: urls.length,
                           gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: context.responsive(mobile: 3, tablet: 4, desktop: 5),
                                 crossAxisSpacing: 10,
                                 mainAxisSpacing: 10,
                               ),
@@ -154,6 +268,16 @@ class ReportDetailView extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+              ),
+              if (_isBusy)
+                const Positioned.fill(
+                  child: ColoredBox(
+                    color: Color(0x33000000),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ),
+            ],
           ),
         ),
       ),

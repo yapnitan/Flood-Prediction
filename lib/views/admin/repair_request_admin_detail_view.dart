@@ -7,6 +7,7 @@ import '../../models/facility.dart';
 import '../../models/repair_request.dart';
 import '../../services/facility_service.dart';
 import '../../utils/maps_launcher.dart';
+import '../../utils/responsive.dart';
 import '../../widgets/add_new_dropdown_item.dart';
 import '../../widgets/assistance_details_view.dart';
 import '../../widgets/mini_map.dart';
@@ -188,7 +189,12 @@ class _RepairRequestAdminDetailViewState extends State<RepairRequestAdminDetailV
             children: [
               SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
-                child: Column(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
+                    ),
+                    child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
@@ -319,6 +325,8 @@ class _RepairRequestAdminDetailViewState extends State<RepairRequestAdminDetailV
 
                     const SizedBox(height: 20),
                   ],
+                    ),
+                  ),
                 ),
               ),
               if (_isBusy)

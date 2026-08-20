@@ -19,12 +19,26 @@ class ReportHistoryView extends StatefulWidget {
 
 class _ReportHistoryViewState extends State<ReportHistoryView> {
   final _controller = FloodReportController(FloodReportService());
+  final _searchController = TextEditingController();
   late Future<List<FloodReport>> _reportsFuture;
+
+  String _searchQuery = '';
+  String _waterLevelFilter = 'All';
+  static const _waterLevelOptions = ['All', 'Low', 'Medium', 'High'];
 
   @override
   void initState() {
     super.initState();
     _reportsFuture = _controller.getMyReports();
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -35,6 +49,16 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
       _reportsFuture = _controller.getMyReports();
     });
     await _reportsFuture;
+  }
+
+  List<FloodReport> _applyFilters(List<FloodReport> reports) {
+    return reports.where((r) {
+      if (_waterLevelFilter != 'All' && r.waterLevel != _waterLevelFilter) return false;
+      if (_searchQuery.isEmpty) return true;
+      return r.locationName.toLowerCase().contains(_searchQuery) ||
+          r.description.toLowerCase().contains(_searchQuery) ||
+          r.floodType.toLowerCase().contains(_searchQuery);
+    }).toList();
   }
 
   @override
@@ -52,48 +76,93 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
                 desktop: 900,
               ),
             ),
-            child: RefreshIndicator(
-              onRefresh: _refresh,
-              child: FutureBuilder<List<FloodReport>>(
-                future: _reportsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (snapshot.hasError) {
-                    return _buildMessage(
-                      icon: Icons.error_outline,
-                      text:
-                          'Could not load your report history. Pull down to try again.',
-                    );
-                  }
-
-                  final reports = snapshot.data ?? [];
-                  if (reports.isEmpty) {
-                    return _buildMessage(
-                      icon: Icons.inbox_outlined,
-                      text: 'No reports found.',
-                    );
-                  }
-
-                  return ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: reports.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 12),
-                    itemBuilder: (context, index) => _ReportCard(
-                      report: reports[index],
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              ReportDetailView(report: reports[index]),
-                        ),
-                      ),
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search by location, type, or description',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _searchQuery.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: _searchController.clear,
+                            ),
+                      isDense: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                  );
-                },
-              ),
+                  ),
+                ),
+                SizedBox(
+                  height: 48,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _waterLevelOptions.length,
+                    separatorBuilder: (context, index) => const SizedBox(width: 8),
+                    itemBuilder: (context, index) {
+                      final level = _waterLevelOptions[index];
+                      final selected = _waterLevelFilter == level;
+                      return ChoiceChip(
+                        label: Text(level == 'All' ? 'All water levels' : level),
+                        selected: selected,
+                        onSelected: (_) => setState(() => _waterLevelFilter = level),
+                      );
+                    },
+                  ),
+                ),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: FutureBuilder<List<FloodReport>>(
+                      future: _reportsFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+
+                        if (snapshot.hasError) {
+                          return _buildMessage(
+                            icon: Icons.error_outline,
+                            text:
+                                'Could not load your report history. Pull down to try again.',
+                          );
+                        }
+
+                        final reports = _applyFilters(snapshot.data ?? []);
+                        if (reports.isEmpty) {
+                          return _buildMessage(
+                            icon: Icons.inbox_outlined,
+                            text: 'No reports found.',
+                          );
+                        }
+
+                        return ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: reports.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, index) => _ReportCard(
+                            report: reports[index],
+                            onTap: () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      ReportDetailView(report: reports[index]),
+                                ),
+                              );
+                              _refresh();
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

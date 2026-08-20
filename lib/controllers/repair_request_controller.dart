@@ -50,8 +50,18 @@ class RepairRequestController {
 
   /// For Admin
 
-  Future<List<Map<String, dynamic>>> getAdminOverview() {
-    return repairRequestService.getAllRequestsWithAccountInfo();
+  /// Newest-first from the service, re-sorted here by
+  /// [RepairRequest.priorityRank] so urgent requests always surface above
+  /// high/medium/low — sorting by the raw `priority` text column in SQL
+  /// would order them alphabetically instead (urgent, medium, low, high).
+  Future<List<Map<String, dynamic>>> getAdminOverview() async {
+    final rows = await repairRequestService.getAllRequestsWithAccountInfo();
+    rows.sort((a, b) {
+      final rankA = RepairRequest.priorityRank[a['priority']] ?? RepairRequest.priorityRank.length;
+      final rankB = RepairRequest.priorityRank[b['priority']] ?? RepairRequest.priorityRank.length;
+      return rankA.compareTo(rankB);
+    });
+    return rows;
   }
 
   Future<void> approveRequest(String requestId) async {

@@ -3,6 +3,7 @@ import '../../constants/nearby_locations.dart';
 import '../../controllers/facility_controller.dart';
 import '../../models/facility.dart';
 import '../../services/location_service.dart';
+import '../../utils/responsive.dart';
 import '../../widgets/selectable_chip.dart';
 
 class FacilityFormView extends StatefulWidget {
@@ -205,7 +206,12 @@ class _FacilityFormViewState extends State<FacilityFormView> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
-          child: Form(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
+              ),
+              child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,7 +260,10 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                       borderRadius: BorderRadius.circular(10),
                       color: Colors.white,
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 250, maxWidth: 600),
+                        constraints: BoxConstraints(
+                          maxHeight: 250,
+                          maxWidth: context.responsive(mobile: 320, tablet: 480, desktop: 600),
+                        ),
                         child: ListView(
                           padding: EdgeInsets.zero,
                           shrinkWrap: true,
@@ -366,6 +375,8 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                   ),
                 ),
               ],
+            ),
+              ),
             ),
           ),
         ),

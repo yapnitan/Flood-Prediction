@@ -7,6 +7,7 @@ import '../../models/facility.dart';
 import '../../models/repair_request.dart';
 import '../../services/facility_service.dart';
 import '../../utils/maps_launcher.dart';
+import '../../utils/responsive.dart';
 import '../../widgets/assistance_details_view.dart';
 import '../../widgets/mini_map.dart';
 import '../../widgets/network_photo_thumbnail.dart';
@@ -81,7 +82,12 @@ class _RepairRequestHelperDetailViewState extends State<RepairRequestHelperDetai
             children: [
               SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
-                child: Column(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
+                    ),
+                    child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
@@ -202,8 +208,8 @@ class _RepairRequestHelperDetailViewState extends State<RepairRequestHelperDetai
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: request.photoPaths.length,
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: context.responsive(mobile: 3, tablet: 4, desktop: 5),
                           crossAxisSpacing: 10,
                           mainAxisSpacing: 10,
                         ),
@@ -245,6 +251,8 @@ class _RepairRequestHelperDetailViewState extends State<RepairRequestHelperDetai
                           ],
                         ),
                   ],
+                    ),
+                  ),
                 ),
               ),
               if (_isBusy)

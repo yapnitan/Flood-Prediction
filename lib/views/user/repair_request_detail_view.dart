@@ -245,8 +245,8 @@ class _RepairRequestDetailViewState extends State<RepairRequestDetailView> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: request.photoPaths.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: context.responsive(mobile: 3, tablet: 4, desktop: 5),
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
               ),

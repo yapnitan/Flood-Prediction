@@ -66,4 +66,22 @@ class FloodReport {
     'contact_number': contactNumber,
     'photo_paths': photoPaths,
   };
+
+  FloodReport copyWith({String? status}) {
+    return FloodReport(
+      id: id,
+      reporterId: reporterId,
+      locationName: locationName,
+      latitude: latitude,
+      longitude: longitude,
+      floodType: floodType,
+      waterLevel: waterLevel,
+      observedAt: observedAt,
+      description: description,
+      contactNumber: contactNumber,
+      photoPaths: photoPaths,
+      status: status ?? this.status,
+      createdAt: createdAt,
+    );
+  }
 }

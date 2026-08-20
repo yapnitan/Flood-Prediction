@@ -11,9 +11,14 @@ import '../../widgets/selectable_chip.dart';
 import '../../widgets/step_indicator.dart';
 
 class SubmitReportPage extends StatefulWidget {
-  const SubmitReportPage({super.key, this.onSubmissionComplete});
+  const SubmitReportPage({super.key, this.onSubmissionComplete, this.existing});
 
   final VoidCallback? onSubmissionComplete;
+
+  /// When set, the wizard opens pre-filled to edit this report instead of
+  /// starting a fresh submission, and shows its own AppBar (this page is
+  /// normally embedded as a tab in UserHome without one).
+  final FloodReport? existing;
 
   @override
   State<SubmitReportPage> createState() => _SubmitReportState();
@@ -56,6 +61,26 @@ class _SubmitReportState extends State<SubmitReportPage> {
     {"label": "Medium", "sub": "(10 - 30 cm)"},
     {"label": "High", "sub": "(> 30 cm)"},
   ];
+
+  bool get _isEditing => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    if (existing == null) return;
+    selectedFloodType = existing.floodType;
+    selectedWaterLevel = existing.waterLevel;
+    _locationNameController.text = existing.locationName;
+    _selectedLatitude = existing.latitude;
+    _selectedLongitude = existing.longitude;
+    _observedAt = existing.observedAt;
+    _dateTimeController.text =
+        '${existing.observedAt.day.toString().padLeft(2, '0')}/${existing.observedAt.month.toString().padLeft(2, '0')}/${existing.observedAt.year} '
+        '${TimeOfDay.fromDateTime(existing.observedAt).format(context)}';
+    _descriptionController.text = existing.description;
+    _contactController.text = existing.contactNumber ?? '';
+  }
 
   @override
   void dispose() {
@@ -230,27 +255,35 @@ class _SubmitReportState extends State<SubmitReportPage> {
     if (_isSubmitting || _isSubmitted) return;
 
     setState(() => _isSubmitting = true);
-    final submitted = await _floodReportService.submit(
-      FloodReport(
-        locationName: _locationNameController.text.trim(),
-        latitude: _selectedLatitude ?? 3.1390,
-        longitude: _selectedLongitude ?? 101.6869,
-        floodType: selectedFloodType!,
-        waterLevel: selectedWaterLevel!,
-        observedAt: _observedAt!,
-        description: _descriptionController.text.trim(),
-        contactNumber: _contactController.text.trim().isEmpty
-            ? null
-            : _contactController.text.trim(),
-      ),
-      _photos,
+
+    final report = FloodReport(
+      locationName: _locationNameController.text.trim(),
+      latitude: _selectedLatitude ?? 3.1390,
+      longitude: _selectedLongitude ?? 101.6869,
+      floodType: selectedFloodType!,
+      waterLevel: selectedWaterLevel!,
+      observedAt: _observedAt!,
+      description: _descriptionController.text.trim(),
+      contactNumber: _contactController.text.trim().isEmpty
+          ? null
+          : _contactController.text.trim(),
     );
+
+    final existingId = widget.existing?.id;
+    final submitted = existingId != null
+        ? await _floodReportService.updateReport(
+            existingId,
+            report,
+            widget.existing!.photoPaths,
+            _photos,
+          )
+        : await _floodReportService.submit(report, _photos);
     if (!mounted) return;
 
     setState(() {
       _isSubmitting = false;
       if (submitted) {
-        _resetForm();
+        if (!_isEditing) _resetForm();
         _currentStep = 4;
         _isSubmitted = true;
       }
@@ -260,8 +293,10 @@ class _SubmitReportState extends State<SubmitReportPage> {
       SnackBar(
         content: Text(
           submitted
-              ? 'Your flood report has been submitted.'
-              : 'Could not submit the report. Please try again.',
+              ? (_isEditing
+                  ? 'Your flood report has been updated.'
+                  : 'Your flood report has been submitted.')
+              : 'Could not save the report. Please try again.',
         ),
       ),
     );
@@ -283,6 +318,10 @@ class _SubmitReportState extends State<SubmitReportPage> {
   }
 
   void _completeSubmission() {
+    if (_isEditing) {
+      Navigator.of(context).pop(true);
+      return;
+    }
     setState(_resetForm);
     widget.onSubmissionComplete?.call();
   }
@@ -340,7 +379,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-
+      appBar: _isEditing ? AppBar(title: const Text('Edit Report')) : null,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -428,16 +467,16 @@ class _SubmitReportState extends State<SubmitReportPage> {
                             ),
                             child: Text(
                               _isSubmitting
-                                  ? 'Submitting...'
+                                  ? (_isEditing ? 'Saving...' : 'Submitting...')
                                   : _isSubmitted
-                                  ? 'Submitted'
+                                  ? (_isEditing ? 'Saved' : 'Submitted')
                                   : _currentStep == 1
                                   ? 'Next'
                                   : _currentStep == 2
                                   ? 'Next: Photos'
                                   : _currentStep == 3
                                   ? 'Review Report'
-                                  : 'Submit Report',
+                                  : (_isEditing ? 'Save Changes' : 'Submit Report'),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -713,9 +752,12 @@ class _SubmitReportState extends State<SubmitReportPage> {
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Photos help responders verify the report. They are optional.',
-          style: TextStyle(color: Colors.grey),
+        Text(
+          _isEditing
+              ? 'This report already has ${widget.existing!.photoPaths.length} photo(s) attached. '
+                  'Existing photos are kept — anything you add below is appended to them.'
+              : 'Photos help responders verify the report. They are optional.',
+          style: const TextStyle(color: Colors.grey),
         ),
         const SizedBox(height: 20),
         OutlinedButton.icon(
@@ -749,8 +791,8 @@ class _SubmitReportState extends State<SubmitReportPage> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: _photos.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: context.responsive(mobile: 3, tablet: 4, desktop: 5),
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
             ),
@@ -777,12 +819,16 @@ class _SubmitReportState extends State<SubmitReportPage> {
                 size: 72,
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Report submitted',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              Text(
+                _isEditing ? 'Report updated' : 'Report submitted',
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              const Text('Thank you for helping keep your community informed.'),
+              Text(
+                _isEditing
+                    ? 'Your changes have been saved.'
+                    : 'Thank you for helping keep your community informed.',
+              ),
               const SizedBox(height: 24),
               SizedBox(
                 width: 180,
@@ -805,12 +851,12 @@ class _SubmitReportState extends State<SubmitReportPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Review Your Report',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        Text(
+          _isEditing ? 'Review Your Changes' : 'Review Your Report',
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        const Text('Check the details below before submitting.'),
+        Text(_isEditing ? 'Check the details below before saving.' : 'Check the details below before submitting.'),
         const SizedBox(height: 20),
         ReviewCard(
           title: 'Location',
