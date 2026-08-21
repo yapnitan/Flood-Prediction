@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../constants/nearby_locations.dart';
+import '../../controllers/flood_report_controller.dart';
 import '../../models/flood_report.dart';
 import '../../services/flood_report_service.dart';
 import '../../services/location_service.dart';
@@ -45,7 +46,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
   final TextEditingController _contactController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
   final List<XFile> _photos = [];
-  final FloodReportService _floodReportService = FloodReportService();
+  final FloodReportController _controller = FloodReportController(FloodReportService());
   DateTime? _observedAt;
   bool _isSubmitting = false;
   bool _isSubmitted = false;
@@ -260,13 +261,13 @@ class _SubmitReportState extends State<SubmitReportPage> {
 
     final existingId = widget.existing?.id;
     final submitted = existingId != null
-        ? await _floodReportService.updateReport(
+        ? await _controller.updateReport(
             existingId,
             report,
             widget.existing!.photoPaths,
             _photos,
           )
-        : await _floodReportService.submit(report, _photos);
+        : await _controller.submit(report, _photos);
     if (!mounted) return;
 
     setState(() {
