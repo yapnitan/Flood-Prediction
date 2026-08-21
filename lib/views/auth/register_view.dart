@@ -334,8 +334,9 @@ class _RegisterViewState extends State<RegistrationPage> {
         ),
 
         const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             const Text("Already have an account?"),
             TextButton(onPressed: backToLogin, child: const Text("Login")),

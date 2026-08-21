@@ -380,18 +380,34 @@ class _ProfileHeader extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 10),
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: context.screenWidth * 0.8,
+                  ),
+                  child: Text(
+                    name,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  email,
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: context.screenWidth * 0.8,
+                  ),
+                  child: Text(
+                    email,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  ),
                 ),
               ],
             ),

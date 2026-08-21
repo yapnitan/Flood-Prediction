@@ -39,12 +39,16 @@ class PriorityBadge extends StatelessWidget {
         children: [
           Icon(Icons.flag, size: dense ? 11 : 13, color: color),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: dense ? 11 : 12,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: dense ? 11 : 12,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

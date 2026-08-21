@@ -400,9 +400,15 @@ class _RepairRequestAdminDetailViewState extends State<RepairRequestAdminDetailV
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
           initialValue: _helpers.any((h) => h.id == assignedHelperId) ? assignedHelperId : null,
+          isExpanded: true,
           decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
           items: [
-            ..._helpers.map((h) => DropdownMenuItem(value: h.id, child: Text(h.name))),
+            ..._helpers.map(
+              (h) => DropdownMenuItem(
+                value: h.id,
+                child: Text(h.name, overflow: TextOverflow.ellipsis),
+              ),
+            ),
             addNewMenuItem('Add Helper'),
           ],
           onChanged: (value) {
@@ -428,11 +434,17 @@ class _RepairRequestAdminDetailViewState extends State<RepairRequestAdminDetailV
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Assign $facilityTypeLabel', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            Expanded(
+              child: Text(
+                'Assign $facilityTypeLabel',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             TextButton.icon(
               onPressed: _addFacility,
               icon: const Icon(Icons.add_circle_outline, size: 16),
-              label: Text('Add $facilityTypeLabel'),
+              label: Text('Add $facilityTypeLabel', overflow: TextOverflow.ellipsis),
               style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
             ),
           ],

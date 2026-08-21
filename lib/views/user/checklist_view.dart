@@ -250,7 +250,12 @@ class _ChecklistCardState extends State<_ChecklistCard> {
       ),
       child: ExpansionTile(
         shape: const Border(),
-        title: Text(widget.checklist.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Text(
+          widget.checklist.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         trailing: PopupMenuButton<String>(
           onSelected: (value) {
             if (value == 'rename') widget.onRename();
@@ -279,6 +284,8 @@ class _ChecklistCardState extends State<_ChecklistCard> {
                       value: item.isChecked,
                       title: Text(
                         item.label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: item.isChecked
                             ? const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.grey)
                             : null,

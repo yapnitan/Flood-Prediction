@@ -229,32 +229,49 @@ class _UserHomeState extends State<UserHome> {
       appBar: AppBar(title: Text(titles[currentIndex])),
 
       body: useRail
-          ? Row(
-              children: [
-                NavigationRail(
-                  selectedIndex: currentIndex,
-                  onDestinationSelected: _onNavTap,
-                  labelType: NavigationRailLabelType.all,
-                  destinations: const [
-                    NavigationRailDestination(
-                      icon: Icon(Icons.home),
-                      label: Text("Home"),
+          ? LayoutBuilder(
+              builder: (context, constraints) {
+                // NavigationRail isn't internally scrollable, so on a short
+                // (e.g. landscape) screen it can overflow vertically. Let it
+                // scroll while still stretching to fill the available
+                // height so the VerticalDivider spans the full body.
+                return Row(
+                  children: [
+                    SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: IntrinsicHeight(
+                          child: NavigationRail(
+                            selectedIndex: currentIndex,
+                            onDestinationSelected: _onNavTap,
+                            labelType: NavigationRailLabelType.all,
+                            destinations: const [
+                              NavigationRailDestination(
+                                icon: Icon(Icons.home),
+                                label: Text("Home"),
+                              ),
+                              NavigationRailDestination(
+                                icon: Icon(Icons.add),
+                                label: Text("Report"),
+                              ),
+                              NavigationRailDestination(
+                                icon: Icon(Icons.person),
+                                label: Text("Profile"),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.add),
-                      label: Text("Report"),
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.person),
-                      label: Text("Profile"),
+                    const VerticalDivider(width: 1),
+                    Expanded(
+                      child: IndexedStack(index: currentIndex, children: pages),
                     ),
                   ],
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(
-                  child: IndexedStack(index: currentIndex, children: pages),
-                ),
-              ],
+                );
+              },
             )
           : IndexedStack(index: currentIndex, children: pages),
 

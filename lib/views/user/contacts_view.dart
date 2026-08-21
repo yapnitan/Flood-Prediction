@@ -181,12 +181,19 @@ class _ContactsViewState extends State<ContactsView> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(contact.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                  Text(
+                                    contact.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontWeight: FontWeight.w600),
+                                  ),
                                   Text(
                                     [
                                       if (contact.relationship != null) contact.relationship!,
                                       contact.phoneNumber,
                                     ].join(' · '),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(color: Colors.grey, fontSize: 12),
                                   ),
                                 ],

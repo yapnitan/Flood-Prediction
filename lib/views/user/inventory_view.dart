@@ -251,10 +251,17 @@ class _InventoryViewState extends State<InventoryView> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(item.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                        Text(
+                                          item.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(fontWeight: FontWeight.w600),
+                                        ),
                                         const SizedBox(height: 2),
                                         Text(
                                           '${item.category} · ${item.quantity}${item.unit != null ? ' ${item.unit}' : ''}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(color: Colors.grey, fontSize: 12),
                                         ),
                                         if (item.expiryDate != null)

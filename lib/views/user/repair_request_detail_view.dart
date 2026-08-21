@@ -208,10 +208,14 @@ class _RepairRequestDetailViewState extends State<RepairRequestDetailView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                request.assistanceType,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  request.assistanceType,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 8),
               StatusBadge(status: request.status),
             ],
           ),

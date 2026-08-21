@@ -573,8 +573,14 @@ class _CreateRepairRequestState extends State<CreateRepairRequestView> {
                       initialValue: _selectedProperty?.id.toString(),
                       decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
                       hint: const Text('Select a saved property'),
+                      isExpanded: true,
                       items: [
-                        ..._myProperties.map((p) => DropdownMenuItem(value: p.id.toString(), child: Text(p.displayLabel))),
+                        ..._myProperties.map(
+                          (p) => DropdownMenuItem(
+                            value: p.id.toString(),
+                            child: Text(p.displayLabel, overflow: TextOverflow.ellipsis),
+                          ),
+                        ),
                         addNewMenuItem('Add new property'),
                       ],
                       onChanged: (value) {

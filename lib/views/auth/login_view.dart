@@ -241,8 +241,9 @@ class _LoginViewState extends State<LoginView> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    runSpacing: 4,
                     children: [
                       TextButton(
                         onPressed: verifyEmail,
@@ -282,8 +283,9 @@ class _LoginViewState extends State<LoginView> {
                   ),
 
                   const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       const Text("Don't have an account?"),
                       TextButton(

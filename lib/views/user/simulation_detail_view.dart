@@ -429,18 +429,25 @@ class _PreventiveImprovementsCard extends StatelessWidget {
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color),
               ),
               const SizedBox(width: 8),
-              Text(
-                '${preview.level} Risk',
-                style: TextStyle(color: color, fontWeight: FontWeight.bold),
+              Flexible(
+                child: Text(
+                  '${preview.level} Risk',
+                  style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               const Spacer(),
               if (delta != 0)
-                Text(
-                  '${delta > 0 ? '+' : ''}${delta.toStringAsFixed(0)} vs saved',
-                  style: TextStyle(
-                    color: delta > 0 ? Colors.red : Colors.green,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                Flexible(
+                  child: Text(
+                    '${delta > 0 ? '+' : ''}${delta.toStringAsFixed(0)} vs saved',
+                    style: TextStyle(
+                      color: delta > 0 ? Colors.red : Colors.green,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
                   ),
                 ),
             ],

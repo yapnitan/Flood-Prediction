@@ -141,16 +141,25 @@ class _PpsMapViewState extends State<PpsMapView> {
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Text(shelter.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                              Text(
+                                                shelter.name,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(fontWeight: FontWeight.w600),
+                                              ),
                                               if (distanceKm != null)
                                                 Text(
                                                   '${distanceKm.toStringAsFixed(1)} km away'
                                                   '${shelter.capacity != null ? ' · capacity ${shelter.capacity}' : ''}',
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
                                                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                                                 )
                                               else if (shelter.address != null)
                                                 Text(
                                                   shelter.address!,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
                                                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                                                 ),
                                             ],

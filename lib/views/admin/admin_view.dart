@@ -138,38 +138,56 @@ class _AdminHomeState extends State<AdminHome> {
     return Scaffold(
       appBar: AppBar(title: Text(currentIndex == 2 ? _reportTitle : titles[currentIndex])),
       body: useRail
-          ? Row(
-              children: [
-                NavigationRail(
-                  selectedIndex: currentIndex,
-                  onDestinationSelected: _onNavTap,
-                  labelType: NavigationRailLabelType.all,
-                  destinations: [
-                    const NavigationRailDestination(
-                      icon: Icon(Icons.dashboard_outlined),
-                      label: Text("Dashboard"),
+          ? LayoutBuilder(
+              builder: (context, constraints) {
+                // NavigationRail isn't internally scrollable, so with 5
+                // labelled destinations it can overflow vertically on
+                // short/landscape screens. Let it scroll while still
+                // stretching to fill the available height so the
+                // VerticalDivider spans the full body.
+                return Row(
+                  children: [
+                    SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: IntrinsicHeight(
+                          child: NavigationRail(
+                            selectedIndex: currentIndex,
+                            onDestinationSelected: _onNavTap,
+                            labelType: NavigationRailLabelType.all,
+                            destinations: [
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.dashboard_outlined),
+                                label: Text("Dashboard"),
+                              ),
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.people_outline),
+                                label: Text("Users"),
+                              ),
+                              NavigationRailDestination(
+                                icon: _navIcon(Icons.assignment_outlined),
+                                label: const Text("Report"),
+                              ),
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.home_work_outlined),
+                                label: Text("Facilities"),
+                              ),
+                              const NavigationRailDestination(
+                                icon: Icon(Icons.person),
+                                label: Text("Profile"),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                    const NavigationRailDestination(
-                      icon: Icon(Icons.people_outline),
-                      label: Text("Users"),
-                    ),
-                    NavigationRailDestination(
-                      icon: _navIcon(Icons.assignment_outlined),
-                      label: const Text("Report"),
-                    ),
-                    const NavigationRailDestination(
-                      icon: Icon(Icons.home_work_outlined),
-                      label: Text("Facilities"),
-                    ),
-                    const NavigationRailDestination(
-                      icon: Icon(Icons.person),
-                      label: Text("Profile"),
-                    ),
+                    const VerticalDivider(width: 1),
+                    Expanded(child: AnimatedTab(index: currentIndex, child: pages[currentIndex])),
                   ],
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(child: AnimatedTab(index: currentIndex, child: pages[currentIndex])),
-              ],
+                );
+              },
             )
           : AnimatedTab(index: currentIndex, child: pages[currentIndex]),
       bottomNavigationBar: useRail

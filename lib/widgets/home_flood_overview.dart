@@ -234,12 +234,19 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
   void _showAreaRiskDetail(AreaRiskResult risk) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          20 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -309,6 +316,7 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
               style: TextStyle(color: Colors.grey[600], fontSize: 12),
             ),
           ],
+          ),
         ),
       ),
     );
@@ -326,12 +334,19 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     final reportedTime = report.createdAt ?? report.observedAt;
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          20 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -423,6 +438,7 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
               ),
             ],
           ],
+          ),
         ),
       ),
     );
@@ -431,12 +447,19 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
   void _showEvacuationCenterInfo(Facility center) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          20 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -485,6 +508,7 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
               ),
             ),
           ],
+          ),
         ),
       ),
     );

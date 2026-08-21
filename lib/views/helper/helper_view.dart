@@ -57,27 +57,45 @@ class _HelperHomeState extends State<HelperHome> {
     return Scaffold(
       appBar: AppBar(title: Text(titles[currentIndex])),
       body: useRail
-          ? Row(
-        children: [
-          NavigationRail(
-            selectedIndex: currentIndex,
-            onDestinationSelected: (index) => setState(() => currentIndex = index),
-            labelType: NavigationRailLabelType.all,
-            destinations: const [
-              NavigationRailDestination(
-                icon: Icon(Icons.dashboard_outlined),
-                label: Text("Dashboard"),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.person),
-                label: Text("Profile"),
-              ),
-            ],
-          ),
-          const VerticalDivider(width: 1),
-          Expanded(child: AnimatedTab(index: currentIndex, child: pages[currentIndex])),
-        ],
-      )
+          ? LayoutBuilder(
+              builder: (context, constraints) {
+                // NavigationRail isn't internally scrollable, so on a short
+                // (e.g. landscape) screen it can overflow vertically. Let it
+                // scroll while still stretching to fill the available
+                // height so the VerticalDivider spans the full body.
+                return Row(
+                  children: [
+                    SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: IntrinsicHeight(
+                          child: NavigationRail(
+                            selectedIndex: currentIndex,
+                            onDestinationSelected: (index) =>
+                                setState(() => currentIndex = index),
+                            labelType: NavigationRailLabelType.all,
+                            destinations: const [
+                              NavigationRailDestination(
+                                icon: Icon(Icons.dashboard_outlined),
+                                label: Text("Dashboard"),
+                              ),
+                              NavigationRailDestination(
+                                icon: Icon(Icons.person),
+                                label: Text("Profile"),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const VerticalDivider(width: 1),
+                    Expanded(child: AnimatedTab(index: currentIndex, child: pages[currentIndex])),
+                  ],
+                );
+              },
+            )
           : AnimatedTab(index: currentIndex, child: pages[currentIndex]),
       bottomNavigationBar: useRail
           ? null
@@ -343,15 +361,15 @@ class _TaskCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               PriorityBadge(priority: request.priority, dense: true),
-              if (request.details['severity'] is String) ...[
-                const SizedBox(width: 8),
+              if (request.details['severity'] is String)
                 SeverityBadge(severity: request.details['severity'] as String, dense: true),
-              ],
-              if (request.isCriticalMedical) ...[
-                const SizedBox(width: 8),
+              if (request.isCriticalMedical)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -368,7 +386,6 @@ class _TaskCard extends StatelessWidget {
                     ],
                   ),
                 ),
-              ],
             ],
           ),
           const SizedBox(height: 10),

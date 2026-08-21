@@ -395,9 +395,12 @@ class _AdminRequestSummaryCard extends StatelessWidget {
                 children: [
                   Icon(Icons.warning_amber_rounded, size: 14, color: Colors.orange.shade700),
                   const SizedBox(width: 4),
-                  Text(
-                    'Needs facility assignment',
-                    style: TextStyle(color: Colors.orange.shade700, fontSize: 12, fontWeight: FontWeight.w600),
+                  Expanded(
+                    child: Text(
+                      'Needs facility assignment',
+                      style: TextStyle(color: Colors.orange.shade700, fontSize: 12, fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
