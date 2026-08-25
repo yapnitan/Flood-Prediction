@@ -3,6 +3,7 @@ import '../../controllers/auth_controller.dart';
 import '../../services/auth_service.dart';
 import '../../utils/responsive.dart';
 import '../../routes/app_routes.dart';
+import '../../widgets/password_field.dart';
 
 /// Registration flow, in two steps on one screen: fill in the form, then
 /// enter the verification code emailed by Supabase. No confirmation link,
@@ -23,7 +24,11 @@ class _RegisterViewState extends State<RegistrationPage> {
 
   final AuthController authController = AuthController(AuthService());
 
-  String errorMessage = "";
+  String? nameError;
+  String? emailError;
+  String? passwordError;
+  String? confirmPasswordError;
+  String? codeError;
   bool isSubmitting = false;
   bool codeSent = false;
 
@@ -31,30 +36,43 @@ class _RegisterViewState extends State<RegistrationPage> {
   /// created by an existing admin promoting a user in User Management.
   String selectedRole = "user";
 
+  void _clearFormErrors() {
+    nameError = null;
+    emailError = null;
+    passwordError = null;
+    confirmPasswordError = null;
+  }
+
   Future<void> register() async {
     String name = nameController.text.trim();
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
     String confirmPassword = confirmPasswordController.text.trim();
 
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      setState(() => errorMessage = "Please fill in all fields");
-      return;
-    }
-
-    if (password.length < 8) {
-      setState(() => errorMessage = "Password must be at least 8 characters");
-      return;
-    }
-
-    if (password != confirmPassword) {
-      setState(() => errorMessage = "Password does not match");
+    setState(() {
+      _clearFormErrors();
+      if (name.isEmpty) nameError = "Please enter your name";
+      if (email.isEmpty) emailError = "Please enter your email";
+      if (password.isEmpty) {
+        passwordError = "Please enter a password";
+      } else if (password.length < 8) {
+        passwordError = "Password must be at least 8 characters";
+      }
+      if (confirmPassword.isEmpty) {
+        confirmPasswordError = "Please confirm your password";
+      } else if (password != confirmPassword) {
+        confirmPasswordError = "Passwords do not match";
+      }
+    });
+    if (nameError != null ||
+        emailError != null ||
+        passwordError != null ||
+        confirmPasswordError != null) {
       return;
     }
 
     setState(() {
       isSubmitting = true;
-      errorMessage = "";
     });
 
     final result = await authController.register(name, email, password, selectedRole);
@@ -69,20 +87,31 @@ class _RegisterViewState extends State<RegistrationPage> {
       // Auto-confirm was on for this project — no code needed, go straight in.
       _handleRegistrationSuccess();
     } else {
-      setState(() => errorMessage = result['message'] ?? "Registration failed");
+      final message = result['message'] as String? ?? "Registration failed";
+      // Not every server error names a field — most either mention
+      // "password" or are really about the email (already registered,
+      // invalid address, rate limited), so route on that instead of a
+      // generic banner.
+      setState(() {
+        if (message.toLowerCase().contains('password')) {
+          passwordError = message;
+        } else {
+          emailError = message;
+        }
+      });
     }
   }
 
   Future<void> verifyCode() async {
     final code = codeController.text.trim();
     if (code.isEmpty) {
-      setState(() => errorMessage = 'Enter the code from your email');
+      setState(() => codeError = 'Enter the code from your email');
       return;
     }
 
     setState(() {
       isSubmitting = true;
-      errorMessage = "";
+      codeError = null;
     });
 
     final result = await authController.verifySignupCode(
@@ -99,7 +128,7 @@ class _RegisterViewState extends State<RegistrationPage> {
     } else {
       setState(() {
         isSubmitting = false;
-        errorMessage = result['message'] ?? 'Invalid or expired code. Please try again.';
+        codeError = result['message'] ?? 'Invalid or expired code. Please try again.';
       });
     }
   }
@@ -145,6 +174,7 @@ class _RegisterViewState extends State<RegistrationPage> {
     required String label,
     required String hint,
     required IconData icon,
+    String? errorText,
   }) {
     return InputDecoration(
       labelText: label,
@@ -155,6 +185,7 @@ class _RegisterViewState extends State<RegistrationPage> {
       ),
       hintText: hint,
       hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+      errorText: errorText,
       prefixIcon: Icon(icon, color: Colors.blue),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       enabledBorder: OutlineInputBorder(
@@ -218,28 +249,15 @@ class _RegisterViewState extends State<RegistrationPage> {
         ),
         const SizedBox(height: 30),
 
-        if (errorMessage.isNotEmpty) ...[
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  errorMessage,
-                  style: const TextStyle(
-                    color: Colors.red,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-        ],
-
         TextField(
           controller: nameController,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
-          decoration: _decoration(label: "Enter your name", hint: "John Doe", icon: Icons.person),
+          decoration: _decoration(
+            label: "Enter your name",
+            hint: "John Doe",
+            icon: Icons.person,
+            errorText: nameError,
+          ),
         ),
         const SizedBox(height: 20),
 
@@ -287,27 +305,27 @@ class _RegisterViewState extends State<RegistrationPage> {
             label: "Enter your email",
             hint: "example@gmail.com",
             icon: Icons.email,
+            errorText: emailError,
           ),
         ),
         const SizedBox(height: 20),
 
-        TextField(
+        PasswordField(
           controller: passwordController,
-          obscureText: true,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
-          decoration: _decoration(label: "Enter your password", hint: "********", icon: Icons.lock),
+          labelText: "Enter your password",
+          hintText: "********",
+          bold: true,
+          errorText: passwordError,
         ),
         const SizedBox(height: 20),
 
-        TextField(
+        PasswordField(
           controller: confirmPasswordController,
-          obscureText: true,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
-          decoration: _decoration(
-            label: "Confirm your password",
-            hint: "********",
-            icon: Icons.lock_outline,
-          ),
+          labelText: "Confirm your password",
+          hintText: "********",
+          prefixIcon: Icons.lock_outline,
+          bold: true,
+          errorText: confirmPasswordError,
         ),
         const SizedBox(height: 20),
 
@@ -365,14 +383,6 @@ class _RegisterViewState extends State<RegistrationPage> {
         ),
         const SizedBox(height: 20),
 
-        if (errorMessage.isNotEmpty) ...[
-          Text(
-            errorMessage,
-            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-        ],
-
         TextField(
           controller: codeController,
           keyboardType: TextInputType.number,
@@ -381,6 +391,7 @@ class _RegisterViewState extends State<RegistrationPage> {
             label: "Verification code",
             hint: "Enter the code from your email",
             icon: Icons.pin,
+            errorText: codeError,
           ),
         ),
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/auth_controller.dart';
 import '../../services/auth_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/password_field.dart';
 import 'dart:async';
 
 /// Whole "forgot password" flow lives on this one screen — request a
@@ -23,7 +24,10 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
 
   bool _isSendingCode = false;
   bool _isSubmitting = false;
-  String _errorMessage = '';
+  String? _emailError;
+  String? _codeError;
+  String? _passwordError;
+  String? _confirmError;
   bool _codeSent = false;
 
   int _cooldownSeconds = 0;
@@ -49,13 +53,13 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
   Future<void> _sendCode() async {
     final email = _emailController.text.trim();
     if (email.isEmpty || !email.contains('@')) {
-      setState(() => _errorMessage = 'Please enter a valid email address');
+      setState(() => _emailError = 'Please enter a valid email address');
       return;
     }
 
     setState(() {
       _isSendingCode = true;
-      _errorMessage = '';
+      _emailError = null;
     });
 
     final result = await _authController.sendPasswordResetCode(email);
@@ -74,10 +78,10 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
       setState(() {
         _isSendingCode = false;
         if (waitSeconds != null) {
-          _errorMessage = '';
+          _emailError = null;
           _startCooldown(waitSeconds);
         } else {
-          _errorMessage = 'Something went wrong. Please try again.';
+          _emailError = 'Something went wrong. Please try again.';
         }
       });
     }
@@ -99,22 +103,19 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
     final password = _passwordController.text.trim();
     final confirm = _confirmController.text.trim();
 
-    if (code.isEmpty) {
-      setState(() => _errorMessage = 'Enter the code from your email');
-      return;
-    }
-    if (password.isEmpty || password.length < 8) {
-      setState(() => _errorMessage = 'Password must be at least 8 characters');
-      return;
-    }
-    if (password != confirm) {
-      setState(() => _errorMessage = 'Passwords do not match');
+    setState(() {
+      _codeError = code.isEmpty ? 'Enter the code from your email' : null;
+      _passwordError = (password.isEmpty || password.length < 8)
+          ? 'Password must be at least 8 characters'
+          : null;
+      _confirmError = password != confirm ? 'Passwords do not match' : null;
+    });
+    if (_codeError != null || _passwordError != null || _confirmError != null) {
       return;
     }
 
     setState(() {
       _isSubmitting = true;
-      _errorMessage = '';
     });
 
     final result = await _authController.verifyResetCode(
@@ -131,9 +132,11 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
       );
       Navigator.of(context).popUntil((route) => route.isFirst);
     } else {
+      // verifyResetCode fails only for a bad/expired code — attribute the
+      // error there rather than to the new-password fields.
       setState(() {
         _isSubmitting = false;
-        _errorMessage = result['message'] ?? 'Failed to update password';
+        _codeError = result['message'] ?? 'Failed to update password';
       });
     }
   }
@@ -185,20 +188,13 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
         ),
         const SizedBox(height: 20),
 
-        if (_errorMessage.isNotEmpty) ...[
-          Text(
-            _errorMessage,
-            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-        ],
-
         TextField(
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           decoration: InputDecoration(
             labelText: 'Email',
             hintText: 'example@gmail.com',
+            errorText: _emailError,
             prefixIcon: const Icon(Icons.email, color: Colors.blue),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
@@ -259,20 +255,13 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
         ),
         const SizedBox(height: 20),
 
-        if (_errorMessage.isNotEmpty) ...[
-          Text(
-            _errorMessage,
-            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-        ],
-
         TextField(
           controller: _codeController,
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
             labelText: 'Verification code',
             hintText: '6-digit code',
+            errorText: _codeError,
             prefixIcon: const Icon(Icons.pin, color: Colors.blue),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
@@ -280,28 +269,17 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
           ),
         ),
         const SizedBox(height: 16),
-        TextField(
+        PasswordField(
           controller: _passwordController,
-          obscureText: true,
-          decoration: InputDecoration(
-            labelText: 'New password',
-            prefixIcon: const Icon(Icons.lock, color: Colors.blue),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            filled: true,
-            fillColor: Colors.white,
-          ),
+          labelText: 'New password',
+          errorText: _passwordError,
         ),
         const SizedBox(height: 16),
-        TextField(
+        PasswordField(
           controller: _confirmController,
-          obscureText: true,
-          decoration: InputDecoration(
-            labelText: 'Confirm new password',
-            prefixIcon: const Icon(Icons.lock_outline, color: Colors.blue),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            filled: true,
-            fillColor: Colors.white,
-          ),
+          labelText: 'Confirm new password',
+          prefixIcon: Icons.lock_outline,
+          errorText: _confirmError,
         ),
 
         const SizedBox(height: 24),

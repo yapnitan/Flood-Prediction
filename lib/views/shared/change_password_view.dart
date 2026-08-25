@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/auth_controller.dart';
 import '../../services/auth_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/password_field.dart';
 
 /// Lets an already-logged-in user change their password from Profile,
 /// without going through the email-code "forgot password" flow.
@@ -19,29 +20,28 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
   final _authController = AuthController(AuthService());
 
   bool _isSubmitting = false;
-  String _errorMessage = '';
+  String? _currentError;
+  String? _newError;
+  String? _confirmError;
 
   Future<void> _submit() async {
     final current = _currentController.text.trim();
     final newPassword = _newController.text.trim();
     final confirm = _confirmController.text.trim();
 
-    if (current.isEmpty) {
-      setState(() => _errorMessage = 'Enter your current password');
-      return;
-    }
-    if (newPassword.isEmpty || newPassword.length < 8) {
-      setState(() => _errorMessage = 'New password must be at least 8 characters');
-      return;
-    }
-    if (newPassword != confirm) {
-      setState(() => _errorMessage = 'New passwords do not match');
+    setState(() {
+      _currentError = current.isEmpty ? 'Enter your current password' : null;
+      _newError = (newPassword.isEmpty || newPassword.length < 8)
+          ? 'New password must be at least 8 characters'
+          : null;
+      _confirmError = newPassword != confirm ? 'New passwords do not match' : null;
+    });
+    if (_currentError != null || _newError != null || _confirmError != null) {
       return;
     }
 
     setState(() {
       _isSubmitting = true;
-      _errorMessage = '';
     });
 
     final result = await _authController.changePassword(
@@ -57,9 +57,17 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
       );
       Navigator.pop(context);
     } else {
+      final message = result['message'] as String? ?? 'Failed to update password';
       setState(() {
         _isSubmitting = false;
-        _errorMessage = result['message'] ?? 'Failed to update password';
+        // changePassword only fails by rejecting the current password or a
+        // generic update error — the former belongs on that field, the
+        // latter is shown on the new-password field next to it.
+        if (message.toLowerCase().contains('current password')) {
+          _currentError = message;
+        } else {
+          _newError = message;
+        }
       });
     }
   }
@@ -81,47 +89,24 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (_errorMessage.isNotEmpty) ...[
-                    Text(
-                      _errorMessage,
-                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  TextField(
+                  PasswordField(
                     controller: _currentController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: 'Current password',
-                      prefixIcon: const Icon(Icons.lock_outline, color: Colors.blue),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
+                    labelText: 'Current password',
+                    prefixIcon: Icons.lock_outline,
+                    errorText: _currentError,
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  PasswordField(
                     controller: _newController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: 'New password',
-                      prefixIcon: const Icon(Icons.lock, color: Colors.blue),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
+                    labelText: 'New password',
+                    errorText: _newError,
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  PasswordField(
                     controller: _confirmController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: 'Confirm new password',
-                      prefixIcon: const Icon(Icons.lock_outline, color: Colors.blue),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
+                    labelText: 'Confirm new password',
+                    prefixIcon: Icons.lock_outline,
+                    errorText: _confirmError,
                   ),
                   const SizedBox(height: 24),
                   SizedBox(

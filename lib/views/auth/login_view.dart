@@ -3,6 +3,7 @@ import '../../controllers/auth_controller.dart';
 import '../../services/auth_service.dart';
 import '../../utils/responsive.dart';
 import '../../routes/app_routes.dart';
+import '../../widgets/password_field.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -18,29 +19,34 @@ class _LoginViewState extends State<LoginView> {
 
   final AuthController authController = AuthController(AuthService());
 
-  String errorMessage = "";
+  String? emailError;
+  String? passwordError;
 
   Future<void> login() async {
     String email = emailController.text.trim();
     String password = passwordController.text;
 
-    if (email.isEmpty || password.isEmpty) {
-      setState(() => errorMessage = "Please enter both email and password");
-      return;
-    }
+    setState(() {
+      emailError = email.isEmpty ? "Enter your email" : null;
+      passwordError = password.isEmpty ? "Enter your password" : null;
+    });
+    if (emailError != null || passwordError != null) return;
 
     final result = await authController.login(email, password);
     if (!mounted) return;
 
     if (result.account == null) {
+      // Not attributable to one field (wrong password vs. disabled/pending
+      // account are all auth-level failures) — shown under password since
+      // it's the field closest to the submit action.
       setState(() {
-        errorMessage = result.error ?? "Invalid email or password";
+        passwordError = result.error ?? "Invalid email or password";
       });
       return;
     }
 
     setState(() {
-      errorMessage = "";
+      passwordError = null;
     });
 
     final account = result.account!;
@@ -116,23 +122,6 @@ class _LoginViewState extends State<LoginView> {
                   ),
                   const SizedBox(height: 30),
 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      if (errorMessage.isNotEmpty)
-                        Expanded(
-                          child: Text(
-                            errorMessage,
-                            style: const TextStyle(
-                              color: Colors.red,
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-
                   TextField(
                     controller: emailController,
 
@@ -157,6 +146,8 @@ class _LoginViewState extends State<LoginView> {
                         color: Colors.grey,
                         fontSize: 14,
                       ),
+
+                      errorText: emailError,
 
                       prefixIcon: const Icon(Icons.email, color: Colors.blue),
 
@@ -190,55 +181,12 @@ class _LoginViewState extends State<LoginView> {
 
                   const SizedBox(height: 20),
 
-                  TextField(
+                  PasswordField(
                     controller: passwordController,
-                    obscureText: true,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: "Enter your password",
-                      labelStyle: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                      ),
-
-                      hintText: "********",
-
-                      hintStyle: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 14,
-                      ),
-
-                      prefixIcon: const Icon(Icons.lock, color: Colors.blue),
-
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-
-                        borderSide: const BorderSide(
-                          color: Colors.grey,
-                          width: 1,
-                        ),
-                      ),
-
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-
-                        borderSide: const BorderSide(
-                          color: Colors.blue,
-                          width: 2,
-                        ),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
+                    labelText: "Enter your password",
+                    hintText: "********",
+                    bold: true,
+                    errorText: passwordError,
                   ),
                   const SizedBox(height: 10),
                   Wrap(
