@@ -54,7 +54,16 @@ class _HelperHomeState extends State<HelperHome> {
 
     final bool useRail = !context.isMobile;
 
-    return Scaffold(
+    return PopScope(
+      // Only let back actually leave this screen when already on the
+      // Dashboard tab — otherwise it pops the whole HelperHome route
+      // instead of just returning to Dashboard like a bottom-nav app should.
+      canPop: currentIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        setState(() => currentIndex = 0);
+      },
+      child: Scaffold(
       appBar: AppBar(title: Text(titles[currentIndex])),
       body: useRail
           ? LayoutBuilder(
@@ -106,6 +115,7 @@ class _HelperHomeState extends State<HelperHome> {
           BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: "Dashboard"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
+      ),
       ),
     );
   }

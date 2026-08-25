@@ -29,6 +29,7 @@ class AppRoutes {
   static const String contacts = '/planner/contacts';
   static const String ppsMap = '/planner/pps-map';
 
+  static const String myProperties = '/profile/my-properties';
   static const String personalInformation = '/profile/personal-information';
   static const String changePassword = '/profile/change-password';
   static const String notificationSettings = '/profile/notification-settings';

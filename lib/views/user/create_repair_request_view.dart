@@ -179,6 +179,15 @@ class _CreateRepairRequestState extends State<CreateRepairRequestView> {
       if (property != null) {
         if (property.propertyType != null) _details['property_type'] = property.propertyType;
         if (property.floors != null) _details['number_of_floors'] = property.floors;
+        // The request should be located at the property being reported
+        // damaged, not wherever the resident happened to type in Step 1 —
+        // overwrite the location with the selected property's own address
+        // and coordinates.
+        _locationNameController.text = property.address?.isNotEmpty == true
+            ? property.address!
+            : property.displayLabel;
+        _selectedLatitude = property.lat;
+        _selectedLongitude = property.lng;
       }
     });
   }

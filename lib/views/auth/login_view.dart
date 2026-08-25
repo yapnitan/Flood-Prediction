@@ -50,13 +50,16 @@ class _LoginViewState extends State<LoginView> {
     });
 
     final account = result.account!;
-    if (account.role == "admin") {
-      Navigator.pushNamed(context, AppRoutes.adminHome);
-    } else if (account.role == "helper") {
-      Navigator.pushNamed(context, AppRoutes.helperHome);
-    } else {
-      Navigator.pushNamed(context, AppRoutes.userHome);
-    }
+    // Clears Login (and anything else) out of the nav stack — a plain
+    // pushNamed would leave Login sitting underneath Home, so the device
+    // back button from Home would pop back to Login instead of exiting/
+    // switching tabs.
+    final destination = switch (account.role) {
+      "admin" => AppRoutes.adminHome,
+      "helper" => AppRoutes.helperHome,
+      _ => AppRoutes.userHome,
+    };
+    Navigator.pushNamedAndRemoveUntil(context, destination, (route) => false);
   }
 
   void forgotPassword() {

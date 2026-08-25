@@ -1,8 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../utils/responsive.dart';
 
 class HelpSupportView extends StatelessWidget {
   const HelpSupportView({super.key});
+
+  static const _supportEmail = 'support@floodwatch.my';
+  static const _supportPhone = '+60 3-1234 5678';
+
+  Future<void> _launch(BuildContext context, Uri uri, String failureMessage) async {
+    final opened = await launchUrl(uri);
+    if (!opened && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(failureMessage)));
+    }
+  }
+
+  void _emailSupport(BuildContext context) {
+    _launch(context, Uri(scheme: 'mailto', path: _supportEmail), 'Could not open an email app.');
+  }
+
+  void _callSupport(BuildContext context) {
+    // tel: URIs don't tolerate spaces/dashes in the number.
+    final digits = _supportPhone.replaceAll(RegExp(r'[^0-9+]'), '');
+    _launch(context, Uri(scheme: 'tel', path: digits), 'Could not start a call.');
+  }
 
   static const _faqs = [
     (
@@ -87,17 +108,21 @@ class HelpSupportView extends StatelessWidget {
                   Card(
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     child: Column(
-                      children: const [
+                      children: [
                         ListTile(
-                          leading: Icon(Icons.email_outlined, color: Colors.blue),
-                          title: Text('support@floodwatch.my'),
-                          subtitle: Text('Email support'),
+                          leading: const Icon(Icons.email_outlined, color: Colors.blue),
+                          title: const Text(_supportEmail),
+                          subtitle: const Text('Email support'),
+                          trailing: const Icon(Icons.chevron_right, size: 20),
+                          onTap: () => _emailSupport(context),
                         ),
-                        Divider(height: 1),
+                        const Divider(height: 1),
                         ListTile(
-                          leading: Icon(Icons.phone_outlined, color: Colors.blue),
-                          title: Text('+60 3-1234 5678'),
-                          subtitle: Text('Mon–Fri, 9am–6pm'),
+                          leading: const Icon(Icons.phone_outlined, color: Colors.blue),
+                          title: const Text(_supportPhone),
+                          subtitle: const Text('Mon–Fri, 9am–6pm'),
+                          trailing: const Icon(Icons.chevron_right, size: 20),
+                          onTap: () => _callSupport(context),
                         ),
                       ],
                     ),

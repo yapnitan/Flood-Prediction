@@ -21,6 +21,7 @@ import '../views/user/checklist_view.dart';
 import '../views/user/inventory_view.dart';
 import '../views/user/contacts_view.dart';
 import '../views/user/pps_map_view.dart';
+import '../views/user/my_properties_view.dart';
 import '../views/shared/personal_information_view.dart';
 import '../views/shared/change_password_view.dart';
 import '../views/shared/notification_settings_view.dart';
@@ -113,6 +114,9 @@ class RouteGenerator {
 
       case AppRoutes.ppsMap:
         return MaterialPageRoute(builder: (_) => const PpsMapView());
+
+      case AppRoutes.myProperties:
+        return MaterialPageRoute(builder: (_) => const MyPropertiesView());
 
       case AppRoutes.personalInformation:
         final args = settings.arguments as PersonalInformationArgs;

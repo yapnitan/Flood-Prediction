@@ -238,10 +238,53 @@ class AuthService {
     }
   }
 
+  /// Looks up the `account` row by email — used before starting a password
+  /// reset, since that flow has no session yet to look the account up by id.
+  Future<Account?> getAccountByEmail(String email) async {
+    try {
+      final row = await supabase
+          .from('account')
+          .select()
+          .eq('email', email)
+          .maybeSingle();
+      return row != null ? Account.fromJson(row) : null;
+    } catch (e) {
+      debugPrint('AuthService.getAccountByEmail error: $e');
+      return null;
+    }
+  }
+
   /// Step 1 of "forgot password": Supabase emails a 6-digit code (email
   /// template must use `{{ .Token }}`, not the confirmation link). Whole
   /// flow stays in-app — no browser hand-off, no deep link.
   Future<Map<String, dynamic>> sendPasswordResetCode(String email) async {
+    // An account that can't log in yet (pending helper approval, rejected,
+    // or disabled) shouldn't be able to reset its password either — a new
+    // password wouldn't let them in anyway (loginValidate blocks them all
+    // the same), so the reset flow should say so up front instead of
+    // silently sending a code that leads nowhere.
+    final account = await getAccountByEmail(email);
+    if (account != null) {
+      if (account.status == 'pending') {
+        return {
+          'status': 'error',
+          'message': 'Your account is still pending admin approval. You can reset your password once it\'s approved.',
+        };
+      }
+      if (account.status == 'rejected') {
+        return {
+          'status': 'error',
+          'message': 'Your account application was rejected. Please contact an administrator.',
+        };
+      }
+      if (!account.isActive) {
+        return {
+          'status': 'error',
+          'message': 'Your account has been disabled. Please contact an administrator.',
+        };
+      }
+    }
+
     try {
       await supabase.auth.resetPasswordForEmail(email);
       return {

@@ -225,7 +225,17 @@ class _UserHomeState extends State<UserHome> {
     // the horizontal space than a bottom bar.
     final bool useRail = !context.isMobile;
 
-    return Scaffold(
+    return PopScope(
+      // Only let the system/back gesture actually leave this screen when
+      // already on the Home tab — otherwise it pops the whole UserHome
+      // route (landing on whatever's beneath it in the nav stack) instead
+      // of just returning to Home like a bottom-nav app should.
+      canPop: currentIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        setState(() => currentIndex = 0);
+      },
+      child: Scaffold(
       appBar: AppBar(title: Text(titles[currentIndex])),
 
       body: useRail
@@ -291,6 +301,7 @@ class _UserHomeState extends State<UserHome> {
                 ),
               ],
             ),
+      ),
     );
   }
 }

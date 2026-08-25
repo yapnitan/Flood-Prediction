@@ -6,7 +6,12 @@ import '../../utils/responsive.dart';
 import '../../widgets/empty_state.dart';
 
 class UserManagementView extends StatefulWidget {
-  const UserManagementView({super.key});
+  const UserManagementView({super.key, this.onUsersChanged});
+
+  /// Called after a role/status/active change succeeds, so a host screen
+  /// (e.g. the admin's pending-approval badge on the Users tab) can refresh
+  /// without waiting for a tab switch.
+  final VoidCallback? onUsersChanged;
 
   @override
   State<UserManagementView> createState() => _UserManagementViewState();
@@ -98,6 +103,7 @@ class _UserManagementViewState extends State<UserManagementView> {
     if (!mounted) return;
     if (ok) {
       _refresh();
+      widget.onUsersChanged?.call();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to update status')),

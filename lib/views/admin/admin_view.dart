@@ -38,6 +38,11 @@ class _AdminHomeState extends State<AdminHome> {
   );
   int _pendingRepairCount = 0;
 
+  final _userManagementController = UserManagementController(
+    UserManagementService(),
+  );
+  int _pendingHelperCount = 0;
+
   /// Which report type the "Report" tab (index 2) currently shows — chosen
   /// via [_showReportChooser]. Kept as tab state (rather than pushing a
   /// separate page) so the flood report list shares this same [Scaffold]'s
@@ -50,6 +55,7 @@ class _AdminHomeState extends State<AdminHome> {
   void initState() {
     super.initState();
     _loadPendingCount();
+    _loadPendingHelperCount();
   }
 
   Future<void> _loadPendingCount() async {
@@ -62,6 +68,14 @@ class _AdminHomeState extends State<AdminHome> {
     });
   }
 
+  Future<void> _loadPendingHelperCount() async {
+    final users = await _userManagementController.listUsers();
+    if (!mounted) return;
+    setState(() {
+      _pendingHelperCount = users.where((u) => u.status == 'pending').length;
+    });
+  }
+
   void _onNavTap(int index) {
     if (index == 2) {
       _showReportChooser();
@@ -69,6 +83,7 @@ class _AdminHomeState extends State<AdminHome> {
     }
     setState(() => currentIndex = index);
     _loadPendingCount();
+    _loadPendingHelperCount();
   }
 
   /// "Report" doesn't navigate directly — same interaction pattern as
@@ -116,16 +131,16 @@ class _AdminHomeState extends State<AdminHome> {
     );
   }
 
-  Widget _navIcon(IconData icon) {
-    if (_pendingRepairCount == 0) return Icon(icon);
-    return Badge(label: Text('$_pendingRepairCount'), child: Icon(icon));
+  Widget _navIcon(IconData icon, int count) {
+    if (count == 0) return Icon(icon);
+    return Badge(label: Text('$count'), child: Icon(icon));
   }
 
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       _AdminDashboardTab(onManageEvacuationCenters: () => _onNavTap(3)),
-      const UserManagementView(),
+      UserManagementView(onUsersChanged: _loadPendingHelperCount),
       _showFloodReports
           ? const FloodReportAdminView()
           : RepairRequestAdminView(onRequestsChanged: _loadPendingCount),
@@ -135,7 +150,16 @@ class _AdminHomeState extends State<AdminHome> {
 
     final bool useRail = !context.isMobile;
 
-    return Scaffold(
+    return PopScope(
+      // Only let back actually leave this screen when already on the
+      // Dashboard tab — otherwise it pops the whole AdminHome route instead
+      // of just returning to Dashboard like a bottom-nav app should.
+      canPop: currentIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _onNavTap(0);
+      },
+      child: Scaffold(
       appBar: AppBar(title: Text(currentIndex == 2 ? _reportTitle : titles[currentIndex])),
       body: useRail
           ? LayoutBuilder(
@@ -162,12 +186,12 @@ class _AdminHomeState extends State<AdminHome> {
                                 icon: Icon(Icons.dashboard_outlined),
                                 label: Text("Dashboard"),
                               ),
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.people_outline),
-                                label: Text("Users"),
+                              NavigationRailDestination(
+                                icon: _navIcon(Icons.people_outline, _pendingHelperCount),
+                                label: const Text("Users"),
                               ),
                               NavigationRailDestination(
-                                icon: _navIcon(Icons.assignment_outlined),
+                                icon: _navIcon(Icons.assignment_outlined, _pendingRepairCount),
                                 label: const Text("Report"),
                               ),
                               const NavigationRailDestination(
@@ -201,12 +225,12 @@ class _AdminHomeState extends State<AdminHome> {
                   icon: Icon(Icons.dashboard_outlined),
                   label: "Dashboard",
                 ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.people_outline),
+                BottomNavigationBarItem(
+                  icon: _navIcon(Icons.people_outline, _pendingHelperCount),
                   label: "Users",
                 ),
                 BottomNavigationBarItem(
-                  icon: _navIcon(Icons.assignment_outlined),
+                  icon: _navIcon(Icons.assignment_outlined, _pendingRepairCount),
                   label: "Report",
                 ),
                 const BottomNavigationBarItem(
@@ -219,6 +243,7 @@ class _AdminHomeState extends State<AdminHome> {
                 ),
               ],
             ),
+      ),
     );
   }
 }

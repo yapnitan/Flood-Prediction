@@ -220,18 +220,26 @@ class _ProfileState extends State<ProfilePage> {
                         }
                       },
                     ),
-                    _ProfileTile(
-                      icon: Icons.location_on_outlined,
-                      label: "Saved Locations",
-                      onTap: () {},
-                    ),
-                    _ProfileTile(
-                      icon: Icons.description_outlined,
-                      label: "Report History",
-                      onTap: () {
-                        Navigator.pushNamed(context, AppRoutes.reportHistory);
-                      },
-                    ),
+                    // Saved Locations (properties) and Report History are
+                    // resident-only concepts — a Helper/Admin doesn't submit
+                    // flood reports or own a property in this app, so their
+                    // Profile doesn't offer these.
+                    if (_account?.role == 'user') ...[
+                      _ProfileTile(
+                        icon: Icons.location_on_outlined,
+                        label: "Saved Locations",
+                        onTap: () {
+                          Navigator.pushNamed(context, AppRoutes.myProperties);
+                        },
+                      ),
+                      _ProfileTile(
+                        icon: Icons.description_outlined,
+                        label: "Report History",
+                        onTap: () {
+                          Navigator.pushNamed(context, AppRoutes.reportHistory);
+                        },
+                      ),
+                    ],
                     _ProfileTile(
                       icon: Icons.help_outline,
                       label: "Help & Support",
