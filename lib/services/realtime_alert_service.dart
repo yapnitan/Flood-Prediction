@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/helper_district_assignment.dart';
 import '../utils/geo_utils.dart';
 import 'notification_service.dart';
 
@@ -20,22 +21,23 @@ class RealtimeAlertService {
 
   final _supabase = Supabase.instance.client;
 
-  RealtimeChannel? _repairRequestChannel;
+  RealtimeChannel? _assetLossReportChannel;
   RealtimeChannel? _floodReportChannel;
+  RealtimeChannel? _helperAssignmentChannel;
 
-  /// For a resident: notifies when their own request's status changes
-  /// (e.g. approved, assigned, completed).
-  void watchOwnRepairRequests(String accountId) {
-    stopRepairRequestWatch();
-    _repairRequestChannel = _supabase
-        .channel('repair_request_owner_$accountId')
+  /// For a resident: notifies when their own report's status changes
+  /// (e.g. verified, rejected).
+  void watchOwnAssetLossReports(String accountId) {
+    stopAssetLossReportWatch();
+    _assetLossReportChannel = _supabase
+        .channel('asset_loss_report_owner_$accountId')
         .onPostgresChanges(
           event: PostgresChangeEvent.update,
           schema: 'public',
-          table: 'repair_request',
+          table: 'asset_loss_report',
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
-            column: 'requester_id',
+            column: 'user_id',
             value: accountId,
           ),
           callback: (payload) {
@@ -44,54 +46,114 @@ class RealtimeAlertService {
             if (status == null || status == oldStatus) return;
             NotificationService.instance.showNow(
               id: NotificationService.idAidAssignment,
-              title: 'Your request was updated',
+              title: 'Your asset loss report was updated',
               body: 'Status changed to ${status.replaceAll('_', ' ')}.',
             );
           },
         );
     try {
-      _repairRequestChannel!.subscribe();
+      _assetLossReportChannel!.subscribe();
     } catch (error) {
-      debugPrint('RealtimeAlertService.watchOwnRepairRequests error: $error');
+      debugPrint('RealtimeAlertService.watchOwnAssetLossReports error: $error');
     }
   }
 
-  /// For a helper: notifies when a request is newly assigned to them.
-  void watchAssignedTasks(String accountId) {
-    stopRepairRequestWatch();
-    _repairRequestChannel = _supabase
-        .channel('repair_request_helper_$accountId')
+  /// For a district-assigned helper: notifies when a new asset loss report
+  /// lands in one of their active districts. Realtime filters only support
+  /// simple column equality, not a join through `property`, so this
+  /// subscribes to all inserts and does one small follow-up query per event
+  /// to resolve the report's district — same shape as
+  /// [watchNearbyFloodReports]'s client-side distance check below.
+  void watchAssignedDistrictReports(
+    String helperId, {
+    required List<HelperDistrictAssignment> assignments,
+  }) {
+    stopAssetLossReportWatch();
+    final activeDistricts = assignments
+        .where((a) => a.isActive)
+        .map((a) => '${a.state}|${a.district}')
+        .toSet();
+    if (activeDistricts.isEmpty) return;
+
+    _assetLossReportChannel = _supabase
+        .channel('asset_loss_report_helper_$helperId')
         .onPostgresChanges(
-          event: PostgresChangeEvent.update,
+          event: PostgresChangeEvent.insert,
           schema: 'public',
-          table: 'repair_request',
+          table: 'asset_loss_report',
+          callback: (payload) async {
+            final propertyId = payload.newRecord['property_id'];
+            if (propertyId == null) return;
+            try {
+              final property = await _supabase
+                  .from('property')
+                  .select('state, district')
+                  .eq('id', propertyId)
+                  .maybeSingle();
+              if (property == null) return;
+              final key = '${property['state']}|${property['district']}';
+              if (!activeDistricts.contains(key)) return;
+              NotificationService.instance.showNow(
+                id: NotificationService.idAidAssignment,
+                title: 'New asset loss report in your area',
+                body: '${payload.newRecord['asset_category'] ?? 'A report'} needs verification in '
+                    '${property['district']}.',
+              );
+            } catch (error) {
+              debugPrint('RealtimeAlertService.watchAssignedDistrictReports lookup error: $error');
+            }
+          },
+        );
+    try {
+      _assetLossReportChannel!.subscribe();
+    } catch (error) {
+      debugPrint('RealtimeAlertService.watchAssignedDistrictReports error: $error');
+    }
+  }
+
+  void stopAssetLossReportWatch() {
+    final channel = _assetLossReportChannel;
+    if (channel != null) _supabase.removeChannel(channel);
+    _assetLossReportChannel = null;
+  }
+
+  /// For a helper: notifies when the admin assigns them to a new district.
+  void watchHelperAssignments(String helperId) {
+    stopHelperAssignmentWatch();
+    _helperAssignmentChannel = _supabase
+        .channel('helper_district_assignment_$helperId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'helper_district_assignment',
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
-            column: 'assigned_helper_id',
-            value: accountId,
+            column: 'helper_id',
+            value: helperId,
           ),
           callback: (payload) {
-            final oldHelperId = payload.oldRecord['assigned_helper_id'] as String?;
-            if (oldHelperId == accountId) return; // already assigned, this is some other field change
+            final district = payload.newRecord['district'] as String?;
+            final state = payload.newRecord['state'] as String?;
             NotificationService.instance.showNow(
               id: NotificationService.idAidAssignment,
-              title: 'New task assigned to you',
-              body: (payload.newRecord['assistance_type'] as String?) ??
-                  'A new recovery task was assigned to you.',
+              title: 'New area assigned to you',
+              body: district != null && state != null
+                  ? 'You can now verify asset loss reports in $district, $state.'
+                  : 'You have a new district assignment.',
             );
           },
         );
     try {
-      _repairRequestChannel!.subscribe();
+      _helperAssignmentChannel!.subscribe();
     } catch (error) {
-      debugPrint('RealtimeAlertService.watchAssignedTasks error: $error');
+      debugPrint('RealtimeAlertService.watchHelperAssignments error: $error');
     }
   }
 
-  void stopRepairRequestWatch() {
-    final channel = _repairRequestChannel;
+  void stopHelperAssignmentWatch() {
+    final channel = _helperAssignmentChannel;
     if (channel != null) _supabase.removeChannel(channel);
-    _repairRequestChannel = null;
+    _helperAssignmentChannel = null;
   }
 
   /// Notifies when a newly-submitted flood report lands within [radiusKm]
@@ -142,7 +204,8 @@ class RealtimeAlertService {
   }
 
   void stopAll() {
-    stopRepairRequestWatch();
+    stopAssetLossReportWatch();
     stopFloodReportWatch();
+    stopHelperAssignmentWatch();
   }
 }

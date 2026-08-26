@@ -16,10 +16,14 @@ class AppRoutes {
   static const String simulationDetail = '/simulations/detail';
   static const String simulationCompare = '/simulations/compare';
 
-  static const String createRepairRequest = '/repair-requests/create';
-  static const String myRepairRequests = '/repair-requests/mine';
-  static const String repairRequestDetail = '/repair-requests/detail';
-  static const String repairRequestAdmin = '/admin/repair-requests';
+  static const String assetLossCreate = '/asset-loss/create';
+  static const String myAssetLossReports = '/asset-loss/mine';
+  static const String assetLossDetail = '/asset-loss/detail';
+  static const String assetLossAdmin = '/admin/asset-loss';
+  static const String economicLossDashboard = '/admin/economic-loss';
+  static const String floodIncidentAdmin = '/admin/flood-incidents';
+  static const String helperAssignmentAdmin = '/admin/helper-assignments';
+  static const String shelterOccupancy = '/helper/shelter-occupancy';
 
   static const String reportHistory = '/reports/mine';
 

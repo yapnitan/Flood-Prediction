@@ -62,6 +62,67 @@ class MalaysiaGeocoder {
   static String _normalize(String s) =>
       s.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
 
+  /// Common aliases a free-text/reverse-geocoded state name shows up as
+  /// (e.g. Nominatim's "Penang"/"Kuala Lumpur" vs. this app's DID-dataset-
+  /// style "Pulau Pinang"/"WP Kuala Lumpur") mapped to their canonical
+  /// [states] entry.
+  static const Map<String, String> _stateAliases = {
+    'penang': 'Pulau Pinang',
+    'malacca': 'Melaka',
+    'kuala lumpur': 'WP Kuala Lumpur',
+    'labuan': 'WP Labuan',
+    'putrajaya': 'WP Putrajaya',
+  };
+
+  /// Resolves [raw] (a free-text or reverse-geocoded state name) to its
+  /// exact entry in [states], or null if it doesn't recognize it — callers
+  /// binding this to a `DropdownButtonFormField<String>` constrained to
+  /// [states] must check for null rather than assign an unrecognized value,
+  /// which would otherwise throw (the dropdown's value must be one of its
+  /// own `items`).
+  static String? canonicalStateName(String raw) {
+    final normalized = _normalize(raw);
+    final alias = _stateAliases[normalized];
+    if (alias != null) return alias;
+    for (final s in states) {
+      if (_normalize(s) == normalized) return s;
+    }
+    return null;
+  }
+
+  /// ISO 3166-2:MY subdivision codes, in the same order as [states]' index
+  /// would suggest but kept as an explicit map since the two lists aren't
+  /// defined in the same order. Nominatim's `ISO3166-2-lvl4` address field
+  /// carries one of these — unlike the free-text `state` field, it's present
+  /// even for the three Federal Territories (Kuala Lumpur/Labuan/Putrajaya),
+  /// which Nominatim otherwise tags with no `state` component at all, so
+  /// prefer this over [canonicalStateName] when it's available.
+  static const Map<String, String> _isoCodeToState = {
+    'MY-01': 'Johor',
+    'MY-02': 'Kedah',
+    'MY-03': 'Kelantan',
+    'MY-04': 'Melaka',
+    'MY-05': 'Negeri Sembilan',
+    'MY-06': 'Pahang',
+    'MY-07': 'Pulau Pinang',
+    'MY-08': 'Perak',
+    'MY-09': 'Perlis',
+    'MY-10': 'Selangor',
+    'MY-11': 'Terengganu',
+    'MY-12': 'Sabah',
+    'MY-13': 'Sarawak',
+    'MY-14': 'WP Kuala Lumpur',
+    'MY-15': 'WP Labuan',
+    'MY-16': 'WP Putrajaya',
+  };
+
+  /// Resolves a Nominatim `ISO3166-2-lvl4` value (e.g. "MY-14") to its
+  /// [states] entry, or null if it's missing/not a recognized MY code.
+  static String? stateFromIsoCode(String? isoCode) {
+    if (isoCode == null) return null;
+    return _isoCodeToState[isoCode.trim().toUpperCase()];
+  }
+
   // District centroids (bounding-box center of JAKIM district boundaries).
   static const Map<String, _Coord> _districtCentroids = {
     'alor gajah': _Coord(2.383510, 102.106500),

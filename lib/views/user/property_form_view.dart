@@ -1,15 +1,26 @@
 import 'package:flutter/material.dart';
 import '../../constants/nearby_locations.dart';
 import '../../controllers/property_controller.dart';
-import '../../models/assistance_field_spec.dart';
 import '../../models/property.dart';
 import '../../services/location_service.dart';
+import '../../utils/malaysia_geocoding.dart';
+import '../../utils/responsive.dart';
 import '../../widgets/selectable_chip.dart';
 
+/// Property types a user can pick from when adding a saved address —
+/// previously came from assistance_field_spec.dart (repair-request-only,
+/// now removed); kept as a small local list since Property has no other
+/// source for this.
+const List<String> propertyTypeOptions = ['House', 'Apartment/Condo', 'Shophouse', 'Other'];
+
 class PropertyFormView extends StatefulWidget {
-  const PropertyFormView({super.key, required this.controller});
+  const PropertyFormView({super.key, required this.controller, this.existing});
 
   final PropertyController controller;
+
+  /// When set, the form opens pre-filled to edit this property instead of
+  /// creating a new one.
+  final Property? existing;
 
   @override
   State<PropertyFormView> createState() => _PropertyFormViewState();
@@ -20,6 +31,9 @@ class _PropertyFormViewState extends State<PropertyFormView> {
   final LocationService _locationService = LocationService();
 
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _labelController = TextEditingController();
+  final TextEditingController _districtController = TextEditingController();
+  final TextEditingController _postcodeController = TextEditingController();
   final TextEditingController _floorsController = TextEditingController();
   final TextEditingController _estimatedValueController = TextEditingController();
   final FocusNode _locationFocusNode = FocusNode();
@@ -27,12 +41,43 @@ class _PropertyFormViewState extends State<PropertyFormView> {
   String? _propertyType;
   double? _latitude;
   double? _longitude;
+
+  /// State is a fixed dropdown, district free text — same pattern already
+  /// used for the risk simulator's property location (create_simulation_view.dart),
+  /// rather than trying to auto-derive district from reverse geocoding
+  /// (nothing in this project resolves a coordinate to a Malaysian district
+  /// reliably yet).
+  late String _state;
   bool _isLocating = false;
   bool _isSaving = false;
+
+  static const List<String> _labelSuggestions = ['Home', 'Work', 'Other'];
+
+  bool get _isEditing => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    _state = existing?.state ?? MalaysiaGeocoder.states.first;
+    if (existing == null) return;
+    _labelController.text = existing.label ?? '';
+    _addressController.text = existing.address ?? '';
+    _districtController.text = existing.district ?? '';
+    _postcodeController.text = existing.postcode ?? '';
+    _floorsController.text = existing.floors?.toString() ?? '';
+    _estimatedValueController.text = existing.estimatedValue?.toString() ?? '';
+    _propertyType = existing.propertyType;
+    _latitude = existing.lat;
+    _longitude = existing.lng;
+  }
 
   @override
   void dispose() {
     _addressController.dispose();
+    _labelController.dispose();
+    _districtController.dispose();
+    _postcodeController.dispose();
     _floorsController.dispose();
     _estimatedValueController.dispose();
     _locationFocusNode.dispose();
@@ -61,15 +106,39 @@ class _PropertyFormViewState extends State<PropertyFormView> {
       if (readable != null && readable.isNotEmpty) {
         _addressController.text = readable;
       }
+      _applyGeocodedFields(state: details.state, district: details.district, postcode: details.postcode);
     });
   }
 
-  void _selectLocation(ReportLocation location) {
+  /// Fills in state/district/postcode from a reverse-geocode result —
+  /// still always editable afterward, since Nominatim's district
+  /// classification isn't reliable enough to lock the field.
+  void _applyGeocodedFields({String? state, String? district, String? postcode}) {
+    if (state != null && MalaysiaGeocoder.states.contains(state)) {
+      _state = state;
+    }
+    if (district != null && district.trim().isNotEmpty) {
+      _districtController.text = district.trim();
+    }
+    if (postcode != null && postcode.trim().isNotEmpty) {
+      _postcodeController.text = postcode.trim();
+    }
+  }
+
+  void _selectLocation(ReportLocation location) async {
     _addressController.text = location.name;
     _latitude = location.latitude;
     _longitude = location.longitude;
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() {});
+
+    final geocode = await _locationService.reverseGeocode(location.latitude, location.longitude);
+    if (!mounted || geocode == null) return;
+    setState(() => _applyGeocodedFields(
+          state: geocode.state,
+          district: geocode.district,
+          postcode: geocode.postcode,
+        ));
   }
 
   Future<void> _save() async {
@@ -83,20 +152,28 @@ class _PropertyFormViewState extends State<PropertyFormView> {
 
     setState(() => _isSaving = true);
 
-    final created = await widget.controller.createProperty(Property(
+    final property = Property(
+      label: _labelController.text.trim().isEmpty ? null : _labelController.text.trim(),
       address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
       lat: _latitude!,
       lng: _longitude!,
+      state: _state,
+      district: _districtController.text.trim().isEmpty ? null : _districtController.text.trim(),
+      postcode: _postcodeController.text.trim().isEmpty ? null : _postcodeController.text.trim(),
       propertyType: _propertyType,
       floors: int.tryParse(_floorsController.text.trim()),
       estimatedValue: double.tryParse(_estimatedValueController.text.trim()),
-    ));
+    );
+
+    final saved = _isEditing
+        ? await widget.controller.updateProperty(widget.existing!.id!, property)
+        : await widget.controller.createProperty(property);
 
     if (!mounted) return;
     setState(() => _isSaving = false);
 
-    if (created != null) {
-      Navigator.of(context).pop(created);
+    if (saved != null) {
+      Navigator.of(context).pop(saved);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not save the property. Please try again.')),
@@ -108,15 +185,43 @@ class _PropertyFormViewState extends State<PropertyFormView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Add Property'), centerTitle: true),
+      appBar: AppBar(title: Text(_isEditing ? 'Edit Property' : 'Add Property'), centerTitle: true),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
-          child: Form(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
+              ),
+              child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Text('Label', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: _labelSuggestions.map((label) {
+                    return SelectableChip(
+                      label: label,
+                      selected: _labelController.text == label,
+                      onTap: () => setState(() => _labelController.text = label),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _labelController,
+                  decoration: const InputDecoration(
+                    labelText: 'Name this address',
+                    hintText: 'e.g. Home, Work, or a custom name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 const Text('Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 10),
                 RawAutocomplete<ReportLocation>(
@@ -195,11 +300,52 @@ class _PropertyFormViewState extends State<PropertyFormView> {
                     style: const TextStyle(color: Colors.grey, fontSize: 12),
                   ),
                 ],
+                const SizedBox(height: 20),
+                DropdownButtonFormField<String>(
+                  // DropdownButtonFormField's `initialValue` (it's a
+                  // FormField under the hood) is only applied on the
+                  // widget's first build — programmatically changing
+                  // `_state` later (e.g. from "Use Current Location") and
+                  // calling setState does NOT make the dropdown re-display
+                  // the new value on its own. Keying it on `_state` forces
+                  // Flutter to treat a change as a brand-new widget
+                  // instance, which re-seeds it correctly.
+                  key: ValueKey(_state),
+                  initialValue: _state,
+                  decoration: const InputDecoration(labelText: 'State', border: OutlineInputBorder()),
+                  items: MalaysiaGeocoder.states
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setState(() => _state = value);
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _districtController,
+                  decoration: const InputDecoration(
+                    labelText: 'District',
+                    hintText: 'e.g. Petaling',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty ? 'Enter the district.' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _postcodeController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Postcode (optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
                 const SizedBox(height: 24),
                 const Text('Property Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 10,
+                  runSpacing: 8,
                   children: propertyTypeOptions.map((type) {
                     return SelectableChip(
                       label: type,
@@ -238,12 +384,14 @@ class _PropertyFormViewState extends State<PropertyFormView> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: Text(
-                      _isSaving ? 'Saving...' : 'Add property',
+                      _isSaving ? 'Saving...' : (_isEditing ? 'Save changes' : 'Add property'),
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                   ),
                 ),
               ],
+            ),
+              ),
             ),
           ),
         ),

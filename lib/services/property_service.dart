@@ -38,9 +38,13 @@ class PropertyService {
           .from(_table)
           .insert(Property(
             accountId: userId,
+            label: property.label,
             address: property.address,
             lat: property.lat,
             lng: property.lng,
+            state: property.state,
+            district: property.district,
+            postcode: property.postcode,
             propertyType: property.propertyType,
             floors: property.floors,
             estimatedValue: property.estimatedValue,
@@ -51,6 +55,41 @@ class PropertyService {
     } catch (error) {
       debugPrint('PropertyService.createProperty error: $error');
       return null;
+    }
+  }
+
+  Future<Property?> updateProperty(int propertyId, Property property) async {
+    try {
+      final updated = await _supabase
+          .from(_table)
+          .update(property.toJson())
+          .eq('id', propertyId)
+          .select()
+          .single();
+      return Property.fromJson(updated);
+    } catch (error) {
+      debugPrint('PropertyService.updateProperty error: $error');
+      return null;
+    }
+  }
+
+  /// Returns a user-facing error message on failure (most commonly the
+  /// property still being referenced by an asset loss report — RESTRICTed
+  /// at the DB level so it can't be silently orphaned, see
+  /// 0028_restrict_property_deletion.sql), or null on success.
+  Future<String?> deleteProperty(int propertyId) async {
+    try {
+      await _supabase.from(_table).delete().eq('id', propertyId);
+      return null;
+    } on PostgrestException catch (e) {
+      debugPrint('PropertyService.deleteProperty error: $e');
+      if (e.code == '23503') {
+        return 'This property has asset loss reports linked to it and cannot be deleted.';
+      }
+      return 'Could not delete this property. Please try again.';
+    } catch (error) {
+      debugPrint('PropertyService.deleteProperty error: $error');
+      return 'Could not delete this property. Please try again.';
     }
   }
 }

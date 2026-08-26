@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
+import '../../controllers/asset_loss_report_controller.dart';
 import '../../controllers/facility_controller.dart';
-import '../../controllers/repair_request_controller.dart';
 import '../../controllers/user_management_controller.dart';
 import '../../models/account.dart';
 import '../../models/facility.dart';
+import '../../services/asset_loss_report_service.dart';
 import '../../services/facility_service.dart';
-import '../../services/repair_request_service.dart';
 import '../../services/user_management_service.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/animated_tab.dart';
+import 'asset_loss_admin_view.dart';
+import 'economic_loss_dashboard_view.dart';
 import 'facility_management_view.dart';
+import 'flood_incident_admin_view.dart';
 import 'flood_report_admin_view.dart';
-import 'repair_request_admin_view.dart';
+import 'helper_assignment_admin_view.dart';
 import 'user_management_view.dart';
 import '../shared/user_profile.dart';
 
@@ -33,10 +36,10 @@ class _AdminHomeState extends State<AdminHome> {
     "Profile",
   ];
 
-  final _repairRequestController = RepairRequestController(
-    RepairRequestService(),
+  final _assetLossReportController = AssetLossReportController(
+    AssetLossReportService(),
   );
-  int _pendingRepairCount = 0;
+  int _pendingAssetLossCount = 0;
 
   final _userManagementController = UserManagementController(
     UserManagementService(),
@@ -46,10 +49,10 @@ class _AdminHomeState extends State<AdminHome> {
   /// Which report type the "Report" tab (index 2) currently shows — chosen
   /// via [_showReportChooser]. Kept as tab state (rather than pushing a
   /// separate page) so the flood report list shares this same [Scaffold]'s
-  /// app bar and bottom navigation bar, exactly like the Recovery view.
+  /// app bar and bottom navigation bar, exactly like the Asset Loss view.
   bool _showFloodReports = false;
 
-  String get _reportTitle => _showFloodReports ? 'Flood Reports' : 'Recovery';
+  String get _reportTitle => _showFloodReports ? 'Flood Reports' : 'Asset Loss Reports';
 
   @override
   void initState() {
@@ -59,11 +62,11 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   Future<void> _loadPendingCount() async {
-    final requests = await _repairRequestController.getAdminOverview();
+    final reports = await _assetLossReportController.getAdminOverview();
     if (!mounted) return;
     setState(() {
-      _pendingRepairCount = requests
-          .where((r) => r['status'] == 'pending')
+      _pendingAssetLossCount = reports
+          .where((r) => r['status'] == 'pending_review')
           .length;
     });
   }
@@ -115,8 +118,8 @@ class _AdminHomeState extends State<AdminHome> {
                 Icons.assignment_outlined,
                 color: Colors.orange,
               ),
-              title: const Text('View Recovery Report'),
-              subtitle: const Text('Repair and aid requests from residents'),
+              title: const Text('View Asset Loss Reports'),
+              subtitle: const Text('Potential asset losses reported by residents'),
               onTap: () {
                 Navigator.pop(context);
                 setState(() {
@@ -139,11 +142,25 @@ class _AdminHomeState extends State<AdminHome> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
-      _AdminDashboardTab(onManageEvacuationCenters: () => _onNavTap(3)),
+      _AdminDashboardTab(
+        onManageEvacuationCenters: () => _onNavTap(3),
+        onManageEconomicLoss: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const EconomicLossDashboardView()),
+        ),
+        onManageHelperAssignments: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const HelperAssignmentAdminView()),
+        ),
+        onManageFloodIncidents: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const FloodIncidentAdminView()),
+        ),
+      ),
       UserManagementView(onUsersChanged: _loadPendingHelperCount),
       _showFloodReports
           ? const FloodReportAdminView()
-          : RepairRequestAdminView(onRequestsChanged: _loadPendingCount),
+          : AssetLossAdminView(onReportsChanged: _loadPendingCount),
       const FacilityManagementView(),
       const ProfilePage(),
     ];
@@ -191,7 +208,7 @@ class _AdminHomeState extends State<AdminHome> {
                                 label: const Text("Users"),
                               ),
                               NavigationRailDestination(
-                                icon: _navIcon(Icons.assignment_outlined, _pendingRepairCount),
+                                icon: _navIcon(Icons.assignment_outlined, _pendingAssetLossCount),
                                 label: const Text("Report"),
                               ),
                               const NavigationRailDestination(
@@ -230,7 +247,7 @@ class _AdminHomeState extends State<AdminHome> {
                   label: "Users",
                 ),
                 BottomNavigationBarItem(
-                  icon: _navIcon(Icons.assignment_outlined, _pendingRepairCount),
+                  icon: _navIcon(Icons.assignment_outlined, _pendingAssetLossCount),
                   label: "Report",
                 ),
                 const BottomNavigationBarItem(
@@ -250,9 +267,17 @@ class _AdminHomeState extends State<AdminHome> {
 
 /// Quick at-a-glance counts of registered accounts by role.
 class _AdminDashboardTab extends StatefulWidget {
-  const _AdminDashboardTab({required this.onManageEvacuationCenters});
+  const _AdminDashboardTab({
+    required this.onManageEvacuationCenters,
+    required this.onManageEconomicLoss,
+    required this.onManageHelperAssignments,
+    required this.onManageFloodIncidents,
+  });
 
   final VoidCallback onManageEvacuationCenters;
+  final VoidCallback onManageEconomicLoss;
+  final VoidCallback onManageHelperAssignments;
+  final VoidCallback onManageFloodIncidents;
 
   @override
   State<_AdminDashboardTab> createState() => _AdminDashboardTabState();
@@ -355,6 +380,15 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                 _EvacuationDemographicSection(
                   sheltersFuture: _sheltersFuture,
                   onManageTap: widget.onManageEvacuationCenters,
+                ),
+
+                const SizedBox(height: 24),
+
+                // ---- Asset Loss / Economic Loss quick links ----
+                _QuickLinksSection(
+                  onManageEconomicLoss: widget.onManageEconomicLoss,
+                  onManageHelperAssignments: widget.onManageHelperAssignments,
+                  onManageFloodIncidents: widget.onManageFloodIncidents,
                 ),
               ],
             ),
@@ -621,6 +655,109 @@ class _EvacuationDemographicChart extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Quick-link cards to the Economic Loss Dashboard, Helper Assignments, and
+/// Flood Incidents admin pages — kept off the persistent bottom-nav/rail
+/// (already at 5 destinations) and surfaced here instead, same pattern as
+/// the "Manage Evacuation Centers" button above.
+class _QuickLinksSection extends StatelessWidget {
+  const _QuickLinksSection({
+    required this.onManageEconomicLoss,
+    required this.onManageHelperAssignments,
+    required this.onManageFloodIncidents,
+  });
+
+  final VoidCallback onManageEconomicLoss;
+  final VoidCallback onManageHelperAssignments;
+  final VoidCallback onManageFloodIncidents;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Asset Loss & Recovery', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        _QuickLinkTile(
+          icon: Icons.bar_chart_outlined,
+          color: Colors.indigo,
+          title: 'Economic Loss Dashboard',
+          subtitle: 'Verified asset loss + resource cost, by state/district/category',
+          onTap: onManageEconomicLoss,
+        ),
+        const SizedBox(height: 10),
+        _QuickLinkTile(
+          icon: Icons.map_outlined,
+          color: Colors.teal,
+          title: 'Helper Assignments',
+          subtitle: 'Assign helpers to verify asset loss reports by district',
+          onTap: onManageHelperAssignments,
+        ),
+        const SizedBox(height: 10),
+        _QuickLinkTile(
+          icon: Icons.water_damage_outlined,
+          color: Colors.orange,
+          title: 'Flood Incidents',
+          subtitle: 'Create/close named flood incidents for reports to link to',
+          onTap: onManageFloodIncidents,
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickLinkTile extends StatelessWidget {
+  const _QuickLinkTile({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 6, offset: const Offset(0, 2))],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.grey),
+          ],
+        ),
       ),
     );
   }

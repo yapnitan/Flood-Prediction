@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../controllers/facility_controller.dart';
-import '../../controllers/repair_request_controller.dart';
-import '../../models/repair_request.dart';
-import '../../services/facility_service.dart';
+import '../../constants/asset_categories.dart';
+import '../../controllers/asset_loss_report_controller.dart';
+import '../../controllers/helper_assignment_controller.dart';
+import '../../models/helper_district_assignment.dart';
+import '../../services/asset_loss_report_service.dart';
+import '../../services/helper_assignment_service.dart';
 import '../../services/realtime_alert_service.dart';
-import '../../services/repair_request_service.dart';
-import '../../utils/maps_launcher.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/animated_tab.dart';
 import '../../widgets/empty_state.dart';
-import '../../widgets/priority_badge.dart';
-import '../../widgets/severity_badge.dart';
 import '../../widgets/status_badge.dart';
 import '../shared/user_profile.dart';
-import 'repair_request_helper_detail_view.dart';
+import 'asset_loss_helper_verify_view.dart';
+import 'shelter_occupancy_view.dart';
 
 class HelperHome extends StatefulWidget {
   const HelperHome({super.key});
@@ -26,22 +25,29 @@ class HelperHome extends StatefulWidget {
 class _HelperHomeState extends State<HelperHome> {
   int currentIndex = 0;
 
-  final List<String> titles = ["Dashboard", "Profile"];
+  final List<String> titles = ["Dashboard", "Shelters", "Profile"];
 
   @override
   void initState() {
     super.initState();
-    // Task 12 "aid assignment updates" — notifies this helper when a
-    // request is newly assigned to them.
+    _startWatches();
+  }
+
+  Future<void> _startWatches() async {
     final accountId = Supabase.instance.client.auth.currentUser?.id;
-    if (accountId != null) {
-      RealtimeAlertService.instance.watchAssignedTasks(accountId);
-    }
+    if (accountId == null) return;
+    // Task 12 "aid assignment updates" — notifies this helper of new
+    // district assignments, and of new asset loss reports in areas
+    // they're already assigned to.
+    RealtimeAlertService.instance.watchHelperAssignments(accountId);
+    final assignments = await HelperAssignmentController(HelperAssignmentService()).getMyAssignments();
+    RealtimeAlertService.instance.watchAssignedDistrictReports(accountId, assignments: assignments);
   }
 
   @override
   void dispose() {
-    RealtimeAlertService.instance.stopRepairRequestWatch();
+    RealtimeAlertService.instance.stopAssetLossReportWatch();
+    RealtimeAlertService.instance.stopHelperAssignmentWatch();
     super.dispose();
   }
 
@@ -49,6 +55,7 @@ class _HelperHomeState extends State<HelperHome> {
   Widget build(BuildContext context) {
     final List<Widget> pages = const [
       _HelperDashboardTab(),
+      ShelterOccupancyView(),
       ProfilePage(),
     ];
 
@@ -91,6 +98,10 @@ class _HelperHomeState extends State<HelperHome> {
                                 label: Text("Dashboard"),
                               ),
                               NavigationRailDestination(
+                                icon: Icon(Icons.night_shelter_outlined),
+                                label: Text("Shelters"),
+                              ),
+                              NavigationRailDestination(
                                 icon: Icon(Icons.person),
                                 label: Text("Profile"),
                               ),
@@ -113,6 +124,7 @@ class _HelperHomeState extends State<HelperHome> {
         onTap: (index) => setState(() => currentIndex = index),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: "Dashboard"),
+          BottomNavigationBarItem(icon: Icon(Icons.night_shelter_outlined), label: "Shelters"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
       ),
@@ -121,8 +133,11 @@ class _HelperHomeState extends State<HelperHome> {
   }
 }
 
-/// Helper's assigned recovery/repair tasks — requests an admin has
-/// assigned to this helper, with status updates (in_progress/completed).
+/// Helper's district-scoped verification queue (Task/asset report §28):
+/// "My Assigned Areas" + potential asset losses awaiting verification in
+/// those areas. RLS already restricts what comes back to the helper's
+/// active district assignments (0025_asset_loss_helper_district_scoping.sql)
+/// — this view doesn't need to filter on top of that.
 class _HelperDashboardTab extends StatefulWidget {
   const _HelperDashboardTab();
 
@@ -131,367 +146,221 @@ class _HelperDashboardTab extends StatefulWidget {
 }
 
 class _HelperDashboardTabState extends State<_HelperDashboardTab> {
-  final _controller = RepairRequestController(RepairRequestService());
-  final _facilityController = FacilityController(FacilityService());
-  late Future<List<RepairRequest>> _tasksFuture;
+  final _assignmentController = HelperAssignmentController(HelperAssignmentService());
+  final _reportController = AssetLossReportController(AssetLossReportService());
 
-  /// facility_id -> facility name, loaded once so task cards can show a
-  /// real shelter name instead of the raw facility_id UUID.
-  Map<String, String> _facilityNames = {};
+  bool _isLoading = true;
+  List<HelperDistrictAssignment> _assignments = [];
+  List<Map<String, dynamic>> _reports = [];
 
   @override
   void initState() {
     super.initState();
-    _tasksFuture = _controller.getMyAssignedTasks();
-    _loadFacilityNames();
+    _load();
   }
 
-  Future<void> _loadFacilityNames() async {
-    final facilities = await _facilityController.getAllFacilities();
+  Future<void> _load() async {
+    final assignments = await _assignmentController.getMyAssignments();
+    final reports = await _reportController.getMyDistrictReports();
     if (!mounted) return;
     setState(() {
-      _facilityNames = {for (final f in facilities) if (f.id != null) f.id!: f.name};
+      _assignments = assignments;
+      _reports = reports;
+      _isLoading = false;
     });
   }
 
-  Future<void> _refresh() async {
-    // Block body, not `=> expr` — an arrow body would make the assignment's
-    // *value* (a Future) the closure's return value, and setState() only
-    // accepts callbacks returning void.
-    setState(() {
-      _tasksFuture = _controller.getMyAssignedTasks();
-    });
-    await _tasksFuture;
-  }
-
-  /// Assigned work is fetched newest-first; re-sort so the most urgent
-  /// task is always what the helper sees at the top of their list, not
-  /// just whatever landed on their queue most recently.
-  List<RepairRequest> _sortedByUrgency(List<RepairRequest> tasks) {
-    final sorted = [...tasks];
-    sorted.sort(RepairRequest.comparePriority);
-    return sorted;
-  }
-
-  Future<void> _updateStatus(String requestId, String status) async {
-    await _controller.updateStatus(requestId, status);
-    _refresh();
-  }
+  Future<void> _refresh() => _load();
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
-          ),
-          child: RefreshIndicator(
-            onRefresh: _refresh,
-            child: FutureBuilder<List<RepairRequest>>(
-              future: _tasksFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return const EmptyState(
-                    icon: Icons.error_outline,
-                    iconColor: Colors.blue,
-                    title: 'Could not load your tasks',
-                    subtitle: 'Pull down to try again.',
-                  );
-                }
-
-                final tasks = _sortedByUrgency(snapshot.data ?? []);
-                if (tasks.isEmpty) {
-                  return const EmptyState(
-                    icon: Icons.volunteer_activism_outlined,
-                    iconColor: Colors.blue,
-                    title: 'No tasks assigned yet',
-                    subtitle: 'Requests an admin assigns to you will show up here.',
-                  );
-                }
-
-                return ListView.separated(
-                  padding: EdgeInsets.all(context.responsive(mobile: 16, tablet: 24, desktop: 24)),
-                  itemCount: tasks.length + 1,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
-                  itemBuilder: (context, rawIndex) {
-                    if (rawIndex == 0) return _VolunteerStatsHeader(tasks: tasks);
-                    final index = rawIndex - 1;
-                    return InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => RepairRequestHelperDetailView(
-                            request: tasks[index],
-                            controller: _controller,
-                          ),
-                        ),
-                      );
-                      _refresh();
-                    },
-                    child: _TaskCard(
-                      request: tasks[index],
-                      onUpdateStatus: _updateStatus,
-                      facilityName: tasks[index].facilityId != null
-                          ? _facilityNames[tasks[index].facilityId]
-                          : null,
-                    ),
-                  );
-                  },
-                );
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-}
-
-/// Task 11 "volunteer dashboard" — assigned/completed counts and average
-/// turnaround, computed client-side from the already-fetched task list
-/// (no extra query — there's no separate stats endpoint, and this
-/// helper's own task count is small enough that it's cheap either way).
-class _VolunteerStatsHeader extends StatelessWidget {
-  const _VolunteerStatsHeader({required this.tasks});
-
-  final List<RepairRequest> tasks;
-
-  String _formatDuration(Duration d) {
-    if (d.inDays > 0) return '${d.inDays}d ${d.inHours % 24}h';
-    if (d.inHours > 0) return '${d.inHours}h ${d.inMinutes % 60}m';
-    return '${d.inMinutes}m';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final active = tasks.where((t) => t.status == 'assigned' || t.status == 'in_progress').length;
-    final completed = tasks.where((t) => t.status == 'completed').toList();
-
-    Duration? avgCompletion;
-    final completedWithTimestamps = completed
-        .where((t) => t.createdAt != null && t.updatedAt != null)
-        .toList();
-    if (completedWithTimestamps.isNotEmpty) {
-      final totalMicros = completedWithTimestamps.fold<int>(
-        0,
-        (sum, t) => sum + t.updatedAt!.difference(t.createdAt!).inMicroseconds,
-      );
-      avgCompletion = Duration(microseconds: totalMicros ~/ completedWithTimestamps.length);
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2)),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(child: _StatColumn(label: 'Active', value: '$active', color: Colors.indigo)),
-          Expanded(child: _StatColumn(label: 'Completed', value: '${completed.length}', color: Colors.green)),
-          Expanded(
-            child: _StatColumn(
-              label: 'Avg. completion',
-              value: avgCompletion != null ? _formatDuration(avgCompletion) : '—',
-              color: Colors.blue,
-            ),
+    if (_assignments.isEmpty) {
+      return const EmptyState(
+        icon: Icons.map_outlined,
+        iconColor: Colors.blue,
+        title: 'No areas assigned yet',
+        subtitle: 'An admin needs to assign you to a state/district before you can verify reports.',
+      );
+    }
+
+    // Pending first, then newest first within each group.
+    final sorted = [..._reports]..sort((a, b) {
+        final aPending = a['status'] == 'pending_review' ? 0 : 1;
+        final bPending = b['status'] == 'pending_review' ? 0 : 1;
+        if (aPending != bPending) return aPending.compareTo(bPending);
+        return (b['created_at'] as String).compareTo(a['created_at'] as String);
+      });
+
+    final pendingByDistrict = <String, List<Map<String, dynamic>>>{};
+    for (final r in sorted.where((r) => r['status'] == 'pending_review')) {
+      final property = r['property'] as Map<String, dynamic>?;
+      final key = '${property?['district'] ?? 'Unknown'}, ${property?['state'] ?? ''}';
+      pendingByDistrict.putIfAbsent(key, () => []).add(r);
+    }
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900)),
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView(
+            padding: EdgeInsets.all(context.responsive(mobile: 16, tablet: 24, desktop: 24)),
+            children: [
+              const Text('My Assigned Areas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _assignments
+                    .map((a) => Chip(
+                          avatar: const Icon(Icons.location_on, size: 16, color: Colors.blue),
+                          label: Text('${a.district}, ${a.state}'),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Potential Asset Losses Requiring Verification',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+              const SizedBox(height: 10),
+              if (pendingByDistrict.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text('No pending reports in your areas right now.', style: TextStyle(color: Colors.grey)),
+                )
+              else
+                ...pendingByDistrict.entries.map((entry) {
+                  final totalPotential = entry.value.fold<double>(
+                    0,
+                    (sum, r) => sum + ((r['estimated_total_loss'] as num?)?.toDouble() ?? 0),
+                  );
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.04),
+                      border: Border.all(color: Colors.blue.shade100),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text('Pending: ${entry.value.length}', style: const TextStyle(fontSize: 12)),
+                            Text(
+                              'RM ${totalPotential.toStringAsFixed(0)} potential loss',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              const SizedBox(height: 16),
+              if (sorted.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: Text('No reports in your areas yet.', style: TextStyle(color: Colors.grey))),
+                )
+              else
+                ...sorted.map((data) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _ReportCard(
+                        data: data,
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AssetLossHelperVerifyView(
+                                data: data,
+                                controller: _reportController,
+                              ),
+                            ),
+                          );
+                          _refresh();
+                        },
+                      ),
+                    )),
+            ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatColumn extends StatelessWidget {
-  const _StatColumn({required this.label, required this.value, required this.color});
-
-  final String label;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
-        const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey), textAlign: TextAlign.center),
-      ],
-    );
-  }
-}
-
-class _TaskCard extends StatelessWidget {
-  const _TaskCard({required this.request, required this.onUpdateStatus, this.facilityName});
-
-  final RepairRequest request;
-  final Future<void> Function(String requestId, String status) onUpdateStatus;
-  final String? facilityName;
-
-  @override
-  Widget build(BuildContext context) {
-    final status = request.status;
-    final isUrgent = request.priority == 'urgent';
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isUrgent ? Colors.red.withValues(alpha: 0.04) : null,
-        border: Border.all(
-          color: isUrgent ? Colors.red.shade200 : Colors.grey.shade300,
-          width: isUrgent ? 1.4 : 1,
         ),
-        borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  request.assistanceType,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                ),
-              ),
-              StatusBadge(status: status),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              PriorityBadge(priority: request.priority, dense: true),
-              if (request.details['severity'] is String)
-                SeverityBadge(severity: request.details['severity'] as String, dense: true),
-              if (request.isCriticalMedical)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.red.shade300),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.warning_amber_rounded, size: 12, color: Colors.red.shade700),
-                      const SizedBox(width: 3),
-                      Text('Critical', style: TextStyle(color: Colors.red.shade700, fontSize: 11, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  request.locationName,
-                  style: const TextStyle(color: Colors.grey, fontSize: 13),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () => openDirections(
-                  context,
-                  latitude: request.latitude,
-                  longitude: request.longitude,
-                ),
-                icon: const Icon(Icons.directions, size: 16),
-                label: const Text('Directions'),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-            ],
-          ),
-          if (request.facilityId != null) ...[
-            const SizedBox(height: 4),
+    );
+  }
+}
+
+class _ReportCard extends StatelessWidget {
+  const _ReportCard({required this.data, required this.onTap});
+
+  final Map<String, dynamic> data;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = data['status'] as String? ?? 'pending_review';
+    final property = data['property'] as Map<String, dynamic>?;
+    final estimatedTotal = (data['estimated_total_loss'] as num?)?.toDouble() ?? 0;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(Icons.home_work_outlined, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    'Shelter: ${facilityName ?? "Loading…"}',
-                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                    '${data['asset_category']} — ${data['asset_name']}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                StatusBadge(status: status),
               ],
             ),
-          ],
-          if (request.contactNumber != null && request.contactNumber!.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.phone_outlined, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(request.contactNumber!, style: const TextStyle(color: Colors.grey, fontSize: 13)),
-              ],
-            ),
-          ],
-          if (request.damageDescription != null && request.damageDescription!.trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              request.damageDescription!,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13),
-            ),
-          ],
-          const SizedBox(height: 14),
-          if (status == 'assigned')
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton.icon(
-                onPressed: () => onUpdateStatus(request.id!, 'in_progress'),
-                icon: const Icon(Icons.play_arrow, color: Colors.white),
-                label: const Text('Start task', style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
-              ),
-            )
-          else if (status == 'in_progress')
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton.icon(
-                onPressed: () => onUpdateStatus(request.id!, 'completed'),
-                icon: const Icon(Icons.check_circle_outline, color: Colors.white),
-                label: const Text('Mark completed', style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              ),
-            )
-          else if (status == 'completed')
-              const Row(
+            const SizedBox(height: 6),
+            if (property != null)
+              Row(
                 children: [
-                  Icon(Icons.check_circle, size: 18, color: Colors.green),
-                  SizedBox(width: 6),
-                  Text('Task completed', style: TextStyle(color: Colors.green, fontSize: 13)),
+                  const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      '${property['address'] ?? ''} (${property['district']}, ${property['state']})',
+                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              'Condition: ${assetConditionLabels[data['condition']] ?? data['condition']}',
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Potential loss: RM ${estimatedTotal.toStringAsFixed(2)}',
+              style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.blue, fontSize: 13),
+            ),
+          ],
+        ),
       ),
     );
   }

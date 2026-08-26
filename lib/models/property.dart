@@ -2,9 +2,13 @@ class Property {
   const Property({
     this.id,
     this.accountId,
+    this.label,
     this.address,
     required this.lat,
     required this.lng,
+    this.state,
+    this.district,
+    this.postcode,
     this.propertyType,
     this.floors,
     this.estimatedValue,
@@ -14,9 +18,17 @@ class Property {
 
   final int? id;
   final String? accountId;
+
+  /// User-chosen name for this saved address — "Home"/"Work"/"Other" or a
+  /// custom label — shown wherever the resident picks among their
+  /// properties (risk simulator, Asset Loss Report address selection).
+  final String? label;
   final String? address;
   final double lat;
   final double lng;
+  final String? state;
+  final String? district;
+  final String? postcode;
   final String? propertyType;
   final int? floors;
   final double? estimatedValue;
@@ -26,9 +38,13 @@ class Property {
   factory Property.fromJson(Map<String, dynamic> json) => Property(
     id: json['id'] as int?,
     accountId: json['account_id'] as String?,
+    label: json['label'] as String?,
     address: json['address'] as String?,
     lat: (json['lat'] as num).toDouble(),
     lng: (json['lng'] as num).toDouble(),
+    state: json['state'] as String?,
+    district: json['district'] as String?,
+    postcode: json['postcode'] as String?,
     propertyType: json['property_type'] as String?,
     floors: json['floors'] as int?,
     estimatedValue: (json['estimated_value'] as num?)?.toDouble(),
@@ -39,23 +55,28 @@ class Property {
 
   Map<String, dynamic> toJson() => {
     'account_id': accountId,
+    'label': label,
     'address': address,
     'lat': lat,
     'lng': lng,
+    'state': state,
+    'district': district,
+    'postcode': postcode,
     'property_type': propertyType,
     'floors': floors,
     'estimated_value': estimatedValue,
     'risk_level': riskLevel,
   };
 
-  /// Short label for a selection dropdown — falls back to coordinates when
-  /// there's no address on file.
+  /// Short label for a selection dropdown — prefers the user's own label,
+  /// then the address, falling back to coordinates when neither is set.
   String get displayLabel {
-    final type = propertyType;
+    final l = label;
     final addr = address;
-    if (addr != null && addr.isNotEmpty) {
-      return type != null ? '$addr ($type)' : addr;
+    if (l != null && l.isNotEmpty) {
+      return addr != null && addr.isNotEmpty ? '$l — $addr' : l;
     }
-    return type ?? 'Property at ${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
+    if (addr != null && addr.isNotEmpty) return addr;
+    return propertyType ?? 'Property at ${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}';
   }
 }

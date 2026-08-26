@@ -9,12 +9,14 @@ void main() {
   testWidgets('shows a validation error when submitted with empty fields', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: LoginView()));
 
-    expect(find.text('Please enter both email and password'), findsNothing);
+    expect(find.text('Please enter your email'), findsNothing);
+    expect(find.text('Please enter your password'), findsNothing);
 
     await tester.tap(find.widgetWithText(ElevatedButton, 'Login'));
     await tester.pump();
 
-    expect(find.text('Please enter both email and password'), findsOneWidget);
+    expect(find.text('Please enter your email'), findsOneWidget);
+    expect(find.text('Please enter your password'), findsOneWidget);
   });
 
   testWidgets('shows a validation error when only the password is filled in', (tester) async {
@@ -24,6 +26,7 @@ void main() {
     await tester.tap(find.widgetWithText(ElevatedButton, 'Login'));
     await tester.pump();
 
-    expect(find.text('Please enter both email and password'), findsOneWidget);
+    expect(find.text('Please enter your email'), findsOneWidget);
+    expect(find.text('Please enter your password'), findsNothing);
   });
 }

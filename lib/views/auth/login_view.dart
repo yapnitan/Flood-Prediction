@@ -27,8 +27,8 @@ class _LoginViewState extends State<LoginView> {
     String password = passwordController.text;
 
     setState(() {
-      emailError = email.isEmpty ? "Enter your email" : null;
-      passwordError = password.isEmpty ? "Enter your password" : null;
+      emailError = email.isEmpty ? "Please enter your email" : null;
+      passwordError = password.isEmpty ? "Please enter your password" : null;
     });
     if (emailError != null || passwordError != null) return;
 

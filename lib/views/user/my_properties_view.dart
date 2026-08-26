@@ -42,6 +42,41 @@ class _MyPropertiesViewState extends State<MyPropertiesView> {
     if (created != null) _refresh();
   }
 
+  Future<void> _editProperty(Property property) async {
+    final updated = await Navigator.push<Property>(
+      context,
+      MaterialPageRoute(builder: (context) => PropertyFormView(controller: _controller, existing: property)),
+    );
+    if (updated != null) _refresh();
+  }
+
+  Future<void> _deleteProperty(Property property) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete this property?'),
+        content: Text('This removes "${property.displayLabel}" from your saved locations.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final error = await _controller.deleteProperty(property.id!);
+    if (!mounted) return;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+    _refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,7 +121,11 @@ class _MyPropertiesViewState extends State<MyPropertiesView> {
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
                     itemCount: properties.length,
                     separatorBuilder: (context, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) => _PropertyCard(property: properties[index]),
+                    itemBuilder: (context, index) => _PropertyCard(
+                      property: properties[index],
+                      onTap: () => _editProperty(properties[index]),
+                      onDelete: () => _deleteProperty(properties[index]),
+                    ),
                   );
                 },
               ),
@@ -99,13 +138,18 @@ class _MyPropertiesViewState extends State<MyPropertiesView> {
 }
 
 class _PropertyCard extends StatelessWidget {
-  const _PropertyCard({required this.property});
+  const _PropertyCard({required this.property, required this.onTap, required this.onDelete});
 
   final Property property;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),
@@ -124,8 +168,21 @@ class _PropertyCard extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                 ),
               ),
+              IconButton(
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                tooltip: 'Delete',
+                visualDensity: VisualDensity.compact,
+              ),
             ],
           ),
+          if (property.district != null && property.state != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              '${property.district}, ${property.state}',
+              style: const TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+          ],
           if (property.floors != null) ...[
             const SizedBox(height: 8),
             Text('Floors: ${property.floors}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
@@ -138,6 +195,7 @@ class _PropertyCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
       ),
     );
   }

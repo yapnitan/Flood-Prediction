@@ -19,7 +19,10 @@ void main() {
     await tester.tap(registerButton);
     await tester.pump();
 
-    expect(find.text('Please fill in all fields'), findsOneWidget);
+    expect(find.text('Please enter your name'), findsOneWidget);
+    expect(find.text('Please enter your email'), findsOneWidget);
+    expect(find.text('Please enter a password'), findsOneWidget);
+    expect(find.text('Please confirm your password'), findsOneWidget);
   });
 
   testWidgets('rejects a password shorter than 8 characters', (tester) async {
@@ -51,6 +54,6 @@ void main() {
     await tester.tap(registerButton);
     await tester.pump();
 
-    expect(find.text('Password does not match'), findsOneWidget);
+    expect(find.text('Passwords do not match'), findsOneWidget);
   });
 }

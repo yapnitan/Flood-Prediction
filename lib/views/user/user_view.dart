@@ -7,7 +7,7 @@ import 'package:flood_prediction/routes/app_routes.dart';
 import 'package:flood_prediction/services/realtime_alert_service.dart';
 import 'package:flood_prediction/widgets/offline_banner.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'my_repair_requests_view.dart';
+import 'my_asset_loss_reports_view.dart';
 
 class UserHome extends StatefulWidget {
   const UserHome({super.key});
@@ -29,16 +29,16 @@ class _UserHomeState extends State<UserHome> {
   void initState() {
     super.initState();
     // Task 12 "aid assignment updates" — notifies this resident when one
-    // of their own repair/aid requests changes status.
+    // of their own asset loss reports changes status.
     final accountId = Supabase.instance.client.auth.currentUser?.id;
     if (accountId != null) {
-      RealtimeAlertService.instance.watchOwnRepairRequests(accountId);
+      RealtimeAlertService.instance.watchOwnAssetLossReports(accountId);
     }
   }
 
   @override
   void dispose() {
-    RealtimeAlertService.instance.stopRepairRequestWatch();
+    RealtimeAlertService.instance.stopAssetLossReportWatch();
     super.dispose();
   }
 
@@ -73,13 +73,13 @@ class _UserHomeState extends State<UserHome> {
                 Icons.home_repair_service_outlined,
                 color: Colors.orange,
               ),
-              title: const Text('Submit Recovery Request'),
+              title: const Text('Report Asset Loss'),
               subtitle: const Text(
-                'Request post-flood repair or aid assistance',
+                'Report assets lost or damaged by a flood',
               ),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.pushNamed(context, AppRoutes.createRepairRequest);
+                Navigator.pushNamed(context, AppRoutes.assetLossCreate);
               },
             ),
           ],
@@ -141,7 +141,7 @@ class _UserHomeState extends State<UserHome> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  // ---- My repair/aid requests entry point ----
+                  // ---- My asset loss reports entry point ----
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
@@ -149,7 +149,7 @@ class _UserHomeState extends State<UserHome> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const MyRepairRequestsView(),
+                            builder: (_) => const MyAssetLossReportsView(),
                           ),
                         );
                       },
@@ -163,7 +163,7 @@ class _UserHomeState extends State<UserHome> {
                       ),
                       icon: const Icon(Icons.assignment_outlined),
                       label: const Text(
-                        "My Repair & Aid Requests",
+                        "My Asset Loss Reports",
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),

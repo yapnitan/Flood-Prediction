@@ -5,16 +5,15 @@ import '../views/auth/register_view.dart';
 import '../views/auth/forgot_password_view.dart';
 import '../views/auth/verify_email_view.dart';
 import '../views/admin/admin_view.dart';
-import '../views/admin/repair_request_admin_view.dart';
 import '../views/helper/helper_view.dart';
 import '../views/user/user_view.dart';
 import '../views/user/simulation_list_view.dart';
 import '../views/user/create_simulation_view.dart';
 import '../views/user/simulation_detail_view.dart';
 import '../views/user/simulation_compare_view.dart';
-import '../views/user/create_repair_request_view.dart';
-import '../views/user/my_repair_requests_view.dart';
-import '../views/user/repair_request_detail_view.dart';
+import '../views/user/create_asset_loss_report_view.dart';
+import '../views/user/my_asset_loss_reports_view.dart';
+import '../views/user/asset_loss_report_detail_view.dart';
 import '../views/user/report_history_view.dart';
 import '../views/user/planner_dashboard_view.dart';
 import '../views/user/checklist_view.dart';
@@ -22,6 +21,10 @@ import '../views/user/inventory_view.dart';
 import '../views/user/contacts_view.dart';
 import '../views/user/pps_map_view.dart';
 import '../views/user/my_properties_view.dart';
+import '../views/admin/economic_loss_dashboard_view.dart';
+import '../views/admin/flood_incident_admin_view.dart';
+import '../views/admin/helper_assignment_admin_view.dart';
+import '../views/helper/shelter_occupancy_view.dart';
 import '../views/shared/personal_information_view.dart';
 import '../views/shared/change_password_view.dart';
 import '../views/shared/notification_settings_view.dart';
@@ -78,24 +81,31 @@ class RouteGenerator {
       case AppRoutes.simulationCompare:
         return MaterialPageRoute(builder: (_) => const SimulationCompareView());
 
-      case AppRoutes.createRepairRequest:
+      case AppRoutes.assetLossCreate:
         return MaterialPageRoute(
-          builder: (_) => const CreateRepairRequestView(),
+          builder: (_) => const CreateAssetLossReportView(),
         );
 
-      case AppRoutes.myRepairRequests:
-        return MaterialPageRoute(builder: (_) => const MyRepairRequestsView());
+      case AppRoutes.myAssetLossReports:
+        return MaterialPageRoute(builder: (_) => const MyAssetLossReportsView());
 
-      case AppRoutes.repairRequestDetail:
-        final args = settings.arguments as RepairRequestDetailArgs;
+      case AppRoutes.assetLossDetail:
+        final args = settings.arguments as AssetLossDetailArgs;
         return MaterialPageRoute(
-          builder: (_) => RepairRequestDetailView(requestId: args.requestId),
+          builder: (_) => AssetLossReportDetailView(reportId: args.reportId),
         );
 
-      case AppRoutes.repairRequestAdmin:
-        return MaterialPageRoute(
-          builder: (_) => const RepairRequestAdminView(),
-        );
+      case AppRoutes.economicLossDashboard:
+        return MaterialPageRoute(builder: (_) => const EconomicLossDashboardView());
+
+      case AppRoutes.floodIncidentAdmin:
+        return MaterialPageRoute(builder: (_) => const FloodIncidentAdminView());
+
+      case AppRoutes.helperAssignmentAdmin:
+        return MaterialPageRoute(builder: (_) => const HelperAssignmentAdminView());
+
+      case AppRoutes.shelterOccupancy:
+        return MaterialPageRoute(builder: (_) => const ShelterOccupancyView());
 
       case AppRoutes.reportHistory:
         return MaterialPageRoute(builder: (_) => const ReportHistoryView());

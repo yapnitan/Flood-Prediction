@@ -221,6 +221,7 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 10,
+                  runSpacing: 8,
                   children: _facilityTypes.map((type) {
                     return SelectableChip(
                       label: Facility.typeLabels[type]!,

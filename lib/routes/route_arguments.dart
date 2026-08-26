@@ -44,7 +44,7 @@ class SimulationDetailArgs {
   });
 }
 
-class RepairRequestDetailArgs {
-  final String requestId;
-  const RepairRequestDetailArgs({required this.requestId});
+class AssetLossDetailArgs {
+  final String reportId;
+  const AssetLossDetailArgs({required this.reportId});
 }
