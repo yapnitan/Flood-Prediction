@@ -38,7 +38,9 @@ class _InventoryViewState extends State<InventoryView> {
   }
 
   void _refresh() {
-    setState(() => _itemsFuture = _controller.getInventory());
+    setState(() {
+      _itemsFuture = _controller.getInventory();
+    });
   }
 
   List<InventoryItem> _applyFilters(List<InventoryItem> items) {

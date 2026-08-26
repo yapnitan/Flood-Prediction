@@ -29,7 +29,9 @@ class _PlannerDashboardViewState extends State<PlannerDashboardView> {
 
   void _refresh() {
     final future = _controller.getPreparationProgress();
-    setState(() => _progressFuture = future);
+    setState(() {
+      _progressFuture = future;
+    });
     future.then(_syncChecklistReminder);
   }
 

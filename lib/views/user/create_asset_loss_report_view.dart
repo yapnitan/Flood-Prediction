@@ -550,11 +550,19 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                 // typed for the *previous* category (e.g. "Refrigerator"
                 // no longer makes sense under "Furniture") — clear it so
                 // the name field and its autocomplete suggestions actually
-                // reflect the newly selected category.
-                onTap: () => setState(() {
-                  _selectedCategory = category;
-                  _assetNameController.clear();
-                }),
+                // reflect the newly selected category. The clear is deferred
+                // to after this frame builds: RawAutocomplete only refreshes
+                // its options when the controller notifies listeners, and
+                // clearing synchronously here would fire that notification
+                // against the *old* category's optionsBuilder (the rebuild
+                // with the new category hasn't happened yet), leaving stale
+                // suggestions until some later edit happened to trigger it.
+                onTap: () {
+                  setState(() => _selectedCategory = category);
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) _assetNameController.clear();
+                  });
+                },
               );
             }).toList(),
           ),

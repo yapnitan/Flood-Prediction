@@ -27,7 +27,9 @@ class _ContactsViewState extends State<ContactsView> {
   }
 
   void _refresh() {
-    setState(() => _contactsFuture = _controller.getContacts());
+    setState(() {
+      _contactsFuture = _controller.getContacts();
+    });
   }
 
   Future<void> _showContactDialog({EmergencyContact? existing}) async {
