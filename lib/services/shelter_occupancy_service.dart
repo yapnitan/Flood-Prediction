@@ -24,6 +24,7 @@ class ShelterOccupancyService {
           elderly: report.elderly,
           infants: report.infants,
           personsWithDisabilities: report.personsWithDisabilities,
+          days: report.days,
         ).toJson(),
       );
       return true;

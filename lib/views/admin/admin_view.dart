@@ -178,59 +178,67 @@ class _AdminHomeState extends State<AdminHome> {
       },
       child: Scaffold(
       appBar: AppBar(title: Text(currentIndex == 2 ? _reportTitle : titles[currentIndex])),
-      body: useRail
-          ? LayoutBuilder(
-              builder: (context, constraints) {
+      // Both orientations keep an identical body element tree —
+      // LayoutBuilder > Row > Expanded(keyed) > AnimatedTab > page — and only
+      // add/remove the leading NavigationRail. Without this, crossing the
+      // `useRail` width breakpoint on rotation swapped the whole body subtree,
+      // remounting each tab body and wiping its filter/search/scroll state.
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Row(
+            children: [
+              if (useRail) ...[
                 // NavigationRail isn't internally scrollable, so with 5
                 // labelled destinations it can overflow vertically on
                 // short/landscape screens. Let it scroll while still
                 // stretching to fill the available height so the
                 // VerticalDivider spans the full body.
-                return Row(
-                  children: [
-                    SingleChildScrollView(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight,
-                        ),
-                        child: IntrinsicHeight(
-                          child: NavigationRail(
-                            selectedIndex: currentIndex,
-                            onDestinationSelected: _onNavTap,
-                            labelType: NavigationRailLabelType.all,
-                            destinations: [
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.dashboard_outlined),
-                                label: Text("Dashboard"),
-                              ),
-                              NavigationRailDestination(
-                                icon: _navIcon(Icons.people_outline, _pendingHelperCount),
-                                label: const Text("Users"),
-                              ),
-                              NavigationRailDestination(
-                                icon: _navIcon(Icons.assignment_outlined, _pendingAssetLossCount),
-                                label: const Text("Report"),
-                              ),
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.home_work_outlined),
-                                label: Text("Facilities"),
-                              ),
-                              const NavigationRailDestination(
-                                icon: Icon(Icons.person),
-                                label: Text("Profile"),
-                              ),
-                            ],
+                SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: IntrinsicHeight(
+                      child: NavigationRail(
+                        selectedIndex: currentIndex,
+                        onDestinationSelected: _onNavTap,
+                        labelType: NavigationRailLabelType.all,
+                        destinations: [
+                          const NavigationRailDestination(
+                            icon: Icon(Icons.dashboard_outlined),
+                            label: Text("Dashboard"),
                           ),
-                        ),
+                          NavigationRailDestination(
+                            icon: _navIcon(Icons.people_outline, _pendingHelperCount),
+                            label: const Text("Users"),
+                          ),
+                          NavigationRailDestination(
+                            icon: _navIcon(Icons.assignment_outlined, _pendingAssetLossCount),
+                            label: const Text("Report"),
+                          ),
+                          const NavigationRailDestination(
+                            icon: Icon(Icons.home_work_outlined),
+                            label: Text("Facilities"),
+                          ),
+                          const NavigationRailDestination(
+                            icon: Icon(Icons.person),
+                            label: Text("Profile"),
+                          ),
+                        ],
                       ),
                     ),
-                    const VerticalDivider(width: 1),
-                    Expanded(child: AnimatedTab(index: currentIndex, child: pages[currentIndex])),
-                  ],
-                );
-              },
-            )
-          : AnimatedTab(index: currentIndex, child: pages[currentIndex]),
+                  ),
+                ),
+                const VerticalDivider(width: 1),
+              ],
+              Expanded(
+                key: const ValueKey('adminTabBody'),
+                child: AnimatedTab(index: currentIndex, child: pages[currentIndex]),
+              ),
+            ],
+          );
+        },
+      ),
       bottomNavigationBar: useRail
           ? null
           : BottomNavigationBar(

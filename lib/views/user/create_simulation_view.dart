@@ -69,7 +69,7 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
         ? LatLng(current, currentLng)
         : null;
 
-    final picked = await Navigator.push<LatLng>(
+    final picked = await Navigator.push<PickedLocation>(
       context,
       MaterialPageRoute(
         builder: (_) => PickPropertyLocationView(initialLocation: initial),
@@ -78,8 +78,15 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
 
     if (picked == null || !mounted) return;
     setState(() {
-      _latitudeController.text = picked.latitude.toStringAsFixed(6);
-      _longitudeController.text = picked.longitude.toStringAsFixed(6);
+      _latitudeController.text = picked.point.latitude.toStringAsFixed(6);
+      _longitudeController.text = picked.point.longitude.toStringAsFixed(6);
+      final geocode = picked.geocode;
+      if (geocode?.state != null && MalaysiaGeocoder.states.contains(geocode!.state)) {
+        _state = geocode.state!;
+      }
+      if ((geocode?.district ?? '').trim().isNotEmpty) {
+        _districtController.text = geocode!.district!.trim();
+      }
     });
   }
 
@@ -257,6 +264,9 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
+                    // Re-seed when a map pick changes _state from code —
+                    // initialValue is only read on the first build.
+                    key: ValueKey(_state),
                     initialValue: _state,
                     decoration: _decoration('State'),
                     items: MalaysiaGeocoder.states

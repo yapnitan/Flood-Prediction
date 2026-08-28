@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../models/flood_report.dart';
 import '../../models/flood_simulation.dart';
 import '../../models/historical_flood.dart';
+import '../../models/river_flood_data.dart';
 import '../../models/simulation_factor.dart';
 import '../../controllers/historical_flood_controller.dart';
+import '../../services/flood_report_service.dart';
 import '../../services/flood_simulation_service.dart';
 import '../../services/historical_flood_service.dart';
 import '../../services/risk_assessment_service.dart';
@@ -34,10 +37,12 @@ class SimulationDetailView extends StatefulWidget {
 class _SimulationDetailViewState extends State<SimulationDetailView> {
   final _floodSimulationService = FloodSimulationService();
   final _historicalFloodController = HistoricalFloodController(HistoricalFloodService());
+  final _floodReportService = FloodReportService();
   final _riskAssessmentService = RiskAssessmentService();
 
   List<SimulationFactor> _factors = [];
   List<HistoricalFlood> _nearbyFloods = [];
+  List<FloodReport> _recentReports = [];
   Map<int, int> _floodsPerYear = {};
   bool _isLoading = true;
 
@@ -75,7 +80,20 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
       pageSize: 200,
     );
 
-    final results = await Future.wait([factorsFuture, nearbyFuture, districtFuture]);
+    // Same window the score counted them over (see RiskAssessmentController).
+    final recentReportsFuture = _floodReportService.getNearby(
+      latitude: sim.latitude,
+      longitude: sim.longitude,
+      radiusKm: 10,
+      maxAge: const Duration(days: 7),
+    );
+
+    final results = await Future.wait([
+      factorsFuture,
+      nearbyFuture,
+      districtFuture,
+      recentReportsFuture,
+    ]);
     if (!mounted) return;
 
     final districtFloods = results[2] as List<HistoricalFlood>;
@@ -88,6 +106,7 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
     setState(() {
       _factors = results[0] as List<SimulationFactor>;
       _nearbyFloods = results[1] as List<HistoricalFlood>;
+      _recentReports = results[3] as List<FloodReport>;
       _floodsPerYear = perYear;
       _isLoading = false;
     });
@@ -102,6 +121,8 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
     return _riskAssessmentService.assess(
       RiskAssessmentInput(
         nearbyFloodCount: sim.nearbyFloodCount,
+        recentNearbyReportCount: sim.recentReportCount,
+        riverFloodLevel: sim.riverFloodLevel,
         propertyElevationMeters: sim.userElevationMeters ?? sim.terrainElevationMeters,
         baselineElevationMeters: sim.baselineElevationMeters,
         structureType: sim.structureType,
@@ -185,11 +206,34 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
                           ),
                         ),
 
-                        if (sim.currentWeatherSummary != null) ...[
+                        if (sim.currentWeatherSummary != null ||
+                            sim.riverFloodLevel.description != null) ...[
                           const SizedBox(height: 12),
                           _SectionCard(
-                            title: 'Current conditions (informational only)',
-                            child: Text(sim.currentWeatherSummary!),
+                            title: 'Live conditions at assessment time',
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (sim.currentWeatherSummary != null)
+                                  _ConditionRow(
+                                    icon: Icons.cloud_outlined,
+                                    color: Colors.blueGrey,
+                                    text: sim.currentWeatherSummary!,
+                                  ),
+                                if (sim.currentWeatherSummary != null &&
+                                    sim.riverFloodLevel.description != null)
+                                  const SizedBox(height: 8),
+                                if (sim.riverFloodLevel.description != null)
+                                  _ConditionRow(
+                                    icon: Icons.water,
+                                    color: (sim.riverFloodLevel == RiverFloodLevel.elevated ||
+                                            sim.riverFloodLevel == RiverFloodLevel.high)
+                                        ? Colors.red
+                                        : Colors.blueGrey,
+                                    text: sim.riverFloodLevel.description!,
+                                  ),
+                              ],
+                            ),
                           ),
                         ],
 
@@ -212,6 +256,27 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
                           preview: _previewResult,
                           currentScore: sim.riskScore,
                         ),
+
+                        if (_recentReports.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _SectionCard(
+                            title: 'Recent community flood reports (10km, last 7 days)',
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${_recentReports.length} report(s) submitted near this property '
+                                  'recently — this raised the risk score.',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                                ),
+                                const SizedBox(height: 8),
+                                ..._recentReports
+                                    .take(10)
+                                    .map((r) => _RecentReportRow(report: r)),
+                              ],
+                            ),
+                          ),
+                        ],
 
                         if (_nearbyFloods.isNotEmpty) ...[
                           const SizedBox(height: 12),
@@ -451,6 +516,71 @@ class _PreventiveImprovementsCard extends StatelessWidget {
                   ),
                 ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConditionRow extends StatelessWidget {
+  const _ConditionRow({required this.icon, required this.color, required this.text});
+
+  final IconData icon;
+  final Color color;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 15, color: color),
+        const SizedBox(width: 6),
+        Expanded(child: Text(text)),
+      ],
+    );
+  }
+}
+
+class _RecentReportRow extends StatelessWidget {
+  const _RecentReportRow({required this.report});
+
+  final FloodReport report;
+
+  String _formatDate(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+  @override
+  Widget build(BuildContext context) {
+    final verified = report.status == 'verified';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            verified ? Icons.verified : Icons.report_gmailerrorred_outlined,
+            size: 16,
+            color: verified ? Colors.teal : Colors.orange,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${report.floodType} · ${report.waterLevel} water level',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+                Text(
+                  '${report.locationName} · ${_formatDate(report.observedAt)}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
         ],
       ),

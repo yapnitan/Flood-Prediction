@@ -123,19 +123,150 @@ class _ShelterCard extends StatelessWidget {
               Text(shelter.address!, style: const TextStyle(color: Colors.grey, fontSize: 13)),
             ],
             const SizedBox(height: 8),
-            if (latest == null)
-              const Text('No occupancy logged yet', style: TextStyle(color: Colors.grey, fontSize: 13))
-            else ...[
-              Text('Current occupancy: ${latest!.totalVictims ?? 0} people', style: const TextStyle(fontSize: 13)),
-              const SizedBox(height: 2),
+            if (latest == null) ...[
               Text(
-                'Resource cost: RM ${(latest!.resourceCost ?? latest!.calculatedResourceCost).toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.teal),
+                shelter.capacity != null
+                    ? 'No occupancy logged yet · capacity ${shelter.capacity}'
+                    : 'No occupancy logged yet',
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
+              ),
+            ] else
+              _OccupancySummary(shelter: shelter, latest: latest!),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OccupancySummary extends StatelessWidget {
+  const _OccupancySummary({required this.shelter, required this.latest});
+
+  final Facility shelter;
+  final ShelterOccupancyReport latest;
+
+  @override
+  Widget build(BuildContext context) {
+    final occupancy = latest.totalVictims ?? latest.headcount;
+    final capacity = shelter.capacity;
+    final over = capacity != null && occupancy > capacity;
+    final fraction = (capacity != null && capacity > 0)
+        ? (occupancy / capacity).clamp(0.0, 1.0)
+        : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              capacity != null
+                  ? 'Occupancy: $occupancy / $capacity'
+                  : 'Occupancy: $occupancy people',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            if (over) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Over by ${occupancy - capacity}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.red.shade700,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ],
         ),
-      ),
+        if (fraction != null) ...[
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: fraction,
+              minHeight: 8,
+              backgroundColor: Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation(
+                over
+                    ? Colors.red
+                    : (fraction > 0.85 ? Colors.orange : Colors.teal),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 6),
+        Text(
+          'Resource cost: RM ${(latest.resourceCost ?? latest.calculatedResourceCost).toStringAsFixed(2)}'
+          ' · ${latest.days} day${latest.days == 1 ? '' : 's'} stay',
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.teal,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Live "total headcount vs shelter capacity" readout on the entry sheet.
+/// A warning only — a shelter can legitimately be over capacity in a
+/// disaster, so saving is never blocked.
+class _CapacityIndicator extends StatelessWidget {
+  const _CapacityIndicator({required this.headcount, required this.capacity});
+
+  final int headcount;
+  final int? capacity;
+
+  @override
+  Widget build(BuildContext context) {
+    if (capacity == null) {
+      return Text(
+        'Total: $headcount people (no capacity set for this shelter)',
+        style: const TextStyle(fontSize: 12, color: Colors.grey),
+      );
+    }
+    final over = headcount > capacity!;
+    final fraction = capacity! > 0 ? (headcount / capacity!).clamp(0.0, 1.0) : 1.0;
+    final color = over
+        ? Colors.red
+        : (fraction > 0.85 ? Colors.orange : Colors.teal);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Total: $headcount / $capacity',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color),
+            ),
+            if (over) ...[
+              const SizedBox(width: 8),
+              Text(
+                'over capacity by ${headcount - capacity!}',
+                style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(
+            value: fraction,
+            minHeight: 8,
+            backgroundColor: Colors.grey.shade200,
+            valueColor: AlwaysStoppedAnimation(color),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -157,6 +288,7 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
   late final TextEditingController _elderly;
   late final TextEditingController _infants;
   late final TextEditingController _pwd;
+  late final TextEditingController _days;
   bool _isSaving = false;
 
   @override
@@ -168,6 +300,7 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
     _elderly = TextEditingController(text: '${e?.elderly ?? 0}');
     _infants = TextEditingController(text: '${e?.infants ?? 0}');
     _pwd = TextEditingController(text: '${e?.personsWithDisabilities ?? 0}');
+    _days = TextEditingController(text: '${e?.days ?? 1}');
   }
 
   @override
@@ -177,18 +310,25 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
     _elderly.dispose();
     _infants.dispose();
     _pwd.dispose();
+    _days.dispose();
     super.dispose();
   }
+
+  int _value(TextEditingController c) => int.tryParse(c.text.trim()) ?? 0;
+
+  int get _headcount =>
+      _value(_adults) + _value(_children) + _value(_elderly) + _value(_infants) + _value(_pwd);
 
   Future<void> _save() async {
     setState(() => _isSaving = true);
     final ok = await widget.controller.record(ShelterOccupancyReport(
       facilityId: widget.shelter.id!,
-      adults: int.tryParse(_adults.text.trim()) ?? 0,
-      children: int.tryParse(_children.text.trim()) ?? 0,
-      elderly: int.tryParse(_elderly.text.trim()) ?? 0,
-      infants: int.tryParse(_infants.text.trim()) ?? 0,
-      personsWithDisabilities: int.tryParse(_pwd.text.trim()) ?? 0,
+      adults: _value(_adults),
+      children: _value(_children),
+      elderly: _value(_elderly),
+      infants: _value(_infants),
+      personsWithDisabilities: _value(_pwd),
+      days: _value(_days) < 1 ? 1 : _value(_days),
     ));
     if (!mounted) return;
     setState(() => _isSaving = false);
@@ -201,6 +341,7 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
       child: TextField(
         controller: controller,
         keyboardType: TextInputType.number,
+        onChanged: (_) => setState(() {}),
         decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), isDense: true),
       ),
     );
@@ -227,6 +368,9 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
             _countField('Elderly', _elderly),
             _countField('Infants', _infants),
             _countField('Persons with disabilities', _pwd),
+            _countField('Days of stay (for resource cost)', _days),
+            _CapacityIndicator(headcount: _headcount, capacity: widget.shelter.capacity),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               height: 48,

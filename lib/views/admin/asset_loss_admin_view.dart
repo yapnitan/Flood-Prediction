@@ -53,6 +53,70 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
     widget.onReportsChanged?.call();
   }
 
+  Future<void> _openReport(Map<String, dynamic> data) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => AssetLossAdminDetailView(data: data)),
+    );
+    _refresh();
+  }
+
+  // "Unknown state" / "Unknown district" buckets always sort to the bottom.
+  static int _unknownLast(String a, String b) {
+    final au = a.startsWith('Unknown');
+    final bu = b.startsWith('Unknown');
+    if (au != bu) return au ? 1 : -1;
+    return a.compareTo(b);
+  }
+
+  static int _triageOrder(Map<String, dynamic> a, Map<String, dynamic> b) {
+    int rank(Map<String, dynamic> r) => r['status'] == 'pending_review' ? 0 : 1;
+    final byStatus = rank(a).compareTo(rank(b));
+    if (byStatus != 0) return byStatus;
+    final av = (a['estimated_total_loss'] as num?)?.toDouble() ?? 0;
+    final bv = (b['estimated_total_loss'] as num?)?.toDouble() ?? 0;
+    return bv.compareTo(av);
+  }
+
+  /// Groups the filtered reports state → district, each as a header row
+  /// followed by its cards (pending first, then largest potential loss).
+  List<Widget> _buildGrouped(List<Map<String, dynamic>> rows) {
+    final byState = <String, Map<String, List<Map<String, dynamic>>>>{};
+    for (final r in rows) {
+      final property = r['property'] as Map<String, dynamic>?;
+      final state = (property?['state'] as String?)?.trim();
+      final district = (property?['district'] as String?)?.trim();
+      final stateKey = (state == null || state.isEmpty) ? 'Unknown state' : state;
+      final districtKey =
+          (district == null || district.isEmpty) ? 'Unknown district' : district;
+      byState
+          .putIfAbsent(stateKey, () => {})
+          .putIfAbsent(districtKey, () => [])
+          .add(r);
+    }
+
+    final widgets = <Widget>[];
+    final stateKeys = byState.keys.toList()..sort(_unknownLast);
+    for (final stateKey in stateKeys) {
+      final districts = byState[stateKey]!;
+      final stateCount =
+          districts.values.fold<int>(0, (sum, list) => sum + list.length);
+      widgets.add(_StateHeader(state: stateKey, count: stateCount));
+
+      final districtKeys = districts.keys.toList()..sort(_unknownLast);
+      for (final districtKey in districtKeys) {
+        final list = districts[districtKey]!..sort(_triageOrder);
+        widgets.add(_DistrictHeader(district: districtKey, count: list.length));
+        for (final row in list) {
+          widgets.add(Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _ReportSummaryCard(data: row, onTap: () => _openReport(row)),
+          ));
+        }
+      }
+    }
+    return widgets;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -135,21 +199,9 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
                           );
                         }
 
-                        return ListView.separated(
+                        return ListView(
                           padding: const EdgeInsets.all(16),
-                          itemCount: rows.length,
-                          separatorBuilder: (context, index) => const SizedBox(height: 12),
-                          itemBuilder: (context, index) => _ReportSummaryCard(
-                            data: rows[index],
-                            onTap: () async {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => AssetLossAdminDetailView(data: rows[index]),
-                                ),
-                              );
-                              _refresh();
-                            },
-                          ),
+                          children: _buildGrouped(rows),
                         );
                       },
                     ),
@@ -164,11 +216,82 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
   }
 }
 
+class _StateHeader extends StatelessWidget {
+  const _StateHeader({required this.state, required this.count});
+
+  final String state;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              state,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
+          Text(
+            '$count report${count == 1 ? '' : 's'}',
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DistrictHeader extends StatelessWidget {
+  const _DistrictHeader({required this.district, required this.count});
+
+  final String district;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 8, left: 2),
+      child: Row(
+        children: [
+          Icon(Icons.place_outlined, size: 14, color: Colors.grey.shade500),
+          const SizedBox(width: 4),
+          Text(
+            district,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text('($count)', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+        ],
+      ),
+    );
+  }
+}
+
 class _ReportSummaryCard extends StatelessWidget {
   const _ReportSummaryCard({required this.data, required this.onTap});
 
   final Map<String, dynamic> data;
   final VoidCallback onTap;
+
+  /// The specific address/name for this property — state/district already
+  /// show in the group header above, so those aren't repeated here.
+  static String _propertyLine(Map<String, dynamic>? property) {
+    if (property == null) return '';
+    final address = (property['address'] as String?)?.trim() ?? '';
+    if (address.isNotEmpty) return address;
+    return (property['label'] as String?)?.trim() ?? '';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -206,7 +329,7 @@ class _ReportSummaryCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text('From: ${account['name'] ?? 'Unknown'}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
             ],
-            if (property != null) ...[
+            if (_propertyLine(property).isNotEmpty) ...[
               const SizedBox(height: 4),
               Row(
                 children: [
@@ -214,7 +337,7 @@ class _ReportSummaryCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      '${property['district'] ?? ''}, ${property['state'] ?? ''}',
+                      _propertyLine(property),
                       style: const TextStyle(color: Colors.grey, fontSize: 12),
                       overflow: TextOverflow.ellipsis,
                     ),

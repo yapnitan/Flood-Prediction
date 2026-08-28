@@ -92,7 +92,7 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
                   child: TextField(
                     controller: _searchController,
                     decoration: InputDecoration(
-                      hintText: 'Search by location, type, or description',
+                      hintText: 'Search by location, area, type, or description',
                       prefixIcon: const Icon(Icons.search),
                       suffixIcon: _searchQuery.isEmpty
                           ? null
@@ -156,9 +156,11 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
                             final location = (r['location_name'] as String? ?? '').toLowerCase();
                             final description = (r['description'] as String? ?? '').toLowerCase();
                             final floodType = (r['flood_type'] as String? ?? '').toLowerCase();
+                            final area = '${r['district'] ?? ''} ${r['state'] ?? ''}'.toLowerCase();
                             return location.contains(_searchQuery) ||
                                 description.contains(_searchQuery) ||
-                                floodType.contains(_searchQuery);
+                                floodType.contains(_searchQuery) ||
+                                area.contains(_searchQuery);
                           }).toList();
                         }
 
@@ -304,6 +306,26 @@ class _AdminReportSummaryCard extends StatelessWidget {
                 ),
               ],
             ),
+            if ((report.district ?? '').isNotEmpty ||
+                (report.state ?? '').isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.map_outlined, size: 16, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      [
+                        if ((report.district ?? '').isNotEmpty) report.district!,
+                        if ((report.state ?? '').isNotEmpty) report.state!,
+                      ].join(', '),
+                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 4),
             Row(
               children: [

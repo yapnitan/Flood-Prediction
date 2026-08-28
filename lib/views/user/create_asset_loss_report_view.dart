@@ -8,6 +8,7 @@ import '../../controllers/property_controller.dart';
 import '../../models/asset_loss_report.dart';
 import '../../models/flood_incident.dart';
 import '../../models/property.dart';
+import '../../services/asset_ai_service.dart';
 import '../../services/asset_loss_report_service.dart';
 import '../../services/flood_incident_service.dart';
 import '../../services/property_service.dart';
@@ -86,9 +87,11 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
   final TextEditingController _descriptionController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
   final List<XFile> _photos = [];
+  final AssetAiService _aiService = AssetAiService();
 
   bool _isSubmitting = false;
   bool _isSubmitted = false;
+  bool _isAnalyzing = false;
 
   @override
   void initState() {
@@ -260,6 +263,83 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
     final photo = await _imagePicker.pickImage(source: ImageSource.camera, imageQuality: 85);
     if (!mounted || photo == null) return;
     setState(() => _photos.add(photo));
+  }
+
+  // ---- AI photo assist (Task/asset report §"implement AI") ----
+
+  void _showAiSourcePicker() {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Text(
+                'Take or choose a photo of the damaged item — Claude will fill '
+                'in the category, name, condition and an estimated value.',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Take a photo'),
+              onTap: () {
+                Navigator.pop(context);
+                _analyzeWithAi(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () {
+                Navigator.pop(context);
+                _analyzeWithAi(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _analyzeWithAi(ImageSource source) async {
+    final photo = await _imagePicker.pickImage(source: source, imageQuality: 85);
+    if (!mounted || photo == null) return;
+    setState(() {
+      _photos.add(photo); // carries through to submission as evidence
+      _isAnalyzing = true;
+    });
+
+    final suggestion = await _aiService.analysePhotos([photo]);
+    if (!mounted) return;
+    setState(() => _isAnalyzing = false);
+
+    if (suggestion == null) {
+      _showSnack('Could not analyse the photo — please fill in the details manually.');
+      return;
+    }
+
+    setState(() {
+      if (suggestion.category != null) _selectedCategory = suggestion.category;
+      final name = suggestion.assetName;
+      if (name != null && name.isNotEmpty) _assetNameController.text = name;
+      if (suggestion.condition != null) _selectedCondition = suggestion.condition;
+      final qty = suggestion.quantity;
+      if (qty != null && qty > 0) _quantityController.text = '$qty';
+      final value = suggestion.estimatedValuePerItem;
+      if (value != null) _valueController.text = value.toStringAsFixed(2);
+      final desc = suggestion.description;
+      if (desc != null && desc.isNotEmpty && _descriptionController.text.trim().isEmpty) {
+        _descriptionController.text = desc;
+      }
+    });
+
+    _showSnack(
+      suggestion.note != null
+          ? 'AI filled in the details — ${suggestion.note}'
+          : 'AI filled in the details — please check and adjust.',
+    );
   }
 
   void _showPhotoSourcePicker() {
@@ -536,6 +616,61 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
               ),
             ),
             const SizedBox(height: 16),
+          ],
+          if (_aiService.isConfigured) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.deepPurple.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.deepPurple.shade100),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.auto_awesome, size: 18, color: Colors.deepPurple.shade400),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Fill this in from a photo',
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Snap the damaged item and Claude suggests the category, '
+                    'name, condition and an estimated value. You can edit '
+                    'everything afterwards.',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _isAnalyzing ? null : _showAiSourcePicker,
+                      icon: _isAnalyzing
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.camera_alt_outlined, size: 18),
+                      label: Text(_isAnalyzing ? 'Analysing photo…' : 'Analyse a photo'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.deepPurple,
+                        side: BorderSide(color: Colors.deepPurple.shade200),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
           ],
           const Text('Asset Category', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 10),

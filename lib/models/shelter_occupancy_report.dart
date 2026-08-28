@@ -10,6 +10,7 @@ class ShelterOccupancyReport {
     required this.elderly,
     required this.infants,
     required this.personsWithDisabilities,
+    this.days = 1,
     this.totalVictims,
     this.resourceCost,
     this.recordedAt,
@@ -23,9 +24,16 @@ class ShelterOccupancyReport {
   final int elderly;
   final int infants;
   final int personsWithDisabilities;
+
+  /// How many days occupants are expected to stay — multiplies the per-day
+  /// resource rates.
+  final int days;
   final int? totalVictims;
   final double? resourceCost;
   final DateTime? recordedAt;
+
+  int get headcount =>
+      adults + children + elderly + infants + personsWithDisabilities;
 
   double get calculatedResourceCost => ResourceCostRates.calculate(
         adults: adults,
@@ -33,6 +41,7 @@ class ShelterOccupancyReport {
         elderly: elderly,
         infants: infants,
         personsWithDisabilities: personsWithDisabilities,
+        days: days,
       );
 
   factory ShelterOccupancyReport.fromJson(Map<String, dynamic> json) => ShelterOccupancyReport(
@@ -44,6 +53,7 @@ class ShelterOccupancyReport {
     elderly: json['elderly'] as int,
     infants: json['infants'] as int,
     personsWithDisabilities: json['persons_with_disabilities'] as int,
+    days: json['days'] as int? ?? 1,
     totalVictims: json['total_victims'] as int?,
     resourceCost: (json['resource_cost'] as num?)?.toDouble(),
     recordedAt: json['recorded_at'] != null ? DateTime.parse(json['recorded_at'] as String) : null,
@@ -57,6 +67,7 @@ class ShelterOccupancyReport {
     'elderly': elderly,
     'infants': infants,
     'persons_with_disabilities': personsWithDisabilities,
+    'days': days,
     'resource_cost': calculatedResourceCost,
   };
 }

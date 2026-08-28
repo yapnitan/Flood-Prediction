@@ -72,51 +72,59 @@ class _HelperHomeState extends State<HelperHome> {
       },
       child: Scaffold(
       appBar: AppBar(title: Text(titles[currentIndex])),
-      body: useRail
-          ? LayoutBuilder(
-              builder: (context, constraints) {
+      // Both orientations keep an identical body element tree —
+      // LayoutBuilder > Row > Expanded(keyed) > AnimatedTab > page — and only
+      // add/remove the leading NavigationRail. Without this, crossing the
+      // `useRail` width breakpoint on rotation swapped the whole body subtree,
+      // remounting each tab body and wiping its filter/search/scroll state.
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Row(
+            children: [
+              if (useRail) ...[
                 // NavigationRail isn't internally scrollable, so on a short
                 // (e.g. landscape) screen it can overflow vertically. Let it
                 // scroll while still stretching to fill the available
                 // height so the VerticalDivider spans the full body.
-                return Row(
-                  children: [
-                    SingleChildScrollView(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight,
-                        ),
-                        child: IntrinsicHeight(
-                          child: NavigationRail(
-                            selectedIndex: currentIndex,
-                            onDestinationSelected: (index) =>
-                                setState(() => currentIndex = index),
-                            labelType: NavigationRailLabelType.all,
-                            destinations: const [
-                              NavigationRailDestination(
-                                icon: Icon(Icons.dashboard_outlined),
-                                label: Text("Dashboard"),
-                              ),
-                              NavigationRailDestination(
-                                icon: Icon(Icons.night_shelter_outlined),
-                                label: Text("Shelters"),
-                              ),
-                              NavigationRailDestination(
-                                icon: Icon(Icons.person),
-                                label: Text("Profile"),
-                              ),
-                            ],
+                SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: IntrinsicHeight(
+                      child: NavigationRail(
+                        selectedIndex: currentIndex,
+                        onDestinationSelected: (index) =>
+                            setState(() => currentIndex = index),
+                        labelType: NavigationRailLabelType.all,
+                        destinations: const [
+                          NavigationRailDestination(
+                            icon: Icon(Icons.dashboard_outlined),
+                            label: Text("Dashboard"),
                           ),
-                        ),
+                          NavigationRailDestination(
+                            icon: Icon(Icons.night_shelter_outlined),
+                            label: Text("Shelters"),
+                          ),
+                          NavigationRailDestination(
+                            icon: Icon(Icons.person),
+                            label: Text("Profile"),
+                          ),
+                        ],
                       ),
                     ),
-                    const VerticalDivider(width: 1),
-                    Expanded(child: AnimatedTab(index: currentIndex, child: pages[currentIndex])),
-                  ],
-                );
-              },
-            )
-          : AnimatedTab(index: currentIndex, child: pages[currentIndex]),
+                  ),
+                ),
+                const VerticalDivider(width: 1),
+              ],
+              Expanded(
+                key: const ValueKey('helperTabBody'),
+                child: AnimatedTab(index: currentIndex, child: pages[currentIndex]),
+              ),
+            ],
+          );
+        },
+      ),
       bottomNavigationBar: useRail
           ? null
           : BottomNavigationBar(

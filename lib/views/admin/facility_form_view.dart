@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import '../../constants/nearby_locations.dart';
+import 'package:latlong2/latlong.dart';
 import '../../controllers/facility_controller.dart';
 import '../../models/facility.dart';
 import '../../services/location_service.dart';
+import '../../utils/malaysia_geocoding.dart';
 import '../../utils/responsive.dart';
 import '../../utils/validators.dart';
+import '../../widgets/location_search_field.dart';
 import '../../widgets/selectable_chip.dart';
+import '../user/pick_property_location_view.dart';
 
 class FacilityFormView extends StatefulWidget {
   const FacilityFormView({super.key, required this.controller, this.existing, this.initialFacilityType});
@@ -31,15 +34,15 @@ class _FacilityFormViewState extends State<FacilityFormView> {
   late final TextEditingController _capacityController;
   late final TextEditingController _contactController;
   final TextEditingController _locationNameController = TextEditingController();
+  final TextEditingController _districtController = TextEditingController();
   final FocusNode _locationFocusNode = FocusNode();
 
   String _facilityType = 'shelter';
   double? _latitude;
   double? _longitude;
 
-  /// Not entered directly — derived from whichever location text the admin
-  /// picked (autocomplete suggestion or reverse-geocoded current location),
-  /// by matching it against known Malaysian state names.
+  /// Prefilled from the picked location's reverse geocode (state matched
+  /// against known Malaysian names, district taken as-is), both editable.
   String? _state;
   bool _isActive = true;
   bool _isLocating = false;
@@ -78,6 +81,18 @@ class _FacilityFormViewState extends State<FacilityFormView> {
     return null;
   }
 
+  /// Fills the State (prefers a canonical reverse-geocoded value, falls back
+  /// to matching known names against [fallbackText]) and District fields.
+  void _applyGeocodedArea({String? state, String? district, String? fallbackText}) {
+    final resolvedState = (state != null && MalaysiaGeocoder.states.contains(state))
+        ? state
+        : _deriveStateFromLocationText(fallbackText);
+    if (resolvedState != null) _state = resolvedState;
+    if (district != null && district.trim().isNotEmpty) {
+      _districtController.text = district.trim();
+    }
+  }
+
   bool get _isEditing => widget.existing != null;
 
   static const _facilityTypes = ['shelter', 'distribution_center', 'medical_station'];
@@ -94,6 +109,7 @@ class _FacilityFormViewState extends State<FacilityFormView> {
     _latitude = existing?.latitude;
     _longitude = existing?.longitude;
     _state = existing?.state;
+    _districtController.text = existing?.district ?? '';
     _isActive = existing?.isActive ?? true;
     if (existing?.address != null) {
       _locationNameController.text = existing!.address!;
@@ -107,6 +123,7 @@ class _FacilityFormViewState extends State<FacilityFormView> {
     _capacityController.dispose();
     _contactController.dispose();
     _locationNameController.dispose();
+    _districtController.dispose();
     _locationFocusNode.dispose();
     super.dispose();
   }
@@ -135,21 +152,42 @@ class _FacilityFormViewState extends State<FacilityFormView> {
         if (_addressController.text.trim().isEmpty) {
           _addressController.text = readable;
         }
-        _state = _deriveStateFromLocationText(readable);
       }
+      _applyGeocodedArea(
+        state: details.state,
+        district: details.district,
+        fallbackText: readable,
+      );
     });
   }
 
-  void _selectLocation(ReportLocation location) {
-    _locationNameController.text = location.name;
-    _latitude = location.latitude;
-    _longitude = location.longitude;
-    _state = _deriveStateFromLocationText(location.name);
-    if (_addressController.text.trim().isEmpty) {
-      _addressController.text = location.name;
-    }
-    FocusManager.instance.primaryFocus?.unfocus();
-    setState(() {});
+  Future<void> _pickOnMap() async {
+    final initial = (_latitude != null && _longitude != null)
+        ? LatLng(_latitude!, _longitude!)
+        : null;
+    final picked = await Navigator.push<PickedLocation>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PickPropertyLocationView(initialLocation: initial),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _latitude = picked.point.latitude;
+      _longitude = picked.point.longitude;
+      final address = picked.geocode?.address?.trim();
+      if (address != null && address.isNotEmpty) {
+        _locationNameController.text = address;
+        if (_addressController.text.trim().isEmpty) {
+          _addressController.text = address;
+        }
+      }
+      _applyGeocodedArea(
+        state: picked.geocode?.state,
+        district: picked.geocode?.district,
+        fallbackText: address,
+      );
+    });
   }
 
   Future<void> _save() async {
@@ -171,6 +209,7 @@ class _FacilityFormViewState extends State<FacilityFormView> {
       longitude: _longitude!,
       address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
       state: _state,
+      district: _districtController.text.trim().isEmpty ? null : _districtController.text.trim(),
       capacity: int.tryParse(_capacityController.text.trim()),
       contactNumber: _contactController.text.trim().isEmpty ? null : _contactController.text.trim(),
       isActive: _isActive,
@@ -244,54 +283,30 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                 const SizedBox(height: 20),
                 const Text('Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 10),
-                RawAutocomplete<ReportLocation>(
-                  textEditingController: _locationNameController,
+                LocationSearchField(
+                  controller: _locationNameController,
                   focusNode: _locationFocusNode,
-                  optionsBuilder: (textEditingValue) {
-                    final query = textEditingValue.text.trim().toLowerCase();
-                    return kNearbyLocations.where(
-                          (location) => query.isEmpty || location.name.toLowerCase().contains(query),
-                    );
+                  decoration: const InputDecoration(
+                    labelText: 'Search location',
+                    hintText: 'Type an address, or tap for nearby places',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(10)),
+                    ),
+                  ),
+                  onManualEdit: () {
+                    _latitude = null;
+                    _longitude = null;
                   },
-                  onSelected: _selectLocation,
-                  displayStringForOption: (location) => location.name,
-                  optionsViewBuilder: (context, onSelected, options) => Align(
-                    alignment: Alignment.topLeft,
-                    child: Material(
-                      elevation: 4,
-                      borderRadius: BorderRadius.circular(10),
-                      color: Colors.white,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: 250,
-                          maxWidth: context.responsive(mobile: 320, tablet: 480, desktop: 600),
-                        ),
-                        child: ListView(
-                          padding: EdgeInsets.zero,
-                          shrinkWrap: true,
-                          children: options.map((location) {
-                            return ListTile(
-                              leading: const Icon(Icons.location_on_outlined, color: Colors.grey),
-                              title: Text(location.name),
-                              onTap: () => onSelected(location),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                  ),
-                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) => TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    decoration: const InputDecoration(
-                      labelText: 'Search location',
-                      hintText: 'Tap to see nearby locations',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(10)),
-                      ),
-                    ),
-                  ),
+                  onCoordinates: (lat, lng) => setState(() {
+                    _latitude = lat;
+                    _longitude = lng;
+                    if (_addressController.text.trim().isEmpty) {
+                      _addressController.text = _locationNameController.text;
+                    }
+                  }),
+                  onArea: ({state, district, postcode}) => setState(
+                      () => _applyGeocodedArea(state: state, district: district)),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
@@ -314,17 +329,54 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: OutlinedButton.icon(
+                    onPressed: _isLocating ? null : _pickOnMap,
+                    icon: const Icon(Icons.map_outlined, size: 18),
+                    label: const Text('Pick on map'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue,
+                      side: const BorderSide(color: Colors.blue),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
                 if (_latitude != null && _longitude != null) ...[
                   const SizedBox(height: 8),
                   Text(
                     'Coordinates: ${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}',
                     style: const TextStyle(color: Colors.grey, fontSize: 12),
                   ),
-                  Text(
-                    _state != null ? 'State: $_state' : 'State: could not be detected from this location',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
                 ],
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  // Re-seed when a picked location changes _state from code.
+                  key: ValueKey(_state),
+                  initialValue: _state,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'State',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: MalaysiaGeocoder.states
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                      .toList(),
+                  onChanged: (value) => setState(() => _state = value),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _districtController,
+                  decoration: const InputDecoration(
+                    labelText: 'District (optional)',
+                    hintText: 'e.g. Petaling',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: _addressController,

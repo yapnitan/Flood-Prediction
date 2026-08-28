@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flood_prediction/models/river_flood_data.dart';
 import 'package:flood_prediction/services/risk_assessment_service.dart';
 
 void main() {
@@ -6,6 +7,8 @@ void main() {
 
   RiskAssessmentInput baseInput({
     int nearbyFloodCount = 0,
+    int recentNearbyReportCount = 0,
+    RiverFloodLevel riverFloodLevel = RiverFloodLevel.unknown,
     double? propertyElevationMeters,
     double? baselineElevationMeters,
     String structureType = 'Single-storey house',
@@ -14,6 +17,8 @@ void main() {
   }) {
     return RiskAssessmentInput(
       nearbyFloodCount: nearbyFloodCount,
+      recentNearbyReportCount: recentNearbyReportCount,
+      riverFloodLevel: riverFloodLevel,
       propertyElevationMeters: propertyElevationMeters,
       baselineElevationMeters: baselineElevationMeters,
       structureType: structureType,
@@ -85,6 +90,48 @@ void main() {
       expect(some.score, greaterThan(none.score));
       final manyHistoryFactor = many.factors.firstWhere((f) => f.factorName == 'Historical flood frequency');
       expect(manyHistoryFactor.scoreContribution, 50);
+    });
+
+    test('recent nearby community reports increase the score, capped at 30 points', () {
+      final none = service.assess(baseInput(recentNearbyReportCount: 0));
+      final some = service.assess(baseInput(recentNearbyReportCount: 1));
+      final many = service.assess(baseInput(recentNearbyReportCount: 50));
+
+      expect(some.score, greaterThan(none.score));
+      final manyReportFactor =
+          many.factors.firstWhere((f) => f.factorName == 'Recent community flood reports');
+      expect(manyReportFactor.scoreContribution, 30);
+    });
+
+    test('recommends monitoring when neighbours have reported flooding recently', () {
+      final result = service.assess(baseInput(recentNearbyReportCount: 2));
+      expect(
+        result.recommendations.any((r) => r.toLowerCase().contains('neighbour')),
+        isTrue,
+      );
+    });
+
+    test('an elevated/high river-flood forecast raises the score; low/normal/unknown do not', () {
+      final unknown = service.assess(baseInput());
+      final normal = service.assess(baseInput(riverFloodLevel: RiverFloodLevel.normal));
+      final elevated = service.assess(baseInput(riverFloodLevel: RiverFloodLevel.elevated));
+      final high = service.assess(baseInput(riverFloodLevel: RiverFloodLevel.high));
+
+      expect(normal.score, unknown.score);
+      expect(elevated.score, greaterThan(unknown.score));
+      expect(high.score, greaterThan(elevated.score));
+
+      final highFactor =
+          high.factors.firstWhere((f) => f.factorName == 'Live river flood forecast');
+      expect(highFactor.scoreContribution, 12);
+    });
+
+    test('recommends monitoring warnings when the river forecast is elevated', () {
+      final result = service.assess(baseInput(riverFloodLevel: RiverFloodLevel.elevated));
+      expect(
+        result.recommendations.any((r) => r.toLowerCase().contains('river levels')),
+        isTrue,
+      );
     });
 
     test('score is clamped to 100 even with maximum hazard inputs', () {

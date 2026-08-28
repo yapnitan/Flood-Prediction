@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import '../../constants/nearby_locations.dart';
+import 'package:latlong2/latlong.dart';
 import '../../controllers/property_controller.dart';
 import '../../models/property.dart';
 import '../../services/location_service.dart';
 import '../../utils/malaysia_geocoding.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/location_search_field.dart';
 import '../../widgets/selectable_chip.dart';
+import 'pick_property_location_view.dart';
 
 /// Property types a user can pick from when adding a saved address —
 /// previously came from assistance_field_spec.dart (repair-request-only,
@@ -125,20 +127,30 @@ class _PropertyFormViewState extends State<PropertyFormView> {
     }
   }
 
-  void _selectLocation(ReportLocation location) async {
-    _addressController.text = location.name;
-    _latitude = location.latitude;
-    _longitude = location.longitude;
-    FocusManager.instance.primaryFocus?.unfocus();
-    setState(() {});
-
-    final geocode = await _locationService.reverseGeocode(location.latitude, location.longitude);
-    if (!mounted || geocode == null) return;
-    setState(() => _applyGeocodedFields(
-          state: geocode.state,
-          district: geocode.district,
-          postcode: geocode.postcode,
-        ));
+  Future<void> _pickOnMap() async {
+    final initial = (_latitude != null && _longitude != null)
+        ? LatLng(_latitude!, _longitude!)
+        : null;
+    final picked = await Navigator.push<PickedLocation>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PickPropertyLocationView(initialLocation: initial),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _latitude = picked.point.latitude;
+      _longitude = picked.point.longitude;
+      final address = picked.geocode?.address?.trim();
+      if (address != null && address.isNotEmpty) {
+        _addressController.text = address;
+      }
+      _applyGeocodedFields(
+        state: picked.geocode?.state,
+        district: picked.geocode?.district,
+        postcode: picked.geocode?.postcode,
+      );
+    });
   }
 
   Future<void> _save() async {
@@ -224,53 +236,29 @@ class _PropertyFormViewState extends State<PropertyFormView> {
                 const SizedBox(height: 24),
                 const Text('Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 const SizedBox(height: 10),
-                RawAutocomplete<ReportLocation>(
-                  textEditingController: _addressController,
+                LocationSearchField(
+                  controller: _addressController,
                   focusNode: _locationFocusNode,
-                  optionsBuilder: (textEditingValue) {
-                    final query = textEditingValue.text.trim().toLowerCase();
-                    return kNearbyLocations.where(
-                      (location) => query.isEmpty || location.name.toLowerCase().contains(query),
-                    );
+                  decoration: const InputDecoration(
+                    labelText: 'Address',
+                    hintText: 'Type an address, or tap for nearby places',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(10)),
+                    ),
+                  ),
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty ? 'Enter or select an address.' : null,
+                  onManualEdit: () {
+                    _latitude = null;
+                    _longitude = null;
                   },
-                  onSelected: _selectLocation,
-                  displayStringForOption: (location) => location.name,
-                  optionsViewBuilder: (context, onSelected, options) => Align(
-                    alignment: Alignment.topLeft,
-                    child: Material(
-                      elevation: 4,
-                      borderRadius: BorderRadius.circular(10),
-                      color: Colors.white,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 250, maxWidth: 600),
-                        child: ListView(
-                          padding: EdgeInsets.zero,
-                          shrinkWrap: true,
-                          children: options.map((location) {
-                            return ListTile(
-                              leading: const Icon(Icons.location_on_outlined, color: Colors.grey),
-                              title: Text(location.name),
-                              onTap: () => onSelected(location),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                  ),
-                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) => TextFormField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    validator: (value) =>
-                        value == null || value.trim().isEmpty ? 'Enter or select an address.' : null,
-                    decoration: const InputDecoration(
-                      labelText: 'Address',
-                      hintText: 'Tap to see nearby locations',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(10)),
-                      ),
-                    ),
-                  ),
+                  onCoordinates: (lat, lng) => setState(() {
+                    _latitude = lat;
+                    _longitude = lng;
+                  }),
+                  onArea: ({state, district, postcode}) => setState(() =>
+                      _applyGeocodedFields(state: state, district: district, postcode: postcode)),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
@@ -286,6 +274,21 @@ class _PropertyFormViewState extends State<PropertyFormView> {
                           )
                         : const Icon(Icons.my_location, size: 18),
                     label: Text(_isLocating ? 'Locating...' : 'Use Current Location'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue,
+                      side: const BorderSide(color: Colors.blue),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: OutlinedButton.icon(
+                    onPressed: _isLocating ? null : _pickOnMap,
+                    icon: const Icon(Icons.map_outlined, size: 18),
+                    label: const Text('Pick on map'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.blue,
                       side: const BorderSide(color: Colors.blue),

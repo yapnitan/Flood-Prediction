@@ -177,6 +177,15 @@ class _ReportDetailViewState extends State<ReportDetailView> {
                   if (widget.reporterName != null && widget.reporterName!.isNotEmpty)
                     ReviewCard(title: 'Reported by', value: widget.reporterName!),
                   ReviewCard(title: 'Location', value: report.locationName),
+                  if ((report.district ?? '').isNotEmpty ||
+                      (report.state ?? '').isNotEmpty)
+                    ReviewCard(
+                      title: 'Area',
+                      value: [
+                        if ((report.district ?? '').isNotEmpty) report.district!,
+                        if ((report.state ?? '').isNotEmpty) report.state!,
+                      ].join(', '),
+                    ),
                   ReviewCard(title: 'Water level', value: report.waterLevel),
                   ReviewCard(
                     title: 'Observed at',

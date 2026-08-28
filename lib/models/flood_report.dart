@@ -5,6 +5,8 @@ class FloodReport {
     required this.locationName,
     required this.latitude,
     required this.longitude,
+    this.state,
+    this.district,
     required this.floodType,
     required this.waterLevel,
     required this.observedAt,
@@ -20,6 +22,12 @@ class FloodReport {
   final String locationName;
   final double latitude;
   final double longitude;
+
+  /// Malaysian state/district the report's coordinates fall in, reverse-
+  /// geocoded when the location was picked. Both nullable — older reports
+  /// predate this, and reverse geocoding is best-effort.
+  final String? state;
+  final String? district;
   final String floodType;
   final String waterLevel;
   final DateTime observedAt;
@@ -35,6 +43,8 @@ class FloodReport {
     locationName: json['location_name'] as String,
     latitude: (json['latitude'] as num).toDouble(),
     longitude: (json['longitude'] as num).toDouble(),
+    state: json['state'] as String?,
+    district: json['district'] as String?,
     floodType: json['flood_type'] as String,
     waterLevel: json['water_level'] as String,
     // Stored as UTC (see toJson); converted back to local time here so
@@ -59,6 +69,8 @@ class FloodReport {
     'location_name': locationName,
     'latitude': latitude,
     'longitude': longitude,
+    'state': state,
+    'district': district,
     'flood_type': floodType,
     'water_level': waterLevel,
     'observed_at': observedAt.toUtc().toIso8601String(),
@@ -74,6 +86,8 @@ class FloodReport {
       locationName: locationName,
       latitude: latitude,
       longitude: longitude,
+      state: state,
+      district: district,
       floodType: floodType,
       waterLevel: waterLevel,
       observedAt: observedAt,
