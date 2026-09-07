@@ -73,6 +73,8 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardVisible = context.isKeyboardVisible;
+
     return Container(
       color: Colors.white,
       child: SafeArea(
@@ -105,21 +107,23 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
                     ),
                   ),
                 ),
-                _buildFilterBar(
-                  options: _floodTypeOptions,
-                  selected: _floodTypeFilter,
-                  onSelected: (value) =>
-                      setState(() => _floodTypeFilter = value),
-                  labelBuilder: (value) => value == 'all' ? 'All types' : value,
-                ),
-                _buildFilterBar(
-                  options: _waterLevelOptions,
-                  selected: _waterLevelFilter,
-                  onSelected: (value) =>
-                      setState(() => _waterLevelFilter = value),
-                  labelBuilder: (value) =>
-                      value == 'all' ? 'All water levels' : value,
-                ),
+                if (!keyboardVisible) ...[
+                  _buildFilterBar(
+                    options: _floodTypeOptions,
+                    selected: _floodTypeFilter,
+                    onSelected: (value) =>
+                        setState(() => _floodTypeFilter = value),
+                    labelBuilder: (value) => value == 'all' ? 'All types' : value,
+                  ),
+                  _buildFilterBar(
+                    options: _waterLevelOptions,
+                    selected: _waterLevelFilter,
+                    onSelected: (value) =>
+                        setState(() => _waterLevelFilter = value),
+                    labelBuilder: (value) =>
+                        value == 'all' ? 'All water levels' : value,
+                  ),
+                ],
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _refresh,

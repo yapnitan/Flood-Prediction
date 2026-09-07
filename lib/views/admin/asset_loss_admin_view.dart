@@ -119,6 +119,8 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardVisible = context.isKeyboardVisible;
+
     return Container(
       color: Colors.white,
       child: SafeArea(
@@ -142,9 +144,10 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
                     ),
                   ),
                 ),
-                SizedBox(
-                  height: 48,
-                  child: ListView.separated(
+                if (!keyboardVisible)
+                  SizedBox(
+                    height: 48,
+                    child: ListView.separated(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     scrollDirection: Axis.horizontal,
                     itemCount: _statusFilters.length,
@@ -160,8 +163,8 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
                         labelStyle: TextStyle(color: selected ? Colors.blue.shade900 : Colors.black87),
                       );
                     },
+                    ),
                   ),
-                ),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _refresh,

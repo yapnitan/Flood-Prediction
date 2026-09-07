@@ -8,7 +8,6 @@ import '../../services/asset_loss_report_service.dart';
 import '../../services/helper_assignment_service.dart';
 import '../../services/realtime_alert_service.dart';
 import '../../utils/responsive.dart';
-import '../../widgets/animated_tab.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/status_badge.dart';
 import '../shared/user_profile.dart';
@@ -73,7 +72,7 @@ class _HelperHomeState extends State<HelperHome> {
       child: Scaffold(
       appBar: AppBar(title: Text(titles[currentIndex])),
       // Both orientations keep an identical body element tree —
-      // LayoutBuilder > Row > Expanded(keyed) > AnimatedTab > page — and only
+      // LayoutBuilder > Row > Expanded(keyed) > IndexedStack — and only
       // add/remove the leading NavigationRail. Without this, crossing the
       // `useRail` width breakpoint on rotation swapped the whole body subtree,
       // remounting each tab body and wiping its filter/search/scroll state.
@@ -119,7 +118,7 @@ class _HelperHomeState extends State<HelperHome> {
               ],
               Expanded(
                 key: const ValueKey('helperTabBody'),
-                child: AnimatedTab(index: currentIndex, child: pages[currentIndex]),
+                child: IndexedStack(index: currentIndex, children: pages),
               ),
             ],
           );

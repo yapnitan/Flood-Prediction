@@ -36,6 +36,7 @@ class _FloodIncidentAdminViewState extends State<FloodIncidentAdminView> {
     final created = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: const Text('New Flood Incident'),
         content: Column(
           mainAxisSize: MainAxisSize.min,

@@ -124,6 +124,8 @@ class _UserManagementViewState extends State<UserManagementView> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardVisible = context.isKeyboardVisible;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FC),
       body: SafeArea(
@@ -168,46 +170,47 @@ class _UserManagementViewState extends State<UserManagementView> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      // A single horizontally-scrolling row (rather than two
-                      // stacked Wrap rows) keeps the header compact — on a
-                      // landscape phone the body height is short, and two
-                      // fixed rows of chips ate too much of it, squeezing
-                      // the scrollable list below into a tiny sliver.
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            for (final status in _statusFilters)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: ChoiceChip(
-                                  label: Text(status),
-                                  selected: _statusFilter == status,
-                                  onSelected: (_) =>
-                                      setState(() => _statusFilter = status),
+                      if (!keyboardVisible) ...[
+                        const SizedBox(height: 10),
+                        // Keep filters available at normal height, then
+                        // collapse them while the keyboard uses the limited
+                        // landscape viewport. The selected values stay in
+                        // State and return unchanged when the keyboard closes.
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              for (final status in _statusFilters)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: ChoiceChip(
+                                    label: Text(status),
+                                    selected: _statusFilter == status,
+                                    onSelected: (_) =>
+                                        setState(() => _statusFilter = status),
+                                  ),
                                 ),
+                              Container(
+                                width: 1,
+                                height: 24,
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                color: Colors.grey.shade300,
                               ),
-                            Container(
-                              width: 1,
-                              height: 24,
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              color: Colors.grey.shade300,
-                            ),
-                            const SizedBox(width: 8),
-                            for (final role in _roleFilters)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: ChoiceChip(
-                                  label: Text(role),
-                                  selected: _roleFilter == role,
-                                  onSelected: (_) =>
-                                      setState(() => _roleFilter = role),
+                              const SizedBox(width: 8),
+                              for (final role in _roleFilters)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: ChoiceChip(
+                                    label: Text(role),
+                                    selected: _roleFilter == role,
+                                    onSelected: (_) =>
+                                        setState(() => _roleFilter = role),
+                                  ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),

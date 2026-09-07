@@ -460,18 +460,21 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
   }
 
   Widget _buildWizard() {
+    final keyboardVisible = context.isKeyboardVisible;
+
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900)),
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: StepIndicator(
-                currentStep: _currentStep,
-                steps: const ['Address', 'Asset', 'Photos', 'Submit'],
+            if (!keyboardVisible)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                child: StepIndicator(
+                  currentStep: _currentStep,
+                  steps: const ['Address', 'Asset', 'Photos', 'Submit'],
+                ),
               ),
-            ),
             Expanded(
               child: SingleChildScrollView(
                 padding: EdgeInsets.symmetric(horizontal: context.responsive(mobile: 20, tablet: 32, desktop: 40)),
@@ -486,61 +489,62 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                 ),
               ),
             ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                context.responsive(mobile: 20, tablet: 32, desktop: 40), 0,
-                context.responsive(mobile: 20, tablet: 32, desktop: 40), 20,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_currentStep == 3 && !_isSubmitted) ...[
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: OutlinedButton.icon(
-                        onPressed: _isSubmitting ? null : _addAnotherAsset,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add Another Asset'),
+            if (!keyboardVisible)
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  context.responsive(mobile: 20, tablet: 32, desktop: 40), 0,
+                  context.responsive(mobile: 20, tablet: 32, desktop: 40), 20,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_currentStep == 3 && !_isSubmitted) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: OutlinedButton.icon(
+                          onPressed: _isSubmitting ? null : _addAnotherAsset,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add Another Asset'),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  Row(
-                    children: [
-                      if (_currentStep > 1 && !_isSubmitted) ...[
+                      const SizedBox(height: 12),
+                    ],
+                    Row(
+                      children: [
+                        if (_currentStep > 1 && !_isSubmitted) ...[
+                          Expanded(
+                            child: SizedBox(
+                              height: 50,
+                              child: OutlinedButton(
+                                onPressed: () => setState(() => _currentStep--),
+                                child: const Text('Back'),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
                         Expanded(
                           child: SizedBox(
                             height: 50,
-                            child: OutlinedButton(
-                              onPressed: () => setState(() => _currentStep--),
-                              child: const Text('Back'),
+                            child: ElevatedButton(
+                              onPressed: _footerButtonAction(),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: Text(
+                                _footerButtonLabel(),
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
                       ],
-                      Expanded(
-                        child: SizedBox(
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _footerButtonAction(),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            child: Text(
-                              _footerButtonLabel(),
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),

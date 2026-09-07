@@ -64,6 +64,8 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardVisible = context.isKeyboardVisible;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(title: const Text('Report History'), centerTitle: true),
@@ -97,9 +99,10 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
                     ),
                   ),
                 ),
-                SizedBox(
-                  height: 48,
-                  child: ListView.separated(
+                if (!keyboardVisible)
+                  SizedBox(
+                    height: 48,
+                    child: ListView.separated(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     scrollDirection: Axis.horizontal,
                     itemCount: _waterLevelOptions.length,
@@ -113,8 +116,8 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
                         onSelected: (_) => setState(() => _waterLevelFilter = level),
                       );
                     },
+                    ),
                   ),
-                ),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _refresh,

@@ -165,6 +165,7 @@ class _InventoryViewState extends State<InventoryView> {
   @override
   Widget build(BuildContext context) {
     final categoryOptions = ['All', ...InventoryItem.categoryOptions];
+    final keyboardVisible = context.isKeyboardVisible;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FC),
@@ -196,9 +197,10 @@ class _InventoryViewState extends State<InventoryView> {
                     ),
                   ),
                 ),
-                SizedBox(
-                  height: 48,
-                  child: ListView.separated(
+                if (!keyboardVisible)
+                  SizedBox(
+                    height: 48,
+                    child: ListView.separated(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     scrollDirection: Axis.horizontal,
                     itemCount: categoryOptions.length,
@@ -212,8 +214,8 @@ class _InventoryViewState extends State<InventoryView> {
                         onSelected: (_) => setState(() => _categoryFilter = category),
                       );
                     },
+                    ),
                   ),
-                ),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: () async => _refresh(),

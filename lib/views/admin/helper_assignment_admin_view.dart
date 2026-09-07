@@ -79,6 +79,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
+          scrollable: true,
           title: Text(existing == null ? 'Assign Helper' : 'Reassign District'),
           content: Column(
             mainAxisSize: MainAxisSize.min,

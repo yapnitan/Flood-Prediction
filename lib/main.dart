@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 
 import 'constants/app_theme.dart';
+import 'utils/responsive.dart';
 import 'routes/app_routes.dart';
 import 'routes/route_generator.dart';
 import 'services/connectivity_service.dart';
@@ -71,6 +72,10 @@ class MainApp extends StatelessWidget {
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      builder: (context, child) => KeyboardVisibilityScope(
+        visible: MediaQuery.viewInsetsOf(context).bottom > 0,
+        child: child ?? const SizedBox.shrink(),
+      ),
       home: const AuthGateView(),
       onGenerateRoute: RouteGenerator.generateRoute,
     );
