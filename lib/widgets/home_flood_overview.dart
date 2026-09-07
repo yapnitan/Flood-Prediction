@@ -6,6 +6,7 @@ import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../constants/map_config.dart';
 import '../controllers/area_risk_controller.dart';
 import '../controllers/environment_controller.dart';
 import '../controllers/flood_report_controller.dart';
@@ -560,6 +561,8 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                     options: MapOptions(
                       initialCenter: _currentLocation ?? _fallbackCenter,
                       initialZoom: 13,
+                      cameraConstraint: kMalaysiaCameraConstraint,
+                      interactionOptions: kMapInteractionOptions,
                     ),
                     children: [
                       TileLayer(

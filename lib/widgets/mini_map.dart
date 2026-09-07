@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../constants/map_config.dart';
+
 class MapMarkerSpec {
   const MapMarkerSpec({
     required this.point,
@@ -51,8 +53,9 @@ class MiniMap extends StatelessWidget {
             )
           : null,
       interactionOptions: InteractionOptions(
-        flags: interactive ? InteractiveFlag.all : InteractiveFlag.none,
+        flags: interactive ? kMapInteractionFlags : InteractiveFlag.none,
       ),
+      cameraConstraint: interactive ? kMalaysiaCameraConstraint : const CameraConstraint.unconstrained(),
     );
 
     return ClipRRect(

@@ -422,6 +422,12 @@ class _SubmitReportState extends State<SubmitReportPage> {
     final gridColumns = screenWidth >= 900 ? 4 : (screenWidth >= 600 ? 3 : 2);
     final keyboardVisible = context.isKeyboardVisible;
 
+    final double horizontalPadding = context.responsive(
+      mobile: 20,
+      tablet: 32,
+      desktop: 40,
+    );
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: _isEditing ? AppBar(title: const Text('Edit Report')) : null,
@@ -435,33 +441,37 @@ class _SubmitReportState extends State<SubmitReportPage> {
                 desktop: 900,
               ),
             ),
-            child: Column(
-              children: [
+            child: CustomScrollView(
+              slivers: [
                 // ---- Step indicator ----
-                Offstage(
-                  offstage: keyboardVisible,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
-                    ),
-                    child: StepIndicator(
-                      currentStep: _currentStep,
-                      steps: ["Location", "Details", "Photos", "Submit"],
-                    ),
-                  ),
-                ),
-
-                // ---- Scrollable form content ----
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.responsive(
-                        mobile: 20,
-                        tablet: 32,
-                        desktop: 40,
+                if (!keyboardVisible)
+                  SliverAppBar(
+                    backgroundColor: Colors.white,
+                    surfaceTintColor: Colors.white,
+                    elevation: 0,
+                    toolbarHeight: 0,
+                    automaticallyImplyLeading: false,
+                    floating: true,
+                    snap: true,
+                    bottom: PreferredSize(
+                      preferredSize: const Size.fromHeight(78),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 16,
+                        ),
+                        child: StepIndicator(
+                          currentStep: _currentStep,
+                          steps: ["Location", "Details", "Photos", "Submit"],
+                        ),
                       ),
                     ),
+                  ),
+
+                // ---- Scrollable form content ----
+                SliverPadding(
+                  padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                  sliver: SliverToBoxAdapter(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -477,78 +487,77 @@ class _SubmitReportState extends State<SubmitReportPage> {
                     ),
                   ),
                 ),
-
-                // ---- Navigation buttons ----
-                Offstage(
-                  offstage: keyboardVisible,
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      context.responsive(mobile: 20, tablet: 32, desktop: 40),
-                      0,
-                      context.responsive(mobile: 20, tablet: 32, desktop: 40),
-                      20,
-                    ),
-                    child: Row(
-                      children: [
-                        if (_currentStep > 1 && !_isSubmitted) ...[
-                          Expanded(
-                            child: SizedBox(
-                              height: 50,
-                              child: OutlinedButton(
-                                onPressed: () => setState(() => _currentStep--),
-                                child: const Text('Back'),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                        ],
-                        Expanded(
-                          child: SizedBox(
-                            height: 50,
-                            child: ElevatedButton(
-                              onPressed: _isSubmitting || _isSubmitted
-                                  ? null
-                                  : _goToNextStep,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                _isSubmitting
-                                    ? (_isEditing
-                                          ? 'Saving...'
-                                          : 'Submitting...')
-                                    : _isSubmitted
-                                    ? (_isEditing ? 'Saved' : 'Submitted')
-                                    : _currentStep == 1
-                                    ? 'Next'
-                                    : _currentStep == 2
-                                    ? 'Next: Photos'
-                                    : _currentStep == 3
-                                    ? 'Review Report'
-                                    : (_isEditing
-                                          ? 'Save Changes'
-                                          : 'Submit Report'),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
         ),
       ),
+      bottomNavigationBar: keyboardVisible
+          ? null
+          : Material(
+              color: Colors.white,
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalPadding,
+                    12,
+                    horizontalPadding,
+                    12,
+                  ),
+                  child: Row(
+                    children: [
+                      if (_currentStep > 1 && !_isSubmitted) ...[
+                        Expanded(
+                          child: SizedBox(
+                            height: 50,
+                            child: OutlinedButton(
+                              onPressed: () => setState(() => _currentStep--),
+                              child: const Text('Back'),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: SizedBox(
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: _isSubmitting || _isSubmitted
+                                ? null
+                                : _goToNextStep,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              _isSubmitting
+                                  ? (_isEditing ? 'Saving...' : 'Submitting...')
+                                  : _isSubmitted
+                                  ? (_isEditing ? 'Saved' : 'Submitted')
+                                  : _currentStep == 1
+                                  ? 'Next'
+                                  : _currentStep == 2
+                                  ? 'Next: Photos'
+                                  : _currentStep == 3
+                                  ? 'Review Report'
+                                  : (_isEditing ? 'Save Changes' : 'Submit Report'),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
     );
   }
 
