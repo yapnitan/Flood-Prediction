@@ -55,14 +55,17 @@ class CreateAssetLossReportView extends StatefulWidget {
   const CreateAssetLossReportView({super.key});
 
   @override
-  State<CreateAssetLossReportView> createState() => _CreateAssetLossReportViewState();
+  State<CreateAssetLossReportView> createState() =>
+      _CreateAssetLossReportViewState();
 }
 
 class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
   int _currentStep = 1;
 
   final _propertyController = PropertyController(PropertyService());
-  final _floodIncidentController = FloodIncidentController(FloodIncidentService());
+  final _floodIncidentController = FloodIncidentController(
+    FloodIncidentService(),
+  );
   final _reportController = AssetLossReportController(AssetLossReportService());
 
   bool _isLoadingProperties = true;
@@ -80,7 +83,9 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
   String? _selectedCategory;
   final TextEditingController _assetNameController = TextEditingController();
   final FocusNode _assetNameFocusNode = FocusNode();
-  final TextEditingController _quantityController = TextEditingController(text: '1');
+  final TextEditingController _quantityController = TextEditingController(
+    text: '1',
+  );
   final TextEditingController _valueController = TextEditingController();
   String? _selectedCondition;
   final _detailsFormKey = GlobalKey<FormState>();
@@ -124,7 +129,9 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
   Future<void> _addAddress() async {
     final created = await Navigator.push<Property>(
       context,
-      MaterialPageRoute(builder: (context) => PropertyFormView(controller: _propertyController)),
+      MaterialPageRoute(
+        builder: (context) => PropertyFormView(controller: _propertyController),
+      ),
     );
     if (created == null || !mounted) return;
     setState(() {
@@ -134,7 +141,9 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// Steps 1 -> 2 -> 3 only — steps 3 and 4 are driven by their own
@@ -179,7 +188,9 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
       condition: _selectedCondition!,
       quantity: int.parse(_quantityController.text.trim()),
       valuePerItem: double.parse(_valueController.text.trim()),
-      description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
+      description: _descriptionController.text.trim().isEmpty
+          ? null
+          : _descriptionController.text.trim(),
       photos: List<XFile>.from(_photos),
     );
   }
@@ -247,8 +258,8 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
     _showSnack(
       allSucceeded
           ? (_pendingAssets.length > 1
-              ? 'Your ${_pendingAssets.length} asset loss reports have been submitted.'
-              : 'Your asset loss report has been submitted.')
+                ? 'Your ${_pendingAssets.length} asset loss reports have been submitted.'
+                : 'Your asset loss report has been submitted.')
           : 'Some reports could not be submitted. Please try again.',
     );
   }
@@ -260,7 +271,10 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
       setState(() => _photos.addAll(selected));
       return;
     }
-    final photo = await _imagePicker.pickImage(source: ImageSource.camera, imageQuality: 85);
+    final photo = await _imagePicker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 85,
+    );
     if (!mounted || photo == null) return;
     setState(() => _photos.add(photo));
   }
@@ -304,7 +318,10 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
   }
 
   Future<void> _analyzeWithAi(ImageSource source) async {
-    final photo = await _imagePicker.pickImage(source: source, imageQuality: 85);
+    final photo = await _imagePicker.pickImage(
+      source: source,
+      imageQuality: 85,
+    );
     if (!mounted || photo == null) return;
     setState(() {
       _photos.add(photo); // carries through to submission as evidence
@@ -316,7 +333,9 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
     setState(() => _isAnalyzing = false);
 
     if (suggestion == null) {
-      _showSnack('Could not analyse the photo — please fill in the details manually.');
+      _showSnack(
+        'Could not analyse the photo — please fill in the details manually.',
+      );
       return;
     }
 
@@ -324,13 +343,16 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
       if (suggestion.category != null) _selectedCategory = suggestion.category;
       final name = suggestion.assetName;
       if (name != null && name.isNotEmpty) _assetNameController.text = name;
-      if (suggestion.condition != null) _selectedCondition = suggestion.condition;
+      if (suggestion.condition != null)
+        _selectedCondition = suggestion.condition;
       final qty = suggestion.quantity;
       if (qty != null && qty > 0) _quantityController.text = '$qty';
       final value = suggestion.estimatedValuePerItem;
       if (value != null) _valueController.text = value.toStringAsFixed(2);
       final desc = suggestion.description;
-      if (desc != null && desc.isNotEmpty && _descriptionController.text.trim().isEmpty) {
+      if (desc != null &&
+          desc.isNotEmpty &&
+          _descriptionController.text.trim().isEmpty) {
         _descriptionController.text = desc;
       }
     });
@@ -379,8 +401,8 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
         child: _isLoadingProperties
             ? const Center(child: CircularProgressIndicator())
             : _myProperties.isEmpty
-                ? _buildNoAddressGate()
-                : _buildWizard(),
+            ? _buildNoAddressGate()
+            : _buildWizard(),
       ),
     );
   }
@@ -400,7 +422,11 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.location_off_outlined, size: 56, color: Colors.grey),
+            const Icon(
+              Icons.location_off_outlined,
+              size: 56,
+              color: Colors.grey,
+            ),
             const SizedBox(height: 12),
             const Text(
               'You need to add an address before reporting asset loss.',
@@ -419,8 +445,14 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
               height: 48,
               child: ElevatedButton.icon(
                 onPressed: _addAddress,
-                icon: const Icon(Icons.add_location_alt_outlined, color: Colors.white),
-                label: const Text('Add Address', style: TextStyle(color: Colors.white)),
+                icon: const Icon(
+                  Icons.add_location_alt_outlined,
+                  color: Colors.white,
+                ),
+                label: const Text(
+                  'Add Address',
+                  style: TextStyle(color: Colors.white),
+                ),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
               ),
             ),
@@ -441,7 +473,9 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
       case 3:
         return 'Review All (${_pendingAssets.length + 1})';
       case 4:
-        return _pendingAssets.length > 1 ? 'Submit ${_pendingAssets.length} Reports' : 'Submit Report';
+        return _pendingAssets.length > 1
+            ? 'Submit ${_pendingAssets.length} Reports'
+            : 'Submit Report';
       default:
         return 'Next';
     }
@@ -464,20 +498,33 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
 
     return Center(
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900)),
+        constraints: BoxConstraints(
+          maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
+        ),
         child: Column(
           children: [
-            if (!keyboardVisible)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            Offstage(
+              offstage: keyboardVisible,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
                 child: StepIndicator(
                   currentStep: _currentStep,
                   steps: const ['Address', 'Asset', 'Photos', 'Submit'],
                 ),
               ),
+            ),
             Expanded(
               child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: context.responsive(mobile: 20, tablet: 32, desktop: 40)),
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.responsive(
+                    mobile: 20,
+                    tablet: 32,
+                    desktop: 40,
+                  ),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -489,11 +536,14 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                 ),
               ),
             ),
-            if (!keyboardVisible)
-              Padding(
+            Offstage(
+              offstage: keyboardVisible,
+              child: Padding(
                 padding: EdgeInsets.fromLTRB(
-                  context.responsive(mobile: 20, tablet: 32, desktop: 40), 0,
-                  context.responsive(mobile: 20, tablet: 32, desktop: 40), 20,
+                  context.responsive(mobile: 20, tablet: 32, desktop: 40),
+                  0,
+                  context.responsive(mobile: 20, tablet: 32, desktop: 40),
+                  20,
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -531,11 +581,17 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                               onPressed: _footerButtonAction(),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                               child: Text(
                                 _footerButtonLabel(),
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           ),
@@ -545,6 +601,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                   ],
                 ),
               ),
+            ),
           ],
         ),
       ),
@@ -555,25 +612,34 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Select affected address', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const Text(
+          'Select affected address',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
         const SizedBox(height: 4),
         const Text(
           'Which of your saved addresses was affected by the flood?',
           style: TextStyle(color: Colors.grey),
         ),
         const SizedBox(height: 12),
-        ..._myProperties.map((property) => RadioListTile<int>(
-              value: property.id!,
-              // ignore: deprecated_member_use
-              groupValue: _selectedProperty?.id,
-              // ignore: deprecated_member_use
-              onChanged: (value) => setState(
-                () => _selectedProperty = _myProperties.firstWhere((p) => p.id == value),
+        ..._myProperties.map(
+          (property) => RadioListTile<int>(
+            value: property.id!,
+            // ignore: deprecated_member_use
+            groupValue: _selectedProperty?.id,
+            // ignore: deprecated_member_use
+            onChanged: (value) => setState(
+              () => _selectedProperty = _myProperties.firstWhere(
+                (p) => p.id == value,
               ),
-              title: Text(property.displayLabel),
-              subtitle: property.district != null ? Text('${property.district}, ${property.state}') : null,
-              contentPadding: EdgeInsets.zero,
-            )),
+            ),
+            title: Text(property.displayLabel),
+            subtitle: property.district != null
+                ? Text('${property.district}, ${property.state}')
+                : null,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
           onPressed: _addAddress,
@@ -582,18 +648,31 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
         ),
         if (_activeIncidents.isNotEmpty) ...[
           const SizedBox(height: 24),
-          const Text('Flood incident (optional)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const Text(
+            'Flood incident (optional)',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             initialValue: _selectedIncident?.id,
-            decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
             hint: const Text('Not linked to a specific incident'),
             isExpanded: true,
             items: _activeIncidents
-                .map((incident) => DropdownMenuItem(value: incident.id, child: Text(incident.name)))
+                .map(
+                  (incident) => DropdownMenuItem(
+                    value: incident.id,
+                    child: Text(incident.name),
+                  ),
+                )
                 .toList(),
             onChanged: (value) => setState(
-              () => _selectedIncident = _activeIncidents.firstWhere((i) => i.id == value),
+              () => _selectedIncident = _activeIncidents.firstWhere(
+                (i) => i.id == value,
+              ),
             ),
           ),
         ],
@@ -613,10 +692,17 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Text(
                 '${_pendingAssets.length} asset(s) already added to this report.',
-                style: TextStyle(color: Colors.blue.shade900, fontSize: 12, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: Colors.blue.shade900,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -635,12 +721,19 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.auto_awesome, size: 18, color: Colors.deepPurple.shade400),
+                      Icon(
+                        Icons.auto_awesome,
+                        size: 18,
+                        color: Colors.deepPurple.shade400,
+                      ),
                       const SizedBox(width: 8),
                       const Expanded(
                         child: Text(
                           'Fill this in from a photo',
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ],
@@ -664,7 +757,9 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.camera_alt_outlined, size: 18),
-                      label: Text(_isAnalyzing ? 'Analysing photo…' : 'Analyse a photo'),
+                      label: Text(
+                        _isAnalyzing ? 'Analysing photo…' : 'Analyse a photo',
+                      ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.deepPurple,
                         side: BorderSide(color: Colors.deepPurple.shade200),
@@ -676,7 +771,10 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
             ),
             const SizedBox(height: 20),
           ],
-          const Text('Asset Category', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const Text(
+            'Asset Category',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -724,12 +822,18 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                   borderRadius: BorderRadius.circular(10),
                   color: Colors.white,
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 250, maxWidth: 600),
+                    constraints: const BoxConstraints(
+                      maxHeight: 250,
+                      maxWidth: 600,
+                    ),
                     child: ListView(
                       padding: EdgeInsets.zero,
                       shrinkWrap: true,
                       children: options.map((example) {
-                        return ListTile(title: Text(example), onTap: () => onSelected(example));
+                        return ListTile(
+                          title: Text(example),
+                          onTap: () => onSelected(example),
+                        );
                       }).toList(),
                     ),
                   ),
@@ -744,8 +848,9 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                     hintText: 'e.g. Refrigerator',
                     border: OutlineInputBorder(),
                   ),
-                  validator: (value) =>
-                      value == null || value.trim().isEmpty ? 'Enter the asset name.' : null,
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Enter the asset name.'
+                      : null,
                 );
               },
             ),
@@ -756,10 +861,15 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                   child: TextFormField(
                     controller: _quantityController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Quantity', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(
+                      labelText: 'Quantity',
+                      border: OutlineInputBorder(),
+                    ),
                     validator: (value) {
                       final n = int.tryParse(value?.trim() ?? '');
-                      return (n == null || n <= 0) ? 'Enter a valid quantity.' : null;
+                      return (n == null || n <= 0)
+                          ? 'Enter a valid quantity.'
+                          : null;
                     },
                   ),
                 ),
@@ -767,7 +877,9 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                 Expanded(
                   child: TextFormField(
                     controller: _valueController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'Value per item',
                       prefixText: 'RM ',
@@ -776,21 +888,30 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                     onChanged: (_) => setState(() {}),
                     validator: (value) {
                       final n = double.tryParse(value?.trim() ?? '');
-                      return (n == null || n < 0) ? 'Enter a valid value.' : null;
+                      return (n == null || n < 0)
+                          ? 'Enter a valid value.'
+                          : null;
                     },
                   ),
                 ),
               ],
             ),
-            if (_quantityController.text.trim().isNotEmpty && _valueController.text.trim().isNotEmpty) ...[
+            if (_quantityController.text.trim().isNotEmpty &&
+                _valueController.text.trim().isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
                 'Estimated asset loss: RM ${_estimatedTotalLoss.toStringAsFixed(2)}',
-                style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.blue),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue,
+                ),
               ),
             ],
             const SizedBox(height: 20),
-            const Text('Condition', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            const Text(
+              'Condition',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
@@ -814,7 +935,10 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const Text(
+          'Description',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
         const SizedBox(height: 10),
         TextFormField(
           controller: _descriptionController,
@@ -827,15 +951,23 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
           ),
         ),
         const SizedBox(height: 24),
-        const Text('Evidence Photos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+        const Text(
+          'Evidence Photos',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        ),
         const SizedBox(height: 8),
-        const Text('Photos help helpers and admins verify the loss.', style: TextStyle(color: Colors.grey)),
+        const Text(
+          'Photos help helpers and admins verify the loss.',
+          style: TextStyle(color: Colors.grey),
+        ),
         const SizedBox(height: 16),
         OutlinedButton.icon(
           onPressed: _showPhotoSourcePicker,
           icon: const Icon(Icons.add_a_photo_outlined),
           label: const Text('Add photos'),
-          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(52),
+          ),
         ),
         const SizedBox(height: 16),
         if (_photos.isEmpty)
@@ -861,7 +993,11 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
             physics: const NeverScrollableScrollPhysics(),
             itemCount: _photos.length,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: context.responsive(mobile: 3, tablet: 4, desktop: 5),
+              crossAxisCount: context.responsive(
+                mobile: 3,
+                tablet: 4,
+                desktop: 5,
+              ),
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
             ),
@@ -882,21 +1018,35 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
           padding: const EdgeInsets.only(top: 56),
           child: Column(
             children: [
-              const Icon(Icons.check_circle_outline, color: Colors.green, size: 72),
+              const Icon(
+                Icons.check_circle_outline,
+                color: Colors.green,
+                size: 72,
+              ),
               const SizedBox(height: 16),
               Text(
-                _pendingAssets.length > 1 ? 'Reports submitted' : 'Report submitted',
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                _pendingAssets.length > 1
+                    ? 'Reports submitted'
+                    : 'Report submitted',
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
-              const Text('An admin or assigned helper will review your report soon.'),
+              const Text(
+                'An admin or assigned helper will review your report soon.',
+              ),
               const SizedBox(height: 24),
               SizedBox(
                 width: 180,
                 height: 48,
                 child: ElevatedButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
                   child: const Text('OK'),
                 ),
               ),
@@ -906,12 +1056,18 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
       );
     }
 
-    final grandTotal = _pendingAssets.fold<double>(0, (sum, a) => sum + a.totalLoss);
+    final grandTotal = _pendingAssets.fold<double>(
+      0,
+      (sum, a) => sum + a.totalLoss,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Review Your Report', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text(
+          'Review Your Report',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 8),
         const Text('Check the details below before submitting.'),
         const SizedBox(height: 20),
@@ -924,12 +1080,19 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         const SizedBox(height: 12),
-        ..._pendingAssets.asMap().entries.map((entry) => _PendingAssetCard(
-              asset: entry.value,
-              onRemove: _pendingAssets.length > 1 ? () => _removePendingAsset(entry.key) : null,
-            )),
+        ..._pendingAssets.asMap().entries.map(
+          (entry) => _PendingAssetCard(
+            asset: entry.value,
+            onRemove: _pendingAssets.length > 1
+                ? () => _removePendingAsset(entry.key)
+                : null,
+          ),
+        ),
         const SizedBox(height: 12),
-        ReviewCard(title: 'Total Potential Asset Loss', value: 'RM ${grandTotal.toStringAsFixed(2)}'),
+        ReviewCard(
+          title: 'Total Potential Asset Loss',
+          value: 'RM ${grandTotal.toStringAsFixed(2)}',
+        ),
         const SizedBox(height: 30),
       ],
     );
@@ -960,14 +1123,21 @@ class _PendingAssetCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   '${asset.category} — ${asset.assetName}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (onRemove != null)
                 IconButton(
                   onPressed: onRemove,
-                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: Colors.red,
+                    size: 20,
+                  ),
                   visualDensity: VisualDensity.compact,
                   tooltip: 'Remove',
                 ),
@@ -983,7 +1153,11 @@ class _PendingAssetCard extends StatelessWidget {
           Text(
             'RM ${asset.totalLoss.toStringAsFixed(2)}'
             '${asset.photos.isNotEmpty ? ' · ${asset.photos.length} photo(s)' : ''}',
-            style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.blue, fontSize: 13),
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.blue,
+              fontSize: 13,
+            ),
           ),
         ],
       ),

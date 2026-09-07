@@ -51,7 +51,9 @@ class _SubmitReportState extends State<SubmitReportPage> {
   final TextEditingController _contactController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
   final List<XFile> _photos = [];
-  final FloodReportController _controller = FloodReportController(FloodReportService());
+  final FloodReportController _controller = FloodReportController(
+    FloodReportService(),
+  );
   DateTime? _observedAt;
   bool _isSubmitting = false;
   bool _isSubmitted = false;
@@ -153,7 +155,6 @@ class _SubmitReportState extends State<SubmitReportPage> {
     _selectedLongitude ??= 101.6869;
     return true;
   }
-
 
   void _showSnack(String message) {
     ScaffoldMessenger.of(
@@ -335,8 +336,8 @@ class _SubmitReportState extends State<SubmitReportPage> {
         content: Text(
           submitted
               ? (_isEditing
-                  ? 'Your flood report has been updated.'
-                  : 'Your flood report has been submitted.')
+                    ? 'Your flood report has been updated.'
+                    : 'Your flood report has been submitted.')
               : 'Could not save the report. Please try again.',
         ),
       ),
@@ -437,8 +438,9 @@ class _SubmitReportState extends State<SubmitReportPage> {
             child: Column(
               children: [
                 // ---- Step indicator ----
-                if (!keyboardVisible)
-                  Padding(
+                Offstage(
+                  offstage: keyboardVisible,
+                  child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 16,
@@ -448,6 +450,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
                       steps: ["Location", "Details", "Photos", "Submit"],
                     ),
                   ),
+                ),
 
                 // ---- Scrollable form content ----
                 Expanded(
@@ -476,8 +479,9 @@ class _SubmitReportState extends State<SubmitReportPage> {
                 ),
 
                 // ---- Navigation buttons ----
-                if (!keyboardVisible)
-                  Padding(
+                Offstage(
+                  offstage: keyboardVisible,
+                  child: Padding(
                     padding: EdgeInsets.fromLTRB(
                       context.responsive(mobile: 20, tablet: 32, desktop: 40),
                       0,
@@ -513,7 +517,9 @@ class _SubmitReportState extends State<SubmitReportPage> {
                               ),
                               child: Text(
                                 _isSubmitting
-                                    ? (_isEditing ? 'Saving...' : 'Submitting...')
+                                    ? (_isEditing
+                                          ? 'Saving...'
+                                          : 'Submitting...')
                                     : _isSubmitted
                                     ? (_isEditing ? 'Saved' : 'Submitted')
                                     : _currentStep == 1
@@ -522,7 +528,9 @@ class _SubmitReportState extends State<SubmitReportPage> {
                                     ? 'Next: Photos'
                                     : _currentStep == 3
                                     ? 'Review Report'
-                                    : (_isEditing ? 'Save Changes' : 'Submit Report'),
+                                    : (_isEditing
+                                          ? 'Save Changes'
+                                          : 'Submit Report'),
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -535,6 +543,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
                       ],
                     ),
                   ),
+                ),
               ],
             ),
           ),
@@ -571,8 +580,9 @@ class _SubmitReportState extends State<SubmitReportPage> {
             _selectedLatitude = lat;
             _selectedLongitude = lng;
           }),
-          onArea: ({state, district, postcode}) =>
-              setState(() => _applyGeocodedArea(state: state, district: district)),
+          onArea: ({state, district, postcode}) => setState(
+            () => _applyGeocodedArea(state: state, district: district),
+          ),
         ),
         const SizedBox(height: 12),
         SizedBox(
@@ -777,7 +787,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
         Text(
           _isEditing
               ? 'This report already has ${widget.existing!.photoPaths.length} photo(s) attached. '
-                  'Existing photos are kept — anything you add below is appended to them.'
+                    'Existing photos are kept — anything you add below is appended to them.'
               : 'Photos help responders verify the report. They are optional.',
           style: const TextStyle(color: Colors.grey),
         ),
@@ -814,7 +824,11 @@ class _SubmitReportState extends State<SubmitReportPage> {
             physics: const NeverScrollableScrollPhysics(),
             itemCount: _photos.length,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: context.responsive(mobile: 3, tablet: 4, desktop: 5),
+              crossAxisCount: context.responsive(
+                mobile: 3,
+                tablet: 4,
+                desktop: 5,
+              ),
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
             ),
@@ -843,7 +857,10 @@ class _SubmitReportState extends State<SubmitReportPage> {
               const SizedBox(height: 16),
               Text(
                 _isEditing ? 'Report updated' : 'Report submitted',
-                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -878,13 +895,18 @@ class _SubmitReportState extends State<SubmitReportPage> {
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        Text(_isEditing ? 'Check the details below before saving.' : 'Check the details below before submitting.'),
+        Text(
+          _isEditing
+              ? 'Check the details below before saving.'
+              : 'Check the details below before submitting.',
+        ),
         const SizedBox(height: 20),
         ReviewCard(
           title: 'Location',
           value: _locationNameController.text.trim(),
         ),
-        if (_selectedState != null || _districtController.text.trim().isNotEmpty)
+        if (_selectedState != null ||
+            _districtController.text.trim().isNotEmpty)
           ReviewCard(
             title: 'Area',
             value: [
