@@ -21,8 +21,11 @@ class _LoginViewState extends State<LoginView> {
 
   String? emailError;
   String? passwordError;
+  bool _isSubmitting = false;
 
   Future<void> login() async {
+    if (_isSubmitting) return;
+
     String email = emailController.text.trim();
     String password = passwordController.text;
 
@@ -32,7 +35,20 @@ class _LoginViewState extends State<LoginView> {
     });
     if (emailError != null || passwordError != null) return;
 
-    final result = await authController.login(email, password);
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => _isSubmitting = true);
+
+    late final LoginResult result;
+    try {
+      result = await authController.login(email, password);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isSubmitting = false;
+        passwordError = 'Unable to sign in. Please try again.';
+      });
+      return;
+    }
     if (!mounted) return;
 
     if (result.account == null) {
@@ -40,6 +56,7 @@ class _LoginViewState extends State<LoginView> {
       // account are all auth-level failures) — shown under password since
       // it's the field closest to the submit action.
       setState(() {
+        _isSubmitting = false;
         passwordError = result.error ?? "Invalid email or password";
       });
       return;
@@ -76,176 +93,192 @@ class _LoginViewState extends State<LoginView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: true,
+    return AbsorbPointer(
+      absorbing: _isSubmitting,
+      child: Scaffold(
+        resizeToAvoidBottomInset: true,
 
-      appBar: AppBar(
-        title: const Text(
-          "Login Page",
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
+        appBar: AppBar(
+          title: const Text(
+            "Login Page",
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
           ),
+
+          centerTitle: true,
+
+          backgroundColor: Colors.white,
+
+          elevation: 5,
         ),
 
-        centerTitle: true,
-
-        backgroundColor: Colors.white,
-
-        elevation: 5,
-      ),
-
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: context.responsive(mobile: 20, tablet: 32, desktop: 40),
-            vertical: 20,
-          ),
-
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: context.responsive(
-                  mobile: 480,
-                  tablet: 520,
-                  desktop: 480,
-                ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+              horizontal: context.responsive(
+                mobile: 20,
+                tablet: 32,
+                desktop: 40,
               ),
+              vertical: 20,
+            ),
 
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-
-                children: [
-                  const SizedBox(height: 20),
-                  Image.asset(
-                    "assets/images/logo.png",
-                    width: context.responsive(mobile: 120.0, tablet: 150.0),
-                    height: context.responsive(mobile: 120.0, tablet: 150.0),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: context.responsive(
+                    mobile: 480,
+                    tablet: 520,
+                    desktop: 480,
                   ),
-                  const SizedBox(height: 30),
+                ),
 
-                  TextField(
-                    controller: emailController,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
 
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                  children: [
+                    const SizedBox(height: 20),
+                    Image.asset(
+                      "assets/images/logo.png",
+                      width: context.responsive(mobile: 120.0, tablet: 150.0),
+                      height: context.responsive(mobile: 120.0, tablet: 150.0),
                     ),
+                    const SizedBox(height: 30),
 
-                    decoration: InputDecoration(
-                      labelText: "Enter your email",
+                    TextField(
+                      controller: emailController,
 
-                      labelStyle: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.black,
+                      style: const TextStyle(
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        color: Colors.black,
                       ),
 
-                      hintText: "example@gmail.com",
+                      decoration: InputDecoration(
+                        labelText: "Enter your email",
 
-                      hintStyle: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 14,
-                      ),
+                        labelStyle: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
 
-                      errorText: emailError,
+                        hintText: "example@gmail.com",
 
-                      prefixIcon: const Icon(Icons.email, color: Colors.blue),
-
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-
-                        borderSide: const BorderSide(
+                        hintStyle: const TextStyle(
                           color: Colors.grey,
-                          width: 1,
+                          fontSize: 14,
                         ),
-                      ),
 
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        errorText: emailError,
 
-                        borderSide: const BorderSide(
-                          color: Colors.blue,
-                          width: 2,
-                        ),
-                      ),
+                        prefixIcon: const Icon(Icons.email, color: Colors.blue),
 
-                      filled: true,
-
-                      fillColor: Colors.white,
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  PasswordField(
-                    controller: passwordController,
-                    labelText: "Enter your password",
-                    hintText: "********",
-                    bold: true,
-                    errorText: passwordError,
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    runSpacing: 4,
-                    children: [
-                      TextButton(
-                        onPressed: verifyEmail,
-                        child: const Text("Confirm email"),
-                      ),
-                      TextButton(
-                        onPressed: forgotPassword,
-                        child: const Text("Forgot Password?"),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  SizedBox(
-                    width: double.infinity,
-
-                    height: 50,
-
-                    child: ElevatedButton(
-                      onPressed: login,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        shape: RoundedRectangleBorder(
+                        border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                      ),
-                      child: const Text(
-                        "Login",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+
+                          borderSide: const BorderSide(
+                            color: Colors.grey,
+                            width: 1,
+                          ),
                         ),
+
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+
+                          borderSide: const BorderSide(
+                            color: Colors.blue,
+                            width: 2,
+                          ),
+                        ),
+
+                        filled: true,
+
+                        fillColor: Colors.white,
                       ),
                     ),
-                  ),
 
-                  const SizedBox(height: 10),
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      const Text("Don't have an account?"),
-                      TextButton(
-                        onPressed: register,
-                        child: const Text("Sign Up"),
+                    const SizedBox(height: 20),
+
+                    PasswordField(
+                      controller: passwordController,
+                      labelText: "Enter your password",
+                      hintText: "********",
+                      bold: true,
+                      errorText: passwordError,
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      runSpacing: 4,
+                      children: [
+                        TextButton(
+                          onPressed: verifyEmail,
+                          child: const Text("Confirm email"),
+                        ),
+                        TextButton(
+                          onPressed: forgotPassword,
+                          child: const Text("Forgot Password?"),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    SizedBox(
+                      width: double.infinity,
+
+                      height: 50,
+
+                      child: ElevatedButton(
+                        onPressed: login,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                "Login",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+
+                    const SizedBox(height: 10),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        const Text("Don't have an account?"),
+                        TextButton(
+                          onPressed: register,
+                          child: const Text("Sign Up"),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

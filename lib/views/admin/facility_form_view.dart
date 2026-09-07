@@ -11,7 +11,12 @@ import '../../widgets/selectable_chip.dart';
 import '../user/pick_property_location_view.dart';
 
 class FacilityFormView extends StatefulWidget {
-  const FacilityFormView({super.key, required this.controller, this.existing, this.initialFacilityType});
+  const FacilityFormView({
+    super.key,
+    required this.controller,
+    this.existing,
+    this.initialFacilityType,
+  });
 
   final FacilityController controller;
   final Facility? existing;
@@ -83,8 +88,13 @@ class _FacilityFormViewState extends State<FacilityFormView> {
 
   /// Fills the State (prefers a canonical reverse-geocoded value, falls back
   /// to matching known names against [fallbackText]) and District fields.
-  void _applyGeocodedArea({String? state, String? district, String? fallbackText}) {
-    final resolvedState = (state != null && MalaysiaGeocoder.states.contains(state))
+  void _applyGeocodedArea({
+    String? state,
+    String? district,
+    String? fallbackText,
+  }) {
+    final resolvedState =
+        (state != null && MalaysiaGeocoder.states.contains(state))
         ? state
         : _deriveStateFromLocationText(fallbackText);
     if (resolvedState != null) _state = resolvedState;
@@ -95,7 +105,11 @@ class _FacilityFormViewState extends State<FacilityFormView> {
 
   bool get _isEditing => widget.existing != null;
 
-  static const _facilityTypes = ['shelter', 'distribution_center', 'medical_station'];
+  static const _facilityTypes = [
+    'shelter',
+    'distribution_center',
+    'medical_station',
+  ];
 
   @override
   void initState() {
@@ -103,9 +117,14 @@ class _FacilityFormViewState extends State<FacilityFormView> {
     final existing = widget.existing;
     _nameController = TextEditingController(text: existing?.name ?? '');
     _addressController = TextEditingController(text: existing?.address ?? '');
-    _capacityController = TextEditingController(text: existing?.capacity?.toString() ?? '');
-    _contactController = TextEditingController(text: existing?.contactNumber ?? '');
-    _facilityType = existing?.facilityType ?? widget.initialFacilityType ?? 'shelter';
+    _capacityController = TextEditingController(
+      text: existing?.capacity?.toString() ?? '',
+    );
+    _contactController = TextEditingController(
+      text: existing?.contactNumber ?? '',
+    );
+    _facilityType =
+        existing?.facilityType ?? widget.initialFacilityType ?? 'shelter';
     _latitude = existing?.latitude;
     _longitude = existing?.longitude;
     _state = existing?.state;
@@ -191,14 +210,19 @@ class _FacilityFormViewState extends State<FacilityFormView> {
   }
 
   Future<void> _save() async {
+    if (_isSaving) return;
+
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_latitude == null || _longitude == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please set a location for this facility.')),
+        const SnackBar(
+          content: Text('Please set a location for this facility.'),
+        ),
       );
       return;
     }
 
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _isSaving = true);
 
     final facility = Facility(
@@ -207,20 +231,33 @@ class _FacilityFormViewState extends State<FacilityFormView> {
       facilityType: _facilityType,
       latitude: _latitude!,
       longitude: _longitude!,
-      address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+      address: _addressController.text.trim().isEmpty
+          ? null
+          : _addressController.text.trim(),
       state: _state,
-      district: _districtController.text.trim().isEmpty ? null : _districtController.text.trim(),
+      district: _districtController.text.trim().isEmpty
+          ? null
+          : _districtController.text.trim(),
       capacity: int.tryParse(_capacityController.text.trim()),
-      contactNumber: _contactController.text.trim().isEmpty ? null : _contactController.text.trim(),
+      contactNumber: _contactController.text.trim().isEmpty
+          ? null
+          : _contactController.text.trim(),
       isActive: _isActive,
     );
 
-    bool success;
-    if (_isEditing) {
-      await widget.controller.updateFacility(widget.existing!.id!, facility.toJson());
-      success = true;
-    } else {
-      success = await widget.controller.createFacility(facility);
+    var success = false;
+    try {
+      if (_isEditing) {
+        await widget.controller.updateFacility(
+          widget.existing!.id!,
+          facility.toJson(),
+        );
+        success = true;
+      } else {
+        success = await widget.controller.createFacility(facility);
+      }
+    } catch (_) {
+      success = false;
     }
 
     if (!mounted) return;
@@ -230,207 +267,263 @@ class _FacilityFormViewState extends State<FacilityFormView> {
       Navigator.of(context).pop(true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save the facility. Please try again.')),
+        const SnackBar(
+          content: Text('Could not save the facility. Please try again.'),
+        ),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Text(_isEditing ? 'Edit Facility' : 'Add Facility'),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
-              ),
-              child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Facility Type', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
-                  children: _facilityTypes.map((type) {
-                    return SelectableChip(
-                      label: Facility.typeLabels[type]!,
-                      selected: _facilityType == type,
-                      onTap: () => setState(() => _facilityType = type),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 24),
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Facility name',
-                    hintText: 'e.g. Dewan Komuniti Cyberjaya',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) =>
-                  value == null || value.trim().isEmpty ? 'Enter a facility name.' : null,
-                ),
-                const SizedBox(height: 20),
-                const Text('Location', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                const SizedBox(height: 10),
-                LocationSearchField(
-                  controller: _locationNameController,
-                  focusNode: _locationFocusNode,
-                  decoration: const InputDecoration(
-                    labelText: 'Search location',
-                    hintText: 'Type an address, or tap for nearby places',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(10)),
-                    ),
-                  ),
-                  onManualEdit: () {
-                    _latitude = null;
-                    _longitude = null;
-                  },
-                  onCoordinates: (lat, lng) => setState(() {
-                    _latitude = lat;
-                    _longitude = lng;
-                    if (_addressController.text.trim().isEmpty) {
-                      _addressController.text = _locationNameController.text;
-                    }
-                  }),
-                  onArea: ({state, district, postcode}) => setState(
-                      () => _applyGeocodedArea(state: state, district: district)),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: 44,
-                  child: OutlinedButton.icon(
-                    onPressed: _isLocating ? null : _useCurrentLocation,
-                    icon: _isLocating
-                        ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                        : const Icon(Icons.my_location, size: 18),
-                    label: Text(_isLocating ? 'Locating...' : 'Use Current Location'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.blue,
-                      side: const BorderSide(color: Colors.blue),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
+    return AbsorbPointer(
+      absorbing: _isSaving,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: Text(_isEditing ? 'Edit Facility' : 'Add Facility'),
+          centerTitle: true,
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: context.responsive(
+                    mobile: 700,
+                    tablet: 800,
+                    desktop: 900,
                   ),
                 ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  height: 44,
-                  child: OutlinedButton.icon(
-                    onPressed: _isLocating ? null : _pickOnMap,
-                    icon: const Icon(Icons.map_outlined, size: 18),
-                    label: const Text('Pick on map'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.blue,
-                      side: const BorderSide(color: Colors.blue),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Facility Type',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 8,
+                        children: _facilityTypes.map((type) {
+                          return SelectableChip(
+                            label: Facility.typeLabels[type]!,
+                            selected: _facilityType == type,
+                            onTap: () => setState(() => _facilityType = type),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 24),
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Facility name',
+                          hintText: 'e.g. Dewan Komuniti Cyberjaya',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty
+                            ? 'Enter a facility name.'
+                            : null,
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Location',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      LocationSearchField(
+                        controller: _locationNameController,
+                        focusNode: _locationFocusNode,
+                        decoration: const InputDecoration(
+                          labelText: 'Search location',
+                          hintText: 'Type an address, or tap for nearby places',
+                          prefixIcon: Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(10)),
+                          ),
+                        ),
+                        onManualEdit: () {
+                          _latitude = null;
+                          _longitude = null;
+                        },
+                        onCoordinates: (lat, lng) => setState(() {
+                          _latitude = lat;
+                          _longitude = lng;
+                          if (_addressController.text.trim().isEmpty) {
+                            _addressController.text =
+                                _locationNameController.text;
+                          }
+                        }),
+                        onArea: ({state, district, postcode}) => setState(
+                          () => _applyGeocodedArea(
+                            state: state,
+                            district: district,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: OutlinedButton.icon(
+                          onPressed: _isLocating ? null : _useCurrentLocation,
+                          icon: _isLocating
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.my_location, size: 18),
+                          label: Text(
+                            _isLocating
+                                ? 'Locating...'
+                                : 'Use Current Location',
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.blue,
+                            side: const BorderSide(color: Colors.blue),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: OutlinedButton.icon(
+                          onPressed: _isLocating ? null : _pickOnMap,
+                          icon: const Icon(Icons.map_outlined, size: 18),
+                          label: const Text('Pick on map'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.blue,
+                            side: const BorderSide(color: Colors.blue),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (_latitude != null && _longitude != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Coordinates: ${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}',
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        // Re-seed when a picked location changes _state from code.
+                        key: ValueKey(_state),
+                        initialValue: _state,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'State',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        items: MalaysiaGeocoder.states
+                            .map(
+                              (s) => DropdownMenuItem(value: s, child: Text(s)),
+                            )
+                            .toList(),
+                        onChanged: (value) => setState(() => _state = value),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _districtController,
+                        decoration: const InputDecoration(
+                          labelText: 'District (optional)',
+                          hintText: 'e.g. Petaling',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _addressController,
+                        decoration: const InputDecoration(
+                          labelText:
+                              'Address (optional, shown to residents/helpers)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _capacityController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Capacity (optional)',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _contactController,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(
+                          labelText: 'Contact number (optional)',
+                          prefixIcon: Icon(Icons.phone),
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: validatePhoneNumber,
+                      ),
+                      const SizedBox(height: 8),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Active'),
+                        subtitle: const Text(
+                          'Inactive facilities cannot be newly assigned',
+                        ),
+                        value: _isActive,
+                        onChanged: (value) => setState(() => _isActive = value),
+                      ),
+                      const SizedBox(height: 30),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: _isSaving ? null : _save,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            _isSaving
+                                ? 'Saving...'
+                                : (_isEditing
+                                      ? 'Save changes'
+                                      : 'Add facility'),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                if (_latitude != null && _longitude != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Coordinates: ${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  // Re-seed when a picked location changes _state from code.
-                  key: ValueKey(_state),
-                  initialValue: _state,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'State',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  items: MalaysiaGeocoder.states
-                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                      .toList(),
-                  onChanged: (value) => setState(() => _state = value),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _districtController,
-                  decoration: const InputDecoration(
-                    labelText: 'District (optional)',
-                    hintText: 'e.g. Petaling',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _addressController,
-                  decoration: const InputDecoration(
-                    labelText: 'Address (optional, shown to residents/helpers)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _capacityController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Capacity (optional)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _contactController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Contact number (optional)',
-                    prefixIcon: Icon(Icons.phone),
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: validatePhoneNumber,
-                ),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Active'),
-                  subtitle: const Text('Inactive facilities cannot be newly assigned'),
-                  value: _isActive,
-                  onChanged: (value) => setState(() => _isActive = value),
-                ),
-                const SizedBox(height: 30),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isSaving ? null : _save,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text(
-                      _isSaving ? 'Saving...' : (_isEditing ? 'Save changes' : 'Add facility'),
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
-            ),
               ),
             ),
           ),

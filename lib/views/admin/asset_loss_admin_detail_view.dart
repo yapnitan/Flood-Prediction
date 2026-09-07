@@ -14,7 +14,8 @@ class AssetLossAdminDetailView extends StatefulWidget {
   final Map<String, dynamic> data;
 
   @override
-  State<AssetLossAdminDetailView> createState() => _AssetLossAdminDetailViewState();
+  State<AssetLossAdminDetailView> createState() =>
+      _AssetLossAdminDetailViewState();
 }
 
 class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
@@ -34,7 +35,8 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
     // exists, otherwise the resident's originally reported figure (§30 —
     // the admin can approve directly even with no helper verification yet).
     final quantity = _data['verified_quantity'] ?? _data['quantity'];
-    final value = _data['verified_value_per_item'] ?? _data['estimated_value_per_item'];
+    final value =
+        _data['verified_value_per_item'] ?? _data['estimated_value_per_item'];
     _approvedQuantityController = TextEditingController(text: '$quantity');
     _approvedValueController = TextEditingController(text: '$value');
   }
@@ -49,14 +51,27 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
   String get _id => _data['id'] as String;
   String get _status => _data['status'] as String? ?? 'pending_review';
 
-  Future<void> _run(Future<void> Function() action, {Map<String, dynamic>? localUpdate}) async {
+  Future<void> _run(
+    Future<void> Function() action, {
+    Map<String, dynamic>? localUpdate,
+  }) async {
+    if (_isBusy) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _isBusy = true);
-    await action();
-    if (!mounted) return;
-    setState(() {
-      _isBusy = false;
-      if (localUpdate != null) _data.addAll(localUpdate);
-    });
+    try {
+      await action();
+      if (!mounted) return;
+      setState(() {
+        _isBusy = false;
+        if (localUpdate != null) _data.addAll(localUpdate);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isBusy = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('The update failed. Please try again.')),
+      );
+    }
   }
 
   Future<void> _approve() async {
@@ -64,12 +79,18 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
     final value = double.tryParse(_approvedValueController.text.trim());
     if (quantity == null || quantity <= 0 || value == null || value < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid approved quantity and value.')),
+        const SnackBar(
+          content: Text('Enter a valid approved quantity and value.'),
+        ),
       );
       return;
     }
     await _run(
-      () => _controller.approve(reportId: _id, approvedQuantity: quantity, approvedValuePerItem: value),
+      () => _controller.approve(
+        reportId: _id,
+        approvedQuantity: quantity,
+        approvedValuePerItem: value,
+      ),
       localUpdate: {
         'status': 'verified',
         'approved_quantity': quantity,
@@ -84,9 +105,14 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Reject this report?'),
-        content: const Text('It will not contribute to the Economic Loss Dashboard.'),
+        content: const Text(
+          'It will not contribute to the Economic Loss Dashboard.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Back')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Back'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -96,7 +122,10 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
       ),
     );
     if (confirmed != true) return;
-    await _run(() => _controller.reject(_id), localUpdate: {'status': 'rejected'});
+    await _run(
+      () => _controller.reject(_id),
+      localUpdate: {'status': 'rejected'},
+    );
   }
 
   @override
@@ -104,9 +133,13 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
     final account = _data['account'] as Map<String, dynamic>?;
     final property = _data['property'] as Map<String, dynamic>?;
     final incident = _data['flood_incident'] as Map<String, dynamic>?;
-    final photoPaths = (_data['photo_paths'] as List?)?.cast<String>() ?? const [];
-    final verificationPhotoPaths = (_data['verification_photo_paths'] as List?)?.cast<String>() ?? const [];
-    final estimatedTotal = (_data['estimated_total_loss'] as num?)?.toDouble() ?? 0;
+    final photoPaths =
+        (_data['photo_paths'] as List?)?.cast<String>() ?? const [];
+    final verificationPhotoPaths =
+        (_data['verification_photo_paths'] as List?)?.cast<String>() ??
+        const [];
+    final estimatedTotal =
+        (_data['estimated_total_loss'] as num?)?.toDouble() ?? 0;
     final verifiedTotal = (_data['verified_total_loss'] as num?)?.toDouble();
 
     return Scaffold(
@@ -121,7 +154,13 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
                 padding: const EdgeInsets.all(20),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900)),
+                    constraints: BoxConstraints(
+                      maxWidth: context.responsive(
+                        mobile: 700,
+                        tablet: 800,
+                        desktop: 900,
+                      ),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -131,7 +170,10 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
                             Expanded(
                               child: Text(
                                 '${_data['asset_category']} — ${_data['asset_name']}',
-                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                             StatusBadge(status: _status),
@@ -141,70 +183,144 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
                           const SizedBox(height: 6),
                           Text(
                             'From: ${account['name'] ?? 'Unknown'} (${account['email'] ?? ''})',
-                            style: const TextStyle(color: Colors.grey, fontSize: 13),
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                         const SizedBox(height: 16),
                         if (property != null)
                           ReviewCard(
                             title: 'Address',
-                            value: '${property['label'] ?? ''} ${property['address'] ?? ''}\n'
-                                '${property['district'] ?? ''}, ${property['state'] ?? ''}'.trim(),
+                            value:
+                                '${property['label'] ?? ''} ${property['address'] ?? ''}\n'
+                                        '${property['district'] ?? ''}, ${property['state'] ?? ''}'
+                                    .trim(),
                           ),
-                        if (incident != null) ReviewCard(title: 'Flood incident', value: incident['name'] as String),
+                        if (incident != null)
+                          ReviewCard(
+                            title: 'Flood incident',
+                            value: incident['name'] as String,
+                          ),
                         ReviewCard(
                           title: 'Condition',
-                          value: assetConditionLabels[_data['condition']] ?? '${_data['condition']}',
+                          value:
+                              assetConditionLabels[_data['condition']] ??
+                              '${_data['condition']}',
                         ),
-                        ReviewCard(title: 'Quantity', value: '${_data['quantity']}'),
+                        ReviewCard(
+                          title: 'Quantity',
+                          value: '${_data['quantity']}',
+                        ),
                         ReviewCard(
                           title: 'Estimated value per item',
-                          value: 'RM ${(_data['estimated_value_per_item'] as num).toStringAsFixed(2)}',
+                          value:
+                              'RM ${(_data['estimated_value_per_item'] as num).toStringAsFixed(2)}',
                         ),
                         ReviewCard(
                           title: 'Potential Asset Loss (user-reported)',
                           value: 'RM ${estimatedTotal.toStringAsFixed(2)}',
                         ),
-                        if ((_data['description'] as String?)?.trim().isNotEmpty ?? false)
-                          ReviewCard(title: 'Description', value: _data['description'] as String),
+                        if ((_data['description'] as String?)
+                                ?.trim()
+                                .isNotEmpty ??
+                            false)
+                          ReviewCard(
+                            title: 'Description',
+                            value: _data['description'] as String,
+                          ),
                         if (_data['created_at'] != null)
-                          ReviewCard(title: 'Submitted', value: _formatDate(DateTime.parse(_data['created_at'] as String))),
+                          ReviewCard(
+                            title: 'Submitted',
+                            value: _formatDate(
+                              DateTime.parse(_data['created_at'] as String),
+                            ),
+                          ),
 
                         const SizedBox(height: 12),
-                        const Text('Evidence Photos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        const Text(
+                          'Evidence Photos',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
                         const SizedBox(height: 10),
                         if (photoPaths.isEmpty)
-                          const Text('No photos attached', style: TextStyle(color: Colors.grey))
+                          const Text(
+                            'No photos attached',
+                            style: TextStyle(color: Colors.grey),
+                          )
                         else
-                          _PhotoGrid(paths: photoPaths, controller: _controller),
+                          _PhotoGrid(
+                            paths: photoPaths,
+                            controller: _controller,
+                          ),
 
                         if (_data['verification_result'] != null) ...[
                           const Divider(height: 32),
-                          const Text('Helper Verification', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                          const Text(
+                            'Helper Verification',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
                           const SizedBox(height: 10),
                           ReviewCard(
                             title: 'Result',
-                            value: verificationResultLabels[_data['verification_result']] ?? '${_data['verification_result']}',
+                            value:
+                                verificationResultLabels[_data['verification_result']] ??
+                                '${_data['verification_result']}',
                           ),
-                          ReviewCard(title: 'Verified quantity', value: '${_data['verified_quantity']}'),
+                          ReviewCard(
+                            title: 'Verified quantity',
+                            value: '${_data['verified_quantity']}',
+                          ),
                           ReviewCard(
                             title: 'Verified value per item',
-                            value: 'RM ${(_data['verified_value_per_item'] as num).toStringAsFixed(2)}',
+                            value:
+                                'RM ${(_data['verified_value_per_item'] as num).toStringAsFixed(2)}',
                           ),
                           if (verifiedTotal != null)
-                            ReviewCard(title: 'Verified loss', value: 'RM ${verifiedTotal.toStringAsFixed(2)}'),
-                          if ((_data['verification_notes'] as String?)?.trim().isNotEmpty ?? false)
-                            ReviewCard(title: 'Notes', value: _data['verification_notes'] as String),
+                            ReviewCard(
+                              title: 'Verified loss',
+                              value: 'RM ${verifiedTotal.toStringAsFixed(2)}',
+                            ),
+                          if ((_data['verification_notes'] as String?)
+                                  ?.trim()
+                                  .isNotEmpty ??
+                              false)
+                            ReviewCard(
+                              title: 'Notes',
+                              value: _data['verification_notes'] as String,
+                            ),
                           if (verificationPhotoPaths.isNotEmpty) ...[
-                            const Text('Verification Photos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            const Text(
+                              'Verification Photos',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
                             const SizedBox(height: 8),
-                            _PhotoGrid(paths: verificationPhotoPaths, controller: _controller),
+                            _PhotoGrid(
+                              paths: verificationPhotoPaths,
+                              controller: _controller,
+                            ),
                           ],
                         ],
 
                         if (_status == 'pending_review') ...[
                           const Divider(height: 32),
-                          const Text('Admin Approval', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                          const Text(
+                            'Admin Approval',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
                           const SizedBox(height: 10),
                           Row(
                             children: [
@@ -212,14 +328,20 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
                                 child: TextField(
                                   controller: _approvedQuantityController,
                                   keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(labelText: 'Approved quantity', border: OutlineInputBorder()),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Approved quantity',
+                                    border: OutlineInputBorder(),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: TextField(
                                   controller: _approvedValueController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
                                   decoration: const InputDecoration(
                                     labelText: 'Approved value/item',
                                     prefixText: 'RM ',
@@ -237,25 +359,39 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
                                   onPressed: _reject,
                                   icon: const Icon(Icons.close, size: 18),
                                   label: const Text('Reject'),
-                                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red)),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.red,
+                                    side: const BorderSide(color: Colors.red),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: ElevatedButton.icon(
                                   onPressed: _approve,
-                                  icon: const Icon(Icons.check, size: 18, color: Colors.white),
-                                  label: const Text('Approve', style: TextStyle(color: Colors.white)),
-                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                                  icon: const Icon(
+                                    Icons.check,
+                                    size: 18,
+                                    color: Colors.white,
+                                  ),
+                                  label: const Text(
+                                    'Approve',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ] else if (_status == 'verified' && _data['approved_total_loss'] != null) ...[
+                        ] else if (_status == 'verified' &&
+                            _data['approved_total_loss'] != null) ...[
                           const Divider(height: 32),
                           ReviewCard(
                             title: 'Approved loss',
-                            value: 'RM ${(_data['approved_total_loss'] as num).toStringAsFixed(2)}',
+                            value:
+                                'RM ${(_data['approved_total_loss'] as num).toStringAsFixed(2)}',
                           ),
                         ],
 
@@ -267,7 +403,10 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
               ),
               if (_isBusy)
                 const Positioned.fill(
-                  child: ColoredBox(color: Color(0x33000000), child: Center(child: CircularProgressIndicator())),
+                  child: ColoredBox(
+                    color: Color(0x33000000),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
                 ),
             ],
           ),
