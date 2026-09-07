@@ -16,6 +16,36 @@ class FloodReportController {
     return floodReportService.getRecent(limit: limit);
   }
 
+  Future<List<FloodReport>> getMyReports({int limit = 100}) {
+    return floodReportService.getMyReports(limit: limit);
+  }
+
+  Future<FloodReport?> getById(String id) {
+    return floodReportService.getById(id);
+  }
+
+  Future<bool> updateReport(
+    String id,
+    FloodReport report,
+    List<String> existingPhotoPaths,
+    List<XFile> newPhotos,
+  ) {
+    return floodReportService.updateReport(id, report, existingPhotoPaths, newPhotos);
+  }
+
+  Future<bool> deleteReport(String id) {
+    return floodReportService.deleteReport(id);
+  }
+
+  /// For Admin
+  Future<List<Map<String, dynamic>>> getAdminOverview() {
+    return floodReportService.getAllReportsWithAccountInfo();
+  }
+
+  Future<bool> setVerified(String id, bool verified) {
+    return floodReportService.setVerified(id, verified);
+  }
+
   Future<List<FloodReport>> getNearby({
     required double latitude,
     required double longitude,

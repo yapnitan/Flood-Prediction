@@ -112,7 +112,9 @@ class _ProfileState extends State<ProfilePage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Log out?'),
-        content: const Text('You will need to log in again to access your account.'),
+        content: const Text(
+          'You will need to log in again to access your account.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -218,16 +220,26 @@ class _ProfileState extends State<ProfilePage> {
                         }
                       },
                     ),
-                    _ProfileTile(
-                      icon: Icons.location_on_outlined,
-                      label: "Saved Locations",
-                      onTap: () {},
-                    ),
-                    _ProfileTile(
-                      icon: Icons.description_outlined,
-                      label: "Report History",
-                      onTap: () {},
-                    ),
+                    // Saved Locations (properties) and Report History are
+                    // resident-only concepts — a Helper/Admin doesn't submit
+                    // flood reports or own a property in this app, so their
+                    // Profile doesn't offer these.
+                    if (_account?.role == 'user') ...[
+                      _ProfileTile(
+                        icon: Icons.location_on_outlined,
+                        label: "Saved Locations",
+                        onTap: () {
+                          Navigator.pushNamed(context, AppRoutes.myProperties);
+                        },
+                      ),
+                      _ProfileTile(
+                        icon: Icons.description_outlined,
+                        label: "Report History",
+                        onTap: () {
+                          Navigator.pushNamed(context, AppRoutes.reportHistory);
+                        },
+                      ),
+                    ],
                     _ProfileTile(
                       icon: Icons.help_outline,
                       label: "Help & Support",
@@ -376,18 +388,34 @@ class _ProfileHeader extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 10),
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: context.screenWidth * 0.8,
+                  ),
+                  child: Text(
+                    name,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  email,
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: context.screenWidth * 0.8,
+                  ),
+                  child: Text(
+                    email,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  ),
                 ),
               ],
             ),

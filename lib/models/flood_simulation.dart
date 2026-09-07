@@ -1,3 +1,5 @@
+import 'river_flood_data.dart';
+
 /// A saved flood risk assessment for one property.
 class FloodSimulation {
   final String? id;
@@ -24,6 +26,16 @@ class FloodSimulation {
   final bool hasRaisedFoundation;
   final int nearbyFloodCount;
 
+  /// Community flood reports (public.flood_report) submitted within ~10km in
+  /// the last 7 days, counted at assessment time — a live "it's flooding
+  /// here now" signal on top of the historical [nearbyFloodCount].
+  final int recentReportCount;
+
+  /// Nearby river's forecast flow vs. its recent average at assessment time
+  /// (GloFAS via Open-Meteo Flood API) — informational, and feeds a small
+  /// live-signal factor when elevated/high.
+  final RiverFloodLevel riverFloodLevel;
+
   /// Snapshot of conditions at assessment time — informational only, not
   /// a factor in [riskScore].
   final String? currentWeatherSummary;
@@ -47,6 +59,8 @@ class FloodSimulation {
     this.hasFloodBarriers = false,
     this.hasRaisedFoundation = false,
     this.nearbyFloodCount = 0,
+    this.recentReportCount = 0,
+    this.riverFloodLevel = RiverFloodLevel.unknown,
     this.currentWeatherSummary,
     required this.riskScore,
     required this.riskLevel,
@@ -72,6 +86,9 @@ class FloodSimulation {
       hasFloodBarriers: json['has_flood_barriers'] as bool? ?? false,
       hasRaisedFoundation: json['has_raised_foundation'] as bool? ?? false,
       nearbyFloodCount: json['nearby_flood_count'] as int? ?? 0,
+      recentReportCount: json['recent_report_count'] as int? ?? 0,
+      riverFloodLevel:
+          RiverFloodLevelInfo.fromKey(json['river_flood_level'] as String?),
       currentWeatherSummary: json['current_weather_summary'] as String?,
       riskScore: (json['risk_score'] as num).toDouble(),
       riskLevel: json['risk_level'] as String,
@@ -97,6 +114,8 @@ class FloodSimulation {
       'has_flood_barriers': hasFloodBarriers,
       'has_raised_foundation': hasRaisedFoundation,
       'nearby_flood_count': nearbyFloodCount,
+      'recent_report_count': recentReportCount,
+      'river_flood_level': riverFloodLevel.key,
       'current_weather_summary': currentWeatherSummary,
       'risk_score': riskScore,
       'risk_level': riskLevel,

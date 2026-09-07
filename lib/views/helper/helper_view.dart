@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
-import '../../controllers/repair_request_controller.dart';
-import '../../models/repair_request.dart';
-import '../../services/repair_request_service.dart';
-import '../../utils/maps_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../constants/asset_categories.dart';
+import '../../controllers/asset_loss_report_controller.dart';
+import '../../controllers/helper_assignment_controller.dart';
+import '../../models/helper_district_assignment.dart';
+import '../../services/asset_loss_report_service.dart';
+import '../../services/helper_assignment_service.dart';
+import '../../services/realtime_alert_service.dart';
 import '../../utils/responsive.dart';
-import '../../widgets/priority_badge.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/status_badge.dart';
 import '../shared/user_profile.dart';
-import 'repair_request_helper_detail_view.dart';
+import 'asset_loss_helper_verify_view.dart';
+import 'shelter_occupancy_view.dart';
 
 class HelperHome extends StatefulWidget {
   const HelperHome({super.key});
@@ -19,68 +24,127 @@ class HelperHome extends StatefulWidget {
 class _HelperHomeState extends State<HelperHome> {
   int currentIndex = 0;
 
-  final List<String> titles = ["Dashboard", "Profile"];
+  final List<String> titles = ["Dashboard", "Shelters", "Profile"];
+
+  @override
+  void initState() {
+    super.initState();
+    _startWatches();
+  }
+
+  Future<void> _startWatches() async {
+    final accountId = Supabase.instance.client.auth.currentUser?.id;
+    if (accountId == null) return;
+    // Task 12 "aid assignment updates" — notifies this helper of new
+    // district assignments, and of new asset loss reports in areas
+    // they're already assigned to.
+    RealtimeAlertService.instance.watchHelperAssignments(accountId);
+    final assignments = await HelperAssignmentController(HelperAssignmentService()).getMyAssignments();
+    RealtimeAlertService.instance.watchAssignedDistrictReports(accountId, assignments: assignments);
+  }
+
+  @override
+  void dispose() {
+    RealtimeAlertService.instance.stopAssetLossReportWatch();
+    RealtimeAlertService.instance.stopHelperAssignmentWatch();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = const [
       _HelperDashboardTab(),
+      ShelterOccupancyView(),
       ProfilePage(),
     ];
 
     final bool useRail = !context.isMobile;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          titles[currentIndex],
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue),
-        ),
-        centerTitle: true,
-      ),
-      body: useRail
-          ? Row(
-        children: [
-          NavigationRail(
-            selectedIndex: currentIndex,
-            onDestinationSelected: (index) => setState(() => currentIndex = index),
-            labelType: NavigationRailLabelType.all,
-            selectedIconTheme: const IconThemeData(color: Colors.blue),
-            selectedLabelTextStyle: const TextStyle(color: Colors.blue),
-            destinations: const [
-              NavigationRailDestination(
-                icon: Icon(Icons.dashboard_outlined),
-                label: Text("Dashboard"),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.person),
-                label: Text("Profile"),
+    return PopScope(
+      // Only let back actually leave this screen when already on the
+      // Dashboard tab — otherwise it pops the whole HelperHome route
+      // instead of just returning to Dashboard like a bottom-nav app should.
+      canPop: currentIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        setState(() => currentIndex = 0);
+      },
+      child: Scaffold(
+      appBar: AppBar(title: Text(titles[currentIndex])),
+      // Both orientations keep an identical body element tree —
+      // LayoutBuilder > Row > Expanded(keyed) > IndexedStack — and only
+      // add/remove the leading NavigationRail. Without this, crossing the
+      // `useRail` width breakpoint on rotation swapped the whole body subtree,
+      // remounting each tab body and wiping its filter/search/scroll state.
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Row(
+            children: [
+              if (useRail) ...[
+                // NavigationRail isn't internally scrollable, so on a short
+                // (e.g. landscape) screen it can overflow vertically. Let it
+                // scroll while still stretching to fill the available
+                // height so the VerticalDivider spans the full body.
+                SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: IntrinsicHeight(
+                      child: NavigationRail(
+                        selectedIndex: currentIndex,
+                        onDestinationSelected: (index) =>
+                            setState(() => currentIndex = index),
+                        labelType: NavigationRailLabelType.all,
+                        destinations: const [
+                          NavigationRailDestination(
+                            icon: Icon(Icons.dashboard_outlined),
+                            label: Text("Dashboard"),
+                          ),
+                          NavigationRailDestination(
+                            icon: Icon(Icons.night_shelter_outlined),
+                            label: Text("Shelters"),
+                          ),
+                          NavigationRailDestination(
+                            icon: Icon(Icons.person),
+                            label: Text("Profile"),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const VerticalDivider(width: 1),
+              ],
+              Expanded(
+                key: const ValueKey('helperTabBody'),
+                child: IndexedStack(index: currentIndex, children: pages),
               ),
             ],
-          ),
-          const VerticalDivider(width: 1),
-          Expanded(child: pages[currentIndex]),
-        ],
-      )
-          : pages[currentIndex],
+          );
+        },
+      ),
       bottomNavigationBar: useRail
           ? null
           : BottomNavigationBar(
         currentIndex: currentIndex,
         onTap: (index) => setState(() => currentIndex = index),
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: "Dashboard"),
+          BottomNavigationBarItem(icon: Icon(Icons.night_shelter_outlined), label: "Shelters"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
+      ),
       ),
     );
   }
 }
 
-/// Helper's assigned recovery/repair tasks — requests an admin has
-/// assigned to this helper, with status updates (in_progress/completed).
+/// Helper's district-scoped verification queue (Task/asset report §28):
+/// "My Assigned Areas" + potential asset losses awaiting verification in
+/// those areas. RLS already restricts what comes back to the helper's
+/// active district assignments (0025_asset_loss_helper_district_scoping.sql)
+/// — this view doesn't need to filter on top of that.
 class _HelperDashboardTab extends StatefulWidget {
   const _HelperDashboardTab();
 
@@ -89,126 +153,153 @@ class _HelperDashboardTab extends StatefulWidget {
 }
 
 class _HelperDashboardTabState extends State<_HelperDashboardTab> {
-  final _controller = RepairRequestController(RepairRequestService());
-  late Future<List<RepairRequest>> _tasksFuture;
+  final _assignmentController = HelperAssignmentController(HelperAssignmentService());
+  final _reportController = AssetLossReportController(AssetLossReportService());
+
+  bool _isLoading = true;
+  List<HelperDistrictAssignment> _assignments = [];
+  List<Map<String, dynamic>> _reports = [];
 
   @override
   void initState() {
     super.initState();
-    _tasksFuture = _controller.getMyAssignedTasks();
+    _load();
   }
 
-  Future<void> _refresh() async {
-    // Block body, not `=> expr` — an arrow body would make the assignment's
-    // *value* (a Future) the closure's return value, and setState() only
-    // accepts callbacks returning void.
+  Future<void> _load() async {
+    final assignments = await _assignmentController.getMyAssignments();
+    final reports = await _reportController.getMyDistrictReports();
+    if (!mounted) return;
     setState(() {
-      _tasksFuture = _controller.getMyAssignedTasks();
+      _assignments = assignments;
+      _reports = reports;
+      _isLoading = false;
     });
-    await _tasksFuture;
   }
 
-  /// Assigned work is fetched newest-first; re-sort so the most urgent
-  /// task is always what the helper sees at the top of their list, not
-  /// just whatever landed on their queue most recently.
-  List<RepairRequest> _sortedByUrgency(List<RepairRequest> tasks) {
-    final sorted = [...tasks];
-    sorted.sort(RepairRequest.comparePriority);
-    return sorted;
-  }
-
-  Future<void> _updateStatus(String requestId, String status) async {
-    await _controller.updateStatus(requestId, status);
-    _refresh();
-  }
+  Future<void> _refresh() => _load();
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
-          ),
-          child: RefreshIndicator(
-            onRefresh: _refresh,
-            child: FutureBuilder<List<RepairRequest>>(
-              future: _tasksFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-                if (snapshot.hasError) {
-                  return _buildEmptyState(
-                    icon: Icons.error_outline,
-                    title: 'Could not load your tasks',
-                    subtitle: 'Pull down to try again.',
-                  );
-                }
+    if (_assignments.isEmpty) {
+      return const EmptyState(
+        icon: Icons.map_outlined,
+        iconColor: Colors.blue,
+        title: 'No areas assigned yet',
+        subtitle: 'An admin needs to assign you to a state/district before you can verify reports.',
+      );
+    }
 
-                final tasks = _sortedByUrgency(snapshot.data ?? []);
-                if (tasks.isEmpty) {
-                  return _buildEmptyState(
-                    icon: Icons.volunteer_activism_outlined,
-                    title: 'No tasks assigned yet',
-                    subtitle: 'Requests an admin assigns to you will show up here.',
-                  );
-                }
+    // Pending first, then newest first within each group.
+    final sorted = [..._reports]..sort((a, b) {
+        final aPending = a['status'] == 'pending_review' ? 0 : 1;
+        final bPending = b['status'] == 'pending_review' ? 0 : 1;
+        if (aPending != bPending) return aPending.compareTo(bPending);
+        return (b['created_at'] as String).compareTo(a['created_at'] as String);
+      });
 
-                return ListView.separated(
-                  padding: EdgeInsets.all(context.responsive(mobile: 16, tablet: 24, desktop: 24)),
-                  itemCount: tasks.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) => InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => RepairRequestHelperDetailView(
-                            request: tasks[index],
-                            controller: _controller,
-                          ),
-                        ),
-                      );
-                      _refresh();
-                    },
-                    child: _TaskCard(request: tasks[index], onUpdateStatus: _updateStatus),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+    final pendingByDistrict = <String, List<Map<String, dynamic>>>{};
+    for (final r in sorted.where((r) => r['status'] == 'pending_review')) {
+      final property = r['property'] as Map<String, dynamic>?;
+      final key = '${property?['district'] ?? 'Unknown'}, ${property?['state'] ?? ''}';
+      pendingByDistrict.putIfAbsent(key, () => []).add(r);
+    }
 
-  Widget _buildEmptyState({required IconData icon, required String title, required String subtitle}) {
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: Center(
-            child: Padding(
-              padding: EdgeInsets.all(context.responsive(mobile: 20, tablet: 28, desktop: 32)),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, size: 64, color: Colors.blue),
-                  const SizedBox(height: 16),
-                  Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(subtitle, style: const TextStyle(color: Colors.grey), textAlign: TextAlign.center),
-                ],
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900)),
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView(
+            padding: EdgeInsets.all(context.responsive(mobile: 16, tablet: 24, desktop: 24)),
+            children: [
+              const Text('My Assigned Areas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _assignments
+                    .map((a) => Chip(
+                          avatar: const Icon(Icons.location_on, size: 16, color: Colors.blue),
+                          label: Text('${a.district}, ${a.state}'),
+                        ))
+                    .toList(),
               ),
-            ),
+              const SizedBox(height: 24),
+              const Text(
+                'Potential Asset Losses Requiring Verification',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+              const SizedBox(height: 10),
+              if (pendingByDistrict.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text('No pending reports in your areas right now.', style: TextStyle(color: Colors.grey)),
+                )
+              else
+                ...pendingByDistrict.entries.map((entry) {
+                  final totalPotential = entry.value.fold<double>(
+                    0,
+                    (sum, r) => sum + ((r['estimated_total_loss'] as num?)?.toDouble() ?? 0),
+                  );
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.04),
+                      border: Border.all(color: Colors.blue.shade100),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text('Pending: ${entry.value.length}', style: const TextStyle(fontSize: 12)),
+                            Text(
+                              'RM ${totalPotential.toStringAsFixed(0)} potential loss',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              const SizedBox(height: 16),
+              if (sorted.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: Text('No reports in your areas yet.', style: TextStyle(color: Colors.grey))),
+                )
+              else
+                ...sorted.map((data) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _ReportCard(
+                        data: data,
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AssetLossHelperVerifyView(
+                                data: data,
+                                controller: _reportController,
+                              ),
+                            ),
+                          );
+                          _refresh();
+                        },
+                      ),
+                    )),
+            ],
           ),
         ),
       ),
@@ -216,161 +307,67 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
   }
 }
 
-class _TaskCard extends StatelessWidget {
-  const _TaskCard({required this.request, required this.onUpdateStatus});
+class _ReportCard extends StatelessWidget {
+  const _ReportCard({required this.data, required this.onTap});
 
-  final RepairRequest request;
-  final Future<void> Function(String requestId, String status) onUpdateStatus;
+  final Map<String, dynamic> data;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final status = request.status;
-    final isUrgent = request.priority == 'urgent';
+    final status = data['status'] as String? ?? 'pending_review';
+    final property = data['property'] as Map<String, dynamic>?;
+    final estimatedTotal = (data['estimated_total_loss'] as num?)?.toDouble() ?? 0;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isUrgent ? Colors.red.withValues(alpha: 0.04) : null,
-        border: Border.all(
-          color: isUrgent ? Colors.red.shade200 : Colors.grey.shade300,
-          width: isUrgent ? 1.4 : 1,
-        ),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  request.assistanceType,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                ),
-              ),
-              StatusBadge(status: status),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              PriorityBadge(priority: request.priority, dense: true),
-              if (request.isCriticalMedical) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.red.shade300),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.warning_amber_rounded, size: 12, color: Colors.red.shade700),
-                      const SizedBox(width: 3),
-                      Text('Critical', style: TextStyle(color: Colors.red.shade700, fontSize: 11, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  request.locationName,
-                  style: const TextStyle(color: Colors.grey, fontSize: 13),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () => openDirections(
-                  context,
-                  latitude: request.latitude,
-                  longitude: request.longitude,
-                ),
-                icon: const Icon(Icons.directions, size: 16),
-                label: const Text('Directions'),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-            ],
-          ),
-          if (request.facilityId != null) ...[
-            const SizedBox(height: 4),
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(12)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(Icons.home_work_outlined, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    'Shelter: ${request.facilityId }',
-                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                    '${data['asset_category']} — ${data['asset_name']}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                StatusBadge(status: status),
               ],
             ),
-          ],
-          if (request.contactNumber != null && request.contactNumber!.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.phone_outlined, size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(request.contactNumber!, style: const TextStyle(color: Colors.grey, fontSize: 13)),
-              ],
-            ),
-          ],
-          if (request.damageDescription != null && request.damageDescription!.trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              request.damageDescription!,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13),
-            ),
-          ],
-          const SizedBox(height: 14),
-          if (status == 'assigned')
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton.icon(
-                onPressed: () => onUpdateStatus(request.id!, 'in_progress'),
-                icon: const Icon(Icons.play_arrow, color: Colors.white),
-                label: const Text('Start task', style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
-              ),
-            )
-          else if (status == 'in_progress')
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton.icon(
-                onPressed: () => onUpdateStatus(request.id!, 'completed'),
-                icon: const Icon(Icons.check_circle_outline, color: Colors.white),
-                label: const Text('Mark completed', style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              ),
-            )
-          else if (status == 'completed')
-              const Row(
+            const SizedBox(height: 6),
+            if (property != null)
+              Row(
                 children: [
-                  Icon(Icons.check_circle, size: 18, color: Colors.green),
-                  SizedBox(width: 6),
-                  Text('Task completed', style: TextStyle(color: Colors.green, fontSize: 13)),
+                  const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      '${property['address'] ?? ''} (${property['district']}, ${property['state']})',
+                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
-        ],
+            const SizedBox(height: 6),
+            Text(
+              'Condition: ${assetConditionLabels[data['condition']] ?? data['condition']}',
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Potential loss: RM ${estimatedTotal.toStringAsFixed(2)}',
+              style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.blue, fontSize: 13),
+            ),
+          ],
+        ),
       ),
     );
   }

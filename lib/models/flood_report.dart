@@ -5,12 +5,15 @@ class FloodReport {
     required this.locationName,
     required this.latitude,
     required this.longitude,
+    this.state,
+    this.district,
     required this.floodType,
     required this.waterLevel,
     required this.observedAt,
     required this.description,
     this.contactNumber,
     this.photoPaths = const [],
+    this.status = 'submitted',
     this.createdAt,
   });
 
@@ -19,12 +22,19 @@ class FloodReport {
   final String locationName;
   final double latitude;
   final double longitude;
+
+  /// Malaysian state/district the report's coordinates fall in, reverse-
+  /// geocoded when the location was picked. Both nullable — older reports
+  /// predate this, and reverse geocoding is best-effort.
+  final String? state;
+  final String? district;
   final String floodType;
   final String waterLevel;
   final DateTime observedAt;
   final String description;
   final String? contactNumber;
   final List<String> photoPaths;
+  final String status;
   final DateTime? createdAt;
 
   factory FloodReport.fromJson(Map<String, dynamic> json) => FloodReport(
@@ -33,9 +43,14 @@ class FloodReport {
     locationName: json['location_name'] as String,
     latitude: (json['latitude'] as num).toDouble(),
     longitude: (json['longitude'] as num).toDouble(),
+    state: json['state'] as String?,
+    district: json['district'] as String?,
     floodType: json['flood_type'] as String,
     waterLevel: json['water_level'] as String,
-    observedAt: DateTime.parse(json['observed_at'] as String),
+    // Stored as UTC (see toJson); converted back to local time here so
+    // displaying `.day`/`.month`/`.hour` etc. matches what the user
+    // actually picked, rather than the UTC calendar date/time.
+    observedAt: DateTime.parse(json['observed_at'] as String).toLocal(),
     description: json['description'] as String,
     contactNumber: json['contact_number'] as String?,
     photoPaths:
@@ -43,8 +58,9 @@ class FloodReport {
             ?.map((e) => e as String)
             .toList() ??
         const [],
+    status: json['status'] as String? ?? 'submitted',
     createdAt: json['created_at'] != null
-        ? DateTime.parse(json['created_at'] as String)
+        ? DateTime.parse(json['created_at'] as String).toLocal()
         : null,
   );
 
@@ -53,6 +69,8 @@ class FloodReport {
     'location_name': locationName,
     'latitude': latitude,
     'longitude': longitude,
+    'state': state,
+    'district': district,
     'flood_type': floodType,
     'water_level': waterLevel,
     'observed_at': observedAt.toUtc().toIso8601String(),
@@ -60,4 +78,24 @@ class FloodReport {
     'contact_number': contactNumber,
     'photo_paths': photoPaths,
   };
+
+  FloodReport copyWith({String? status}) {
+    return FloodReport(
+      id: id,
+      reporterId: reporterId,
+      locationName: locationName,
+      latitude: latitude,
+      longitude: longitude,
+      state: state,
+      district: district,
+      floodType: floodType,
+      waterLevel: waterLevel,
+      observedAt: observedAt,
+      description: description,
+      contactNumber: contactNumber,
+      photoPaths: photoPaths,
+      status: status ?? this.status,
+      createdAt: createdAt,
+    );
+  }
 }

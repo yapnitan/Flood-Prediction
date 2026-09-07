@@ -1,25 +1,26 @@
 import 'package:flutter/material.dart';
-import '../services/repair_request_service.dart';
 
-/// Thumbnail for an already-uploaded repair_request photo, resolved from
-/// a storage path to a signed URL. Distinct from [PhotoPreview], which
-/// only handles local XFile picker images pre-upload.
+/// Thumbnail for an already-uploaded photo, resolved from a storage path to
+/// a signed URL via [urlResolver] (whichever feature's service owns that
+/// bucket — repair requests, flood reports, asset loss reports, ...).
+/// Distinct from [PhotoPreview], which only handles local XFile picker
+/// images pre-upload.
 class NetworkPhotoThumbnail extends StatelessWidget {
   const NetworkPhotoThumbnail({
     super.key,
     required this.storagePath,
-    required this.repairRequestService,
+    required this.urlResolver,
     this.onTap,
   });
 
   final String storagePath;
-  final RepairRequestService repairRequestService;
+  final Future<String> Function(String path) urlResolver;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<String>(
-      future: repairRequestService.getSignedPhotoUrl(storagePath),
+      future: urlResolver(storagePath),
       builder: (context, snapshot) {
         return ClipRRect(
           borderRadius: BorderRadius.circular(10),

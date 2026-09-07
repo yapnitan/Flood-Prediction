@@ -11,4 +11,9 @@ class PropertyController {
   Future<Property?> getPropertyById(int propertyId) => propertyService.getPropertyById(propertyId);
 
   Future<Property?> createProperty(Property property) => propertyService.createProperty(property);
+
+  Future<Property?> updateProperty(int propertyId, Property property) =>
+      propertyService.updateProperty(propertyId, property);
+
+  Future<String?> deleteProperty(int propertyId) => propertyService.deleteProperty(propertyId);
 }

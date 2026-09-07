@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -9,14 +10,21 @@ import '../controllers/area_risk_controller.dart';
 import '../controllers/environment_controller.dart';
 import '../controllers/flood_report_controller.dart';
 import '../controllers/historical_flood_controller.dart';
+import '../models/facility.dart';
 import '../models/flood_report.dart';
 import '../services/area_risk_service.dart';
+import '../services/facility_service.dart';
 import '../services/flood_report_service.dart';
 import '../services/historical_flood_service.dart';
 import '../services/location_service.dart';
+import '../services/notification_service.dart';
+import '../services/realtime_alert_service.dart';
 import '../services/terrain_service.dart';
 import '../services/weather_service.dart';
+import '../utils/geo_utils.dart';
+import '../utils/maps_launcher.dart';
 import 'info_box.dart';
+import 'photo_gallery_viewer.dart';
 
 /// Home tab's "what's the flood situation right now" block: the combined
 /// flood-status badge (historical baseline + live rainfall + nearby
@@ -41,6 +49,7 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
 
   final _locationService = LocationService();
   final _floodReportService = FloodReportService();
+  final _facilityService = FacilityService();
   final _areaRiskController = AreaRiskController(
     HistoricalFloodController(HistoricalFloodService()),
     EnvironmentController(TerrainService(), WeatherService()),
@@ -55,15 +64,29 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
   bool _isLoadingMap = true;
   String? _statusMessage;
 
+  List<Facility> _evacuationCenters = const [];
+  bool _isLoadingEvacuationCenters = true;
+
   AreaRiskResult? _areaRisk;
   double? _rainfallMm;
   List<FloodReport> _nearbyReports = const [];
   bool _isLoadingAreaRisk = true;
 
+  /// Task 12 "weather warnings" — notifies once when rainfall crosses this
+  /// threshold, not on every refresh while it stays high.
+  static const double _heavyRainfallThresholdMm = 20;
+  bool _heavyRainfallWarned = false;
+
   @override
   void initState() {
     super.initState();
     _loadAll();
+  }
+
+  @override
+  void dispose() {
+    RealtimeAlertService.instance.stopFloodReportWatch();
+    super.dispose();
   }
 
   Future<void> _loadAll() async {
@@ -76,6 +99,7 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     // rather than both waiting on whichever input is slowest.
     unawaited(_loadMap(position));
     unawaited(_loadAreaRisk(position));
+    unawaited(_loadEvacuationCenters());
   }
 
   Future<void> _loadMap(Position? position) async {
@@ -92,11 +116,32 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     });
   }
 
+  /// Evacuation center markers are fetched independently of flood reports
+  /// (separate service, separate loading flag) so a slow/failed shelter
+  /// lookup never blocks the flood report markers from appearing, and
+  /// vice versa.
+  Future<void> _loadEvacuationCenters() async {
+    final centers = await _facilityService.getFacilitiesByType('shelter');
+    if (!mounted) return;
+    setState(() {
+      _evacuationCenters = centers;
+      _isLoadingEvacuationCenters = false;
+    });
+  }
+
   Future<void> _loadAreaRisk(Position? position) async {
     if (position == null) {
       if (mounted) setState(() => _isLoadingAreaRisk = false);
       return;
     }
+
+    // Task 12 "nearby flood reports" — arms a session-based Realtime watch
+    // around the user's current location once it's known.
+    RealtimeAlertService.instance.watchNearbyFloodReports(
+      latitude: position.latitude,
+      longitude: position.longitude,
+    );
+
     final assessment = await _areaRiskController.assessCurrentLocation(
       latitude: position.latitude,
       longitude: position.longitude,
@@ -108,6 +153,22 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
       _nearbyReports = assessment.nearbyReports;
       _isLoadingAreaRisk = false;
     });
+
+    _checkWeatherWarning(assessment.currentRainfallMm);
+  }
+
+  void _checkWeatherWarning(double? rainfallMm) {
+    final isHeavy = rainfallMm != null && rainfallMm >= _heavyRainfallThresholdMm;
+    if (isHeavy && !_heavyRainfallWarned) {
+      _heavyRainfallWarned = true;
+      NotificationService.instance.showNow(
+        id: NotificationService.idWeatherWarning,
+        title: 'Heavy rainfall warning',
+        body: '${rainfallMm.toStringAsFixed(1)}mm of rain recorded near your current location.',
+      );
+    } else if (!isHeavy) {
+      _heavyRainfallWarned = false;
+    }
   }
 
   /// Re-fetches report markers and recomputes the area risk badge, reusing
@@ -117,34 +178,100 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
   /// `IndexedStack` rather than being recreated.
   Future<void> refresh() async {
     setState(() => _isLoadingAreaRisk = true);
-    await Future.wait([_loadMap(_position), _loadAreaRisk(_position)]);
+    await Future.wait([
+      _loadMap(_position),
+      _loadAreaRisk(_position),
+      _loadEvacuationCenters(),
+    ]);
+  }
+
+  /// Unlike [refresh], re-runs the full GPS acquisition (including the
+  /// permission check/request) instead of reusing [_position]. Called by
+  /// [UserHome]'s pull-to-refresh so a user who previously denied location
+  /// access gets prompted again; if it's granted this time, location-based
+  /// content updates, and if denied again the page keeps working off the
+  /// fallback center.
+  Future<void> refreshLocation() async {
+    setState(() {
+      _isLoadingMap = true;
+      _isLoadingAreaRisk = true;
+      _isLoadingEvacuationCenters = true;
+      _statusMessage = null;
+    });
+    final position = await _locationService.getCurrentPosition();
+    if (!mounted) return;
+    _position = position;
+    await Future.wait([
+      _loadMap(position),
+      _loadAreaRisk(position),
+      _loadEvacuationCenters(),
+    ]);
+  }
+
+  /// The closest fetched evacuation center to the user's current position,
+  /// or `null` if the position or the center list isn't available yet.
+  Facility? get _nearestEvacuationCenter {
+    final location = _currentLocation;
+    if (location == null || _evacuationCenters.isEmpty) return null;
+
+    Facility? nearest;
+    double? nearestDistanceKm;
+    for (final center in _evacuationCenters) {
+      final distanceKm = haversineDistanceKm(
+        lat1: location.latitude,
+        lon1: location.longitude,
+        lat2: center.latitude,
+        lon2: center.longitude,
+      );
+      if (nearestDistanceKm == null || distanceKm < nearestDistanceKm) {
+        nearest = center;
+        nearestDistanceKm = distanceKm;
+      }
+    }
+    return nearest;
   }
 
   void _showAreaRiskDetail(AreaRiskResult risk) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          20 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(_areaRiskIcon(risk.level), color: _areaRiskColor(risk.level)),
+                Icon(
+                  _areaRiskIcon(risk.level),
+                  color: _areaRiskColor(risk.level),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     '${risk.level} flood risk right now',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
                 Text(
                   '${risk.score.toStringAsFixed(0)}/100',
-                  style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -165,7 +292,10 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                           ),
                           Text(
                             factor.factorValue,
-                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
@@ -186,6 +316,7 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
               style: TextStyle(color: Colors.grey[600], fontSize: 12),
             ),
           ],
+          ),
         ),
       ),
     );
@@ -203,12 +334,19 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     final reportedTime = report.createdAt ?? report.observedAt;
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          20 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -219,7 +357,10 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                 Expanded(
                   child: Text(
                     report.locationName,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ],
@@ -261,7 +402,8 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                     return ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: urls.length,
-                      separatorBuilder: (context, index) => const SizedBox(width: 8),
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(width: 8),
                       itemBuilder: (context, index) => GestureDetector(
                         onTap: () => _openPhotoViewer(urls, index),
                         child: ClipRRect(
@@ -271,15 +413,22 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                             width: 90,
                             height: 90,
                             fit: BoxFit.cover,
-                            loadingBuilder: (context, child, progress) => progress == null
+                            loadingBuilder: (context, child, progress) =>
+                                progress == null
                                 ? child
                                 : const Center(
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
                                   ),
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              color: Colors.grey.shade200,
-                              child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
-                            ),
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                                  color: Colors.grey.shade200,
+                                  child: const Icon(
+                                    Icons.broken_image_outlined,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                           ),
                         ),
                       ),
@@ -289,6 +438,77 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
               ),
             ],
           ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEvacuationCenterInfo(Facility center) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          20 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.night_shelter, color: Colors.green),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    center.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (center.address != null) ...[
+              Text(center.address!),
+              const SizedBox(height: 4),
+            ],
+            if (center.capacity != null) ...[
+              Text('Capacity: ${center.capacity}'),
+              const SizedBox(height: 4),
+            ],
+            if (center.contactNumber != null)
+              Text('Contact: ${center.contactNumber}'),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => openDirections(
+                  context,
+                  latitude: center.latitude,
+                  longitude: center.longitude,
+                ),
+                icon: const Icon(Icons.directions),
+                label: const Text('View route'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.green,
+                  side: const BorderSide(color: Colors.green),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+          ),
         ),
       ),
     );
@@ -298,7 +518,8 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (context) => _ReportPhotoViewer(urls: urls, initialIndex: initialIndex),
+        builder: (context) =>
+            PhotoGalleryViewer(urls: urls, initialIndex: initialIndex),
       ),
     );
   }
@@ -312,7 +533,9 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
         _FloodRiskCard(
           areaRisk: _areaRisk,
           isLoading: _isLoadingAreaRisk,
-          onTap: _areaRisk == null ? null : () => _showAreaRiskDetail(_areaRisk!),
+          onTap: _areaRisk == null
+              ? null
+              : () => _showAreaRiskDetail(_areaRisk!),
         ),
 
         const SizedBox(height: 20),
@@ -340,8 +563,70 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.example.flood_prediction',
+                      ),
+                      // Task 13 "heatmap" — flutter_map_heatmap has no
+                      // release compatible with flutter_map 8.x (its latest
+                      // pins flutter_map <8.0.0), so density is approximated
+                      // with flutter_map's own CircleLayer instead: one
+                      // translucent, severity-colored circle per report,
+                      // overlapping circles in a dense area visually "add up"
+                      // into a hotter patch without an extra dependency.
+                      CircleLayer(
+                        circles: _reports
+                            .map(
+                              (report) => CircleMarker(
+                                point: LatLng(report.latitude, report.longitude),
+                                radius: _reportHeatRadius(report.waterLevel),
+                                useRadiusInMeter: true,
+                                color: _areaRiskColor(report.waterLevel).withValues(alpha: 0.18),
+                                borderStrokeWidth: 0,
+                              ),
+                            )
+                            .toList(),
+                      ),
+                      // Reports are clustered — a busy area can have many
+                      // overlapping pins at low zoom, so group them into a
+                      // count bubble that expands as the user zooms in.
+                      MarkerClusterLayerWidget(
+                        options: MarkerClusterLayerOptions(
+                          maxClusterRadius: 45,
+                          size: const Size(36, 36),
+                          markers: _reports
+                              .map(
+                                (report) => Marker(
+                                  point: LatLng(report.latitude, report.longitude),
+                                  width: 36,
+                                  height: 36,
+                                  child: GestureDetector(
+                                    onTap: () => _showReportInfo(report),
+                                    child: Icon(
+                                      Icons.location_on,
+                                      color: _areaRiskColor(report.waterLevel),
+                                      size: 32,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          builder: (context, markers) => Container(
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${markers.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                       MarkerLayer(
                         markers: [
@@ -356,16 +641,16 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                                 size: 32,
                               ),
                             ),
-                          ..._reports.map(
-                            (report) => Marker(
-                              point: LatLng(report.latitude, report.longitude),
+                          ..._evacuationCenters.map(
+                            (center) => Marker(
+                              point: LatLng(center.latitude, center.longitude),
                               width: 36,
                               height: 36,
                               child: GestureDetector(
-                                onTap: () => _showReportInfo(report),
+                                onTap: () => _showEvacuationCenterInfo(center),
                                 child: const Icon(
-                                  Icons.location_on,
-                                  color: Colors.red,
+                                  Icons.night_shelter,
+                                  color: Colors.green,
                                   size: 32,
                                 ),
                               ),
@@ -374,9 +659,21 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                         ],
                       ),
                       const RichAttributionWidget(
-                        attributions: [TextSourceAttribution('OpenStreetMap contributors')],
+                        attributions: [
+                          TextSourceAttribution('OpenStreetMap contributors'),
+                        ],
                       ),
                     ],
+                  ),
+                if (!_isLoadingMap && _isLoadingEvacuationCenters)
+                  const Positioned(
+                    top: 8,
+                    right: 8,
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                   ),
                 if (_statusMessage != null)
                   Positioned(
@@ -384,14 +681,20 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                     left: 8,
                     right: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         _statusMessage!,
-                        style: const TextStyle(color: Colors.white, fontSize: 11),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
                   ),
@@ -444,6 +747,29 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
             ],
           ),
         ),
+
+        const SizedBox(height: 20),
+
+        // ---- Route to nearest evacuation center ----
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _nearestEvacuationCenter == null
+                ? null
+                : () => openDirections(
+                    context,
+                    latitude: _nearestEvacuationCenter!.latitude,
+                    longitude: _nearestEvacuationCenter!.longitude,
+                  ),
+            icon: const Icon(Icons.directions),
+            label: const Text('View Route to Nearest Evacuation Center'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.green,
+              side: const BorderSide(color: Colors.green),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -477,7 +803,11 @@ class _FloodRiskCard extends StatelessWidget {
               height: 48,
               child: isLoading
                   ? const CircularProgressIndicator()
-                  : Icon(_areaRiskIcon(level), size: 48, color: _areaRiskColor(level)),
+                  : Icon(
+                      _areaRiskIcon(level),
+                      size: 48,
+                      color: _areaRiskColor(level),
+                    ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -496,8 +826,13 @@ class _FloodRiskCard extends StatelessWidget {
                     )
                   else
                     Text(
-                      areaRisk != null ? '${areaRisk!.level} risk' : 'Unavailable',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: _areaRiskColor(level)),
+                      areaRisk != null
+                          ? '${areaRisk!.level} risk'
+                          : 'Unavailable',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _areaRiskColor(level),
+                      ),
                     ),
                   if (areaRisk != null) ...[
                     const SizedBox(height: 2),
@@ -526,6 +861,19 @@ IconData _areaRiskIcon(String? level) {
       return Icons.check_circle;
     default:
       return Icons.help_outline;
+  }
+}
+
+/// Approximate "heat" radius (meters) for a report's density circle —
+/// higher water level reads as a wider hazard footprint.
+double _reportHeatRadius(String waterLevel) {
+  switch (waterLevel) {
+    case 'High':
+      return 250;
+    case 'Medium':
+      return 150;
+    default:
+      return 80;
   }
 }
 
@@ -590,35 +938,6 @@ class _StatBox extends StatelessWidget {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-/// Full-screen, swipeable, pinch-to-zoom viewer for a report's photos,
-/// opened by tapping a thumbnail in [HomeFloodOverviewState._showReportInfo].
-class _ReportPhotoViewer extends StatelessWidget {
-  final List<String> urls;
-  final int initialIndex;
-
-  const _ReportPhotoViewer({required this.urls, required this.initialIndex});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: PageView.builder(
-        controller: PageController(initialPage: initialIndex),
-        itemCount: urls.length,
-        itemBuilder: (context, index) => InteractiveViewer(
-          child: Center(
-            child: Image.network(urls[index], fit: BoxFit.contain),
-          ),
-        ),
       ),
     );
   }

@@ -10,7 +10,13 @@ DropdownMenuItem<String> addNewMenuItem(String label) {
       children: [
         const Icon(Icons.add_circle_outline, size: 16, color: Colors.blue),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.w600)),
+        Flexible(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.w600),
+          ),
+        ),
       ],
     ),
   );

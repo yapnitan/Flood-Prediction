@@ -20,6 +20,14 @@ class NotificationSettingsArgs {
   const NotificationSettingsArgs(this.account);
 }
 
+class CreateSimulationArgs {
+  /// When set, the form opens pre-filled for editing this simulation
+  /// instead of starting a new one.
+  final FloodSimulation? existing;
+
+  const CreateSimulationArgs({this.existing});
+}
+
 class SimulationDetailArgs {
   final FloodSimulation simulation;
 
@@ -36,7 +44,7 @@ class SimulationDetailArgs {
   });
 }
 
-class RepairRequestDetailArgs {
-  final String requestId;
-  const RepairRequestDetailArgs({required this.requestId});
+class AssetLossDetailArgs {
+  final String reportId;
+  const AssetLossDetailArgs({required this.reportId});
 }

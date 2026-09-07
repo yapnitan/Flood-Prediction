@@ -14,12 +14,26 @@ class AppRoutes {
   static const String simulationList = '/simulations';
   static const String createSimulation = '/simulations/create';
   static const String simulationDetail = '/simulations/detail';
+  static const String simulationCompare = '/simulations/compare';
 
-  static const String createRepairRequest = '/repair-requests/create';
-  static const String myRepairRequests = '/repair-requests/mine';
-  static const String repairRequestDetail = '/repair-requests/detail';
-  static const String repairRequestAdmin = '/admin/repair-requests';
+  static const String assetLossCreate = '/asset-loss/create';
+  static const String myAssetLossReports = '/asset-loss/mine';
+  static const String assetLossDetail = '/asset-loss/detail';
+  static const String assetLossAdmin = '/admin/asset-loss';
+  static const String economicLossDashboard = '/admin/economic-loss';
+  static const String floodIncidentAdmin = '/admin/flood-incidents';
+  static const String helperAssignmentAdmin = '/admin/helper-assignments';
+  static const String shelterOccupancy = '/helper/shelter-occupancy';
 
+  static const String reportHistory = '/reports/mine';
+
+  static const String planner = '/planner';
+  static const String checklist = '/planner/checklist';
+  static const String inventory = '/planner/inventory';
+  static const String contacts = '/planner/contacts';
+  static const String ppsMap = '/planner/pps-map';
+
+  static const String myProperties = '/profile/my-properties';
   static const String personalInformation = '/profile/personal-information';
   static const String changePassword = '/profile/change-password';
   static const String notificationSettings = '/profile/notification-settings';

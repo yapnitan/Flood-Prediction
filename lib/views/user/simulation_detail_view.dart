@@ -1,7 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
+import '../../models/flood_report.dart';
 import '../../models/flood_simulation.dart';
+import '../../models/historical_flood.dart';
+import '../../models/river_flood_data.dart';
 import '../../models/simulation_factor.dart';
+import '../../controllers/historical_flood_controller.dart';
+import '../../services/flood_report_service.dart';
 import '../../services/flood_simulation_service.dart';
+import '../../services/historical_flood_service.dart';
+import '../../services/risk_assessment_service.dart';
+import '../../routes/app_routes.dart';
+import '../../routes/route_arguments.dart';
 import '../../utils/responsive.dart';
 
 class SimulationDetailView extends StatefulWidget {
@@ -26,9 +36,22 @@ class SimulationDetailView extends StatefulWidget {
 
 class _SimulationDetailViewState extends State<SimulationDetailView> {
   final _floodSimulationService = FloodSimulationService();
+  final _historicalFloodController = HistoricalFloodController(HistoricalFloodService());
+  final _floodReportService = FloodReportService();
+  final _riskAssessmentService = RiskAssessmentService();
 
   List<SimulationFactor> _factors = [];
+  List<HistoricalFlood> _nearbyFloods = [];
+  List<FloodReport> _recentReports = [];
+  Map<int, int> _floodsPerYear = {};
   bool _isLoading = true;
+
+  /// "Simulate preventive improvements" — starts from the simulation's
+  /// actual saved protections, but toggling here only recomputes a local
+  /// preview score (via [RiskAssessmentService], no network calls, nothing
+  /// saved) so the user can see the what-if effect immediately.
+  late bool _previewBarriers = widget.simulation.hasFloodBarriers;
+  late bool _previewFoundation = widget.simulation.hasRaisedFoundation;
 
   @override
   void initState() {
@@ -37,24 +60,76 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
   }
 
   Future<void> _load() async {
-    if (widget.factors != null) {
-      setState(() {
-        _factors = widget.factors!;
-        _isLoading = false;
-      });
-      return;
+    final sim = widget.simulation;
+
+    final factorsFuture = widget.factors != null
+        ? Future.value(widget.factors!)
+        : (sim.id != null
+            ? _floodSimulationService.getFactors(sim.id!)
+            : Future.value(<SimulationFactor>[]));
+
+    final nearbyFuture = _historicalFloodController.getNearby(
+      latitude: sim.latitude,
+      longitude: sim.longitude,
+      radiusKm: 20,
+    );
+
+    final districtFuture = _historicalFloodController.search(
+      state: sim.state,
+      district: sim.district,
+      pageSize: 200,
+    );
+
+    // Same window the score counted them over (see RiskAssessmentController).
+    final recentReportsFuture = _floodReportService.getNearby(
+      latitude: sim.latitude,
+      longitude: sim.longitude,
+      radiusKm: 10,
+      maxAge: const Duration(days: 7),
+    );
+
+    final results = await Future.wait([
+      factorsFuture,
+      nearbyFuture,
+      districtFuture,
+      recentReportsFuture,
+    ]);
+    if (!mounted) return;
+
+    final districtFloods = results[2] as List<HistoricalFlood>;
+    final perYear = <int, int>{};
+    for (final flood in districtFloods) {
+      final year = flood.floodDate.year;
+      perYear[year] = (perYear[year] ?? 0) + 1;
     }
 
-    final id = widget.simulation.id;
-    final factors = id != null
-        ? await _floodSimulationService.getFactors(id)
-        : <SimulationFactor>[];
-
-    if (!mounted) return;
     setState(() {
-      _factors = factors;
+      _factors = results[0] as List<SimulationFactor>;
+      _nearbyFloods = results[1] as List<HistoricalFlood>;
+      _recentReports = results[3] as List<FloodReport>;
+      _floodsPerYear = perYear;
       _isLoading = false;
     });
+  }
+
+  /// Recomputed purely client-side from the toggle state — the property's
+  /// elevation/history/structure stay fixed at what was saved, only the
+  /// mitigation flags vary, so this is a real "what if I added barriers"
+  /// preview, not a re-run of the full assessment pipeline.
+  RiskAssessmentResult get _previewResult {
+    final sim = widget.simulation;
+    return _riskAssessmentService.assess(
+      RiskAssessmentInput(
+        nearbyFloodCount: sim.nearbyFloodCount,
+        recentNearbyReportCount: sim.recentReportCount,
+        riverFloodLevel: sim.riverFloodLevel,
+        propertyElevationMeters: sim.userElevationMeters ?? sim.terrainElevationMeters,
+        baselineElevationMeters: sim.baselineElevationMeters,
+        structureType: sim.structureType,
+        hasFloodBarriers: _previewBarriers,
+        hasRaisedFoundation: _previewFoundation,
+      ),
+    );
   }
 
   Color _levelColor(String level) {
@@ -75,7 +150,20 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FC),
-      appBar: AppBar(title: Text(sim.propertyName), centerTitle: true),
+      appBar: AppBar(
+        title: Text(sim.propertyName),
+        actions: [
+          IconButton(
+            tooltip: 'Edit assessment',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () => Navigator.pushReplacementNamed(
+              context,
+              AppRoutes.createSimulation,
+              arguments: CreateSimulationArgs(existing: sim),
+            ),
+          ),
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
@@ -118,11 +206,34 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
                           ),
                         ),
 
-                        if (sim.currentWeatherSummary != null) ...[
+                        if (sim.currentWeatherSummary != null ||
+                            sim.riverFloodLevel.description != null) ...[
                           const SizedBox(height: 12),
                           _SectionCard(
-                            title: 'Current conditions (informational only)',
-                            child: Text(sim.currentWeatherSummary!),
+                            title: 'Live conditions at assessment time',
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (sim.currentWeatherSummary != null)
+                                  _ConditionRow(
+                                    icon: Icons.cloud_outlined,
+                                    color: Colors.blueGrey,
+                                    text: sim.currentWeatherSummary!,
+                                  ),
+                                if (sim.currentWeatherSummary != null &&
+                                    sim.riverFloodLevel.description != null)
+                                  const SizedBox(height: 8),
+                                if (sim.riverFloodLevel.description != null)
+                                  _ConditionRow(
+                                    icon: Icons.water,
+                                    color: (sim.riverFloodLevel == RiverFloodLevel.elevated ||
+                                            sim.riverFloodLevel == RiverFloodLevel.high)
+                                        ? Colors.red
+                                        : Colors.blueGrey,
+                                    text: sim.riverFloodLevel.description!,
+                                  ),
+                              ],
+                            ),
                           ),
                         ],
 
@@ -135,6 +246,62 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
                                 .toList(),
                           ),
                         ),
+
+                        const SizedBox(height: 12),
+                        _PreventiveImprovementsCard(
+                          hasFloodBarriers: _previewBarriers,
+                          hasRaisedFoundation: _previewFoundation,
+                          onBarriersChanged: (value) => setState(() => _previewBarriers = value),
+                          onFoundationChanged: (value) => setState(() => _previewFoundation = value),
+                          preview: _previewResult,
+                          currentScore: sim.riskScore,
+                        ),
+
+                        if (_recentReports.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _SectionCard(
+                            title: 'Recent community flood reports (10km, last 7 days)',
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${_recentReports.length} report(s) submitted near this property '
+                                  'recently — this raised the risk score.',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                                ),
+                                const SizedBox(height: 8),
+                                ..._recentReports
+                                    .take(10)
+                                    .map((r) => _RecentReportRow(report: r)),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        if (_nearbyFloods.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _SectionCard(
+                            title: 'Nearby historical flood events (20km)',
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: _nearbyFloods
+                                  .take(10)
+                                  .map((f) => _NearbyFloodRow(flood: f))
+                                  .toList(),
+                            ),
+                          ),
+                        ],
+
+                        if (_floodsPerYear.length >= 2) ...[
+                          const SizedBox(height: 12),
+                          _SectionCard(
+                            title: '${sim.district} historical flood trend',
+                            child: SizedBox(
+                              height: 160,
+                              child: _FloodTrendChart(floodsPerYear: _floodsPerYear),
+                            ),
+                          ),
+                        ],
 
                         if (widget.recommendations != null &&
                             widget.recommendations!.isNotEmpty) ...[
@@ -258,6 +425,257 @@ class _SectionCard extends StatelessWidget {
           const SizedBox(height: 10),
           child,
         ],
+      ),
+    );
+  }
+}
+
+class _PreventiveImprovementsCard extends StatelessWidget {
+  const _PreventiveImprovementsCard({
+    required this.hasFloodBarriers,
+    required this.hasRaisedFoundation,
+    required this.onBarriersChanged,
+    required this.onFoundationChanged,
+    required this.preview,
+    required this.currentScore,
+  });
+
+  final bool hasFloodBarriers;
+  final bool hasRaisedFoundation;
+  final ValueChanged<bool> onBarriersChanged;
+  final ValueChanged<bool> onFoundationChanged;
+  final RiskAssessmentResult preview;
+  final double currentScore;
+
+  Color _levelColor(String level) {
+    switch (level) {
+      case 'High':
+        return Colors.red;
+      case 'Medium':
+        return Colors.orange;
+      default:
+        return Colors.green;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final delta = preview.score - currentScore;
+    final color = _levelColor(preview.level);
+
+    return _SectionCard(
+      title: 'Simulate preventive improvements',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Toggle protections to preview their effect on the risk score — '
+            'nothing is saved until you edit the assessment.',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 4),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Flood barriers'),
+            value: hasFloodBarriers,
+            onChanged: onBarriersChanged,
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Raised foundation'),
+            value: hasRaisedFoundation,
+            onChanged: onFoundationChanged,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text(
+                preview.score.toStringAsFixed(0),
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  '${preview.level} Risk',
+                  style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Spacer(),
+              if (delta != 0)
+                Flexible(
+                  child: Text(
+                    '${delta > 0 ? '+' : ''}${delta.toStringAsFixed(0)} vs saved',
+                    style: TextStyle(
+                      color: delta > 0 ? Colors.red : Colors.green,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConditionRow extends StatelessWidget {
+  const _ConditionRow({required this.icon, required this.color, required this.text});
+
+  final IconData icon;
+  final Color color;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 15, color: color),
+        const SizedBox(width: 6),
+        Expanded(child: Text(text)),
+      ],
+    );
+  }
+}
+
+class _RecentReportRow extends StatelessWidget {
+  const _RecentReportRow({required this.report});
+
+  final FloodReport report;
+
+  String _formatDate(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+  @override
+  Widget build(BuildContext context) {
+    final verified = report.status == 'verified';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            verified ? Icons.verified : Icons.report_gmailerrorred_outlined,
+            size: 16,
+            color: verified ? Colors.teal : Colors.orange,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${report.floodType} · ${report.waterLevel} water level',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+                Text(
+                  '${report.locationName} · ${_formatDate(report.observedAt)}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NearbyFloodRow extends StatelessWidget {
+  const _NearbyFloodRow({required this.flood});
+
+  final HistoricalFlood flood;
+
+  String _formatDate(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.water_damage_outlined, size: 16, color: Colors.blueGrey),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  flood.floodCause,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+                Text(
+                  '${flood.district}, ${flood.state} · ${_formatDate(flood.floodDate)}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FloodTrendChart extends StatelessWidget {
+  const _FloodTrendChart({required this.floodsPerYear});
+
+  final Map<int, int> floodsPerYear;
+
+  @override
+  Widget build(BuildContext context) {
+    final years = floodsPerYear.keys.toList()..sort();
+    final maxCount = floodsPerYear.values.fold<int>(0, (m, v) => v > m ? v : m);
+
+    return BarChart(
+      BarChartData(
+        maxY: (maxCount + 1).toDouble(),
+        barGroups: [
+          for (var i = 0; i < years.length; i++)
+            BarChartGroupData(
+              x: i,
+              barRods: [
+                BarChartRodData(
+                  toY: (floodsPerYear[years[i]] ?? 0).toDouble(),
+                  color: Colors.blue,
+                  width: 16,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ],
+            ),
+        ],
+        titlesData: FlTitlesData(
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: true, reservedSize: 28, interval: 1),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              getTitlesWidget: (value, meta) {
+                final i = value.toInt();
+                if (i < 0 || i >= years.length) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text('${years[i]}', style: const TextStyle(fontSize: 10)),
+                );
+              },
+            ),
+          ),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        gridData: const FlGridData(show: true, drawVerticalLine: false),
+        borderData: FlBorderData(show: false),
       ),
     );
   }

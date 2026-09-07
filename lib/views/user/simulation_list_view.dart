@@ -10,6 +10,7 @@ import '../../services/risk_assessment_service.dart';
 import '../../services/flood_simulation_service.dart';
 import '../../routes/app_routes.dart';
 import '../../routes/route_arguments.dart';
+import '../../utils/responsive.dart';
 
 class SimulationListView extends StatefulWidget {
   const SimulationListView({super.key});
@@ -62,7 +63,13 @@ class _SimulationListViewState extends State<SimulationListView> {
       backgroundColor: const Color(0xFFF4F7FC),
       appBar: AppBar(
         title: const Text('Flood Risk Assessments'),
-        centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'Compare assessments',
+            icon: const Icon(Icons.compare_arrows),
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.simulationCompare),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
@@ -93,7 +100,12 @@ class _SimulationListViewState extends State<SimulationListView> {
             );
           }
 
-          return ListView.builder(
+          return Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
+              ),
+              child: ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: simulations.length,
             itemBuilder: (context, index) {
@@ -148,6 +160,8 @@ class _SimulationListViewState extends State<SimulationListView> {
                 ),
               );
             },
+              ),
+            ),
           );
         },
       ),

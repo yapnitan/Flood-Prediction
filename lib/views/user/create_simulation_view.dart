@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
+import '../../models/flood_simulation.dart';
 import '../../controllers/risk_assessment_controller.dart';
 import '../../controllers/historical_flood_controller.dart';
 import '../../controllers/environment_controller.dart';
@@ -12,10 +15,16 @@ import '../../utils/malaysia_geocoding.dart';
 import '../../utils/responsive.dart';
 import '../../routes/app_routes.dart';
 import '../../routes/route_arguments.dart';
+import '../../services/notification_service.dart';
+import '../../utils/validators.dart';
 import 'pick_property_location_view.dart';
 
 class CreateSimulationView extends StatefulWidget {
-  const CreateSimulationView({super.key});
+  /// When set, the form opens pre-filled to edit this simulation instead
+  /// of starting a fresh assessment.
+  final FloodSimulation? existing;
+
+  const CreateSimulationView({super.key, this.existing});
 
   @override
   State<CreateSimulationView> createState() => _CreateSimulationViewState();
@@ -28,13 +37,32 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
   final _longitudeController = TextEditingController();
   final _elevationController = TextEditingController();
 
-  String _structureType = RiskAssessmentService.structureTypeOptions.first;
-  String _state = MalaysiaGeocoder.states.first;
-  bool _hasFloodBarriers = false;
-  bool _hasRaisedFoundation = false;
+  late String _structureType;
+  late String _state;
+  late bool _hasFloodBarriers;
+  late bool _hasRaisedFoundation;
 
   bool _isSubmitting = false;
   String _errorMessage = '';
+
+  bool get _isEditing => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    _propertyNameController.text = existing?.propertyName ?? '';
+    _districtController.text = existing?.district ?? '';
+    _latitudeController.text = existing?.latitude.toStringAsFixed(6) ?? '';
+    _longitudeController.text = existing?.longitude.toStringAsFixed(6) ?? '';
+    _elevationController.text = existing?.userElevationMeters?.toString() ?? '';
+    _structureType =
+        existing?.structureType ??
+        RiskAssessmentService.structureTypeOptions.first;
+    _state = existing?.state ?? MalaysiaGeocoder.states.first;
+    _hasFloodBarriers = existing?.hasFloodBarriers ?? false;
+    _hasRaisedFoundation = existing?.hasRaisedFoundation ?? false;
+  }
 
   Future<void> _pickLocationOnMap() async {
     final current = double.tryParse(_latitudeController.text.trim());
@@ -43,7 +71,7 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
         ? LatLng(current, currentLng)
         : null;
 
-    final picked = await Navigator.push<LatLng>(
+    final picked = await Navigator.push<PickedLocation>(
       context,
       MaterialPageRoute(
         builder: (_) => PickPropertyLocationView(initialLocation: initial),
@@ -52,8 +80,16 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
 
     if (picked == null || !mounted) return;
     setState(() {
-      _latitudeController.text = picked.latitude.toStringAsFixed(6);
-      _longitudeController.text = picked.longitude.toStringAsFixed(6);
+      _latitudeController.text = picked.point.latitude.toStringAsFixed(6);
+      _longitudeController.text = picked.point.longitude.toStringAsFixed(6);
+      final geocode = picked.geocode;
+      if (geocode?.state != null &&
+          MalaysiaGeocoder.states.contains(geocode!.state)) {
+        _state = geocode.state!;
+      }
+      if ((geocode?.district ?? '').trim().isNotEmpty) {
+        _districtController.text = geocode!.district!.trim();
+      }
     });
   }
 
@@ -65,6 +101,8 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
   );
 
   Future<void> _submit() async {
+    if (_isSubmitting) return;
+
     final propertyName = _propertyNameController.text.trim();
     final district = _districtController.text.trim();
     final latitude = double.tryParse(_latitudeController.text.trim());
@@ -81,23 +119,44 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
       setState(() => _errorMessage = 'Latitude/longitude must be numbers');
       return;
     }
+    final coordError =
+        validateLatitude(latitude) ?? validateLongitude(longitude);
+    if (coordError != null) {
+      setState(() => _errorMessage = coordError);
+      return;
+    }
 
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       _isSubmitting = true;
       _errorMessage = '';
     });
 
-    final outcome = await _riskAssessmentController.runAssessment(
-      propertyName: propertyName,
-      structureType: _structureType,
-      latitude: latitude,
-      longitude: longitude,
-      state: _state,
-      district: district,
-      userElevationMeters: userElevation,
-      hasFloodBarriers: _hasFloodBarriers,
-      hasRaisedFoundation: _hasRaisedFoundation,
-    );
+    final existingId = widget.existing?.id;
+    final outcome = existingId != null
+        ? await _riskAssessmentController.updateAssessment(
+            simulationId: existingId,
+            propertyName: propertyName,
+            structureType: _structureType,
+            latitude: latitude,
+            longitude: longitude,
+            state: _state,
+            district: district,
+            userElevationMeters: userElevation,
+            hasFloodBarriers: _hasFloodBarriers,
+            hasRaisedFoundation: _hasRaisedFoundation,
+          )
+        : await _riskAssessmentController.runAssessment(
+            propertyName: propertyName,
+            structureType: _structureType,
+            latitude: latitude,
+            longitude: longitude,
+            state: _state,
+            district: district,
+            userElevationMeters: userElevation,
+            hasFloodBarriers: _hasFloodBarriers,
+            hasRaisedFoundation: _hasRaisedFoundation,
+          );
 
     if (!mounted) return;
 
@@ -108,6 +167,17 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
       });
       return;
     }
+
+    // Task 12 "simulation completion" notification — fired here rather
+    // than waited-on, so it doesn't delay navigating to the result.
+    unawaited(
+      NotificationService.instance.showNow(
+        id: NotificationService.idSimulationCompletion,
+        title: _isEditing ? 'Assessment updated' : 'Risk assessment complete',
+        body:
+            '${outcome.simulation!.propertyName}: ${outcome.simulation!.riskLevel} risk (${outcome.simulation!.riskScore.toStringAsFixed(0)}/100).',
+      ),
+    );
 
     Navigator.pushReplacementNamed(
       context,
@@ -132,183 +202,213 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('New Risk Assessment'),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: context.responsive(mobile: 20, tablet: 32, desktop: 40),
-            vertical: 20,
+    return AbsorbPointer(
+      absorbing: _isSubmitting,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            _isEditing ? 'Edit Risk Assessment' : 'New Risk Assessment',
           ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: context.responsive(mobile: 600, tablet: 640),
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+              horizontal: context.responsive(
+                mobile: 20,
+                tablet: 32,
+                desktop: 40,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_errorMessage.isNotEmpty) ...[
-                    Text(
-                      _errorMessage,
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-
-                  const Text(
-                    'Property',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _propertyNameController,
-                    decoration: _decoration('Property name'),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue: _structureType,
-                    decoration: _decoration('Structure type'),
-                    items: RiskAssessmentService.structureTypeOptions
-                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) setState(() => _structureType = value);
-                    },
-                  ),
-
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Location',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Pick the property on the map, or enter coordinates manually below.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _pickLocationOnMap,
-                      icon: const Icon(Icons.map_outlined),
-                      label: const Text('Pick location on map'),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue: _state,
-                    decoration: _decoration('State'),
-                    items: MalaysiaGeocoder.states
-                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) setState(() => _state = value);
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _districtController,
-                    decoration: _decoration('District', hint: 'e.g. Petaling'),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _latitudeController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                            signed: true,
-                          ),
-                          decoration: _decoration('Latitude'),
+              vertical: 20,
+            ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: context.responsive(mobile: 600, tablet: 640),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_errorMessage.isNotEmpty) ...[
+                      Text(
+                        _errorMessage,
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _longitudeController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                            signed: true,
-                          ),
-                          decoration: _decoration('Longitude'),
-                        ),
-                      ),
+                      const SizedBox(height: 12),
                     ],
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _elevationController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: _decoration(
-                      'Elevation override (m, optional)',
-                      hint: 'Leave blank to use terrain data automatically',
-                    ),
-                  ),
 
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Flood Protection',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Flood barriers installed'),
-                    value: _hasFloodBarriers,
-                    onChanged: (value) =>
-                        setState(() => _hasFloodBarriers = value),
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Raised foundation'),
-                    value: _hasRaisedFoundation,
-                    onChanged: (value) =>
-                        setState(() => _hasRaisedFoundation = value),
-                  ),
-
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _isSubmitting ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                    const Text(
+                      'Property',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
                       ),
-                      child: _isSubmitting
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Run Assessment',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _propertyNameController,
+                      decoration: _decoration('Property name'),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: _structureType,
+                      decoration: _decoration('Structure type'),
+                      items: RiskAssessmentService.structureTypeOptions
+                          .map(
+                            (t) => DropdownMenuItem(value: t, child: Text(t)),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null)
+                          setState(() => _structureType = value);
+                      },
+                    ),
+
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Location',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Pick the property on the map, or enter coordinates manually below.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _pickLocationOnMap,
+                        icon: const Icon(Icons.map_outlined),
+                        label: const Text('Pick location on map'),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      // Re-seed when a map pick changes _state from code —
+                      // initialValue is only read on the first build.
+                      key: ValueKey(_state),
+                      initialValue: _state,
+                      decoration: _decoration('State'),
+                      items: MalaysiaGeocoder.states
+                          .map(
+                            (s) => DropdownMenuItem(value: s, child: Text(s)),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) setState(() => _state = value);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _districtController,
+                      decoration: _decoration(
+                        'District',
+                        hint: 'e.g. Petaling',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _latitudeController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                              signed: true,
+                            ),
+                            decoration: _decoration('Latitude'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: _longitudeController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                              signed: true,
+                            ),
+                            decoration: _decoration('Longitude'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _elevationController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: _decoration(
+                        'Elevation override (m, optional)',
+                        hint: 'Leave blank to use terrain data automatically',
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Flood Protection',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Flood barriers installed'),
+                      value: _hasFloodBarriers,
+                      onChanged: (value) =>
+                          setState(() => _hasFloodBarriers = value),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Raised foundation'),
+                      value: _hasRaisedFoundation,
+                      onChanged: (value) =>
+                          setState(() => _hasRaisedFoundation = value),
+                    ),
+
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isSubmitting ? null : _submit,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                _isEditing
+                                    ? 'Update Assessment'
+                                    : 'Run Assessment',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
             ),
           ),
