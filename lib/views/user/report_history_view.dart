@@ -4,6 +4,7 @@ import '../../controllers/flood_report_controller.dart';
 import '../../models/flood_report.dart';
 import '../../services/flood_report_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/adaptive_search_filter_header.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/status_badge.dart';
 import 'report_detail_view.dart';
@@ -32,7 +33,9 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
     super.initState();
     _reportsFuture = _controller.getMyReports();
     _searchController.addListener(() {
-      setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
+      setState(
+        () => _searchQuery = _searchController.text.trim().toLowerCase(),
+      );
     });
   }
 
@@ -54,7 +57,8 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
 
   List<FloodReport> _applyFilters(List<FloodReport> reports) {
     return reports.where((r) {
-      if (_waterLevelFilter != 'All' && r.waterLevel != _waterLevelFilter) return false;
+      if (_waterLevelFilter != 'All' && r.waterLevel != _waterLevelFilter)
+        return false;
       if (_searchQuery.isEmpty) return true;
       return r.locationName.toLowerCase().contains(_searchQuery) ||
           r.description.toLowerCase().contains(_searchQuery) ||
@@ -64,8 +68,6 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
 
   @override
   Widget build(BuildContext context) {
-    final keyboardVisible = context.isKeyboardVisible;
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(title: const Text('Report History'), centerTitle: true),
@@ -83,49 +85,90 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search by location, type, or description',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchQuery.isEmpty
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: _searchController.clear,
-                            ),
-                      isDense: true,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  child: AdaptiveSearchFilterHeader(
+                    searchField: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search by location, type, or description',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchQuery.isEmpty
+                            ? null
+                            : IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: _searchController.clear,
+                              ),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    portraitFilters: [
+                      SizedBox(
+                        height: 48,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _waterLevelOptions.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(width: 8),
+                          itemBuilder: (context, index) {
+                            final level = _waterLevelOptions[index];
+                            final selected = _waterLevelFilter == level;
+                            return ChoiceChip(
+                              label: Text(
+                                level == 'All' ? 'All water levels' : level,
+                              ),
+                              selected: selected,
+                              onSelected: (_) =>
+                                  setState(() => _waterLevelFilter = level),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                    sheetTitle: 'Filter report history',
+                    activeFilterCount: _waterLevelFilter == 'All' ? 0 : 1,
+                    sheetBuilder: (context, setSheetState) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Water level',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final level in _waterLevelOptions)
+                              ChoiceChip(
+                                label: Text(
+                                  level == 'All' ? 'All water levels' : level,
+                                ),
+                                selected: _waterLevelFilter == level,
+                                onSelected: (_) {
+                                  setState(() => _waterLevelFilter = level);
+                                  setSheetState(() {});
+                                },
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                if (!keyboardVisible)
-                  SizedBox(
-                    height: 48,
-                    child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _waterLevelOptions.length,
-                    separatorBuilder: (context, index) => const SizedBox(width: 8),
-                    itemBuilder: (context, index) {
-                      final level = _waterLevelOptions[index];
-                      final selected = _waterLevelFilter == level;
-                      return ChoiceChip(
-                        label: Text(level == 'All' ? 'All water levels' : level),
-                        selected: selected,
-                        onSelected: (_) => setState(() => _waterLevelFilter = level),
-                      );
-                    },
-                    ),
-                  ),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _refresh,
                     child: FutureBuilder<List<FloodReport>>(
                       future: _reportsFuture,
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
 
                         if (snapshot.hasError) {
@@ -173,7 +216,6 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
       ),
     );
   }
-
 }
 
 class _ReportCard extends StatelessWidget {

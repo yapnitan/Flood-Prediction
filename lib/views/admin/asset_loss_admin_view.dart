@@ -4,6 +4,7 @@ import '../../constants/asset_categories.dart';
 import '../../controllers/asset_loss_report_controller.dart';
 import '../../services/asset_loss_report_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/adaptive_search_filter_header.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/status_badge.dart';
 import 'asset_loss_admin_detail_view.dart';
@@ -28,14 +29,21 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
   String _statusFilter = 'All';
   String _searchQuery = '';
 
-  static const _statusFilters = ['All', 'Pending Review', 'Verified', 'Rejected'];
+  static const _statusFilters = [
+    'All',
+    'Pending Review',
+    'Verified',
+    'Rejected',
+  ];
 
   @override
   void initState() {
     super.initState();
     _reportsFuture = _controller.getAdminOverview();
     _searchController.addListener(() {
-      setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
+      setState(
+        () => _searchQuery = _searchController.text.trim().toLowerCase(),
+      );
     });
   }
 
@@ -85,9 +93,12 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
       final property = r['property'] as Map<String, dynamic>?;
       final state = (property?['state'] as String?)?.trim();
       final district = (property?['district'] as String?)?.trim();
-      final stateKey = (state == null || state.isEmpty) ? 'Unknown state' : state;
-      final districtKey =
-          (district == null || district.isEmpty) ? 'Unknown district' : district;
+      final stateKey = (state == null || state.isEmpty)
+          ? 'Unknown state'
+          : state;
+      final districtKey = (district == null || district.isEmpty)
+          ? 'Unknown district'
+          : district;
       byState
           .putIfAbsent(stateKey, () => {})
           .putIfAbsent(districtKey, () => [])
@@ -98,8 +109,10 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
     final stateKeys = byState.keys.toList()..sort(_unknownLast);
     for (final stateKey in stateKeys) {
       final districts = byState[stateKey]!;
-      final stateCount =
-          districts.values.fold<int>(0, (sum, list) => sum + list.length);
+      final stateCount = districts.values.fold<int>(
+        0,
+        (sum, list) => sum + list.length,
+      );
       widgets.add(_StateHeader(state: stateKey, count: stateCount));
 
       final districtKeys = districts.keys.toList()..sort(_unknownLast);
@@ -107,10 +120,15 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
         final list = districts[districtKey]!..sort(_triageOrder);
         widgets.add(_DistrictHeader(district: districtKey, count: list.length));
         for (final row in list) {
-          widgets.add(Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _ReportSummaryCard(data: row, onTap: () => _openReport(row)),
-          ));
+          widgets.add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _ReportSummaryCard(
+                data: row,
+                onTap: () => _openReport(row),
+              ),
+            ),
+          );
         }
       }
     }
@@ -119,76 +137,136 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
 
   @override
   Widget build(BuildContext context) {
-    final keyboardVisible = context.isKeyboardVisible;
-
     return Container(
       color: Colors.white,
       child: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: context.responsive(mobile: 700, tablet: 900, desktop: 1100)),
+            constraints: BoxConstraints(
+              maxWidth: context.responsive(
+                mobile: 700,
+                tablet: 900,
+                desktop: 1100,
+              ),
+            ),
             child: Column(
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search by asset, address, or category',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchQuery.isEmpty
-                          ? null
-                          : IconButton(icon: const Icon(Icons.clear), onPressed: _searchController.clear),
-                      isDense: true,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  child: AdaptiveSearchFilterHeader(
+                    searchField: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search by asset, address, or category',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchQuery.isEmpty
+                            ? null
+                            : IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: _searchController.clear,
+                              ),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    portraitFilters: [
+                      SizedBox(
+                        height: 48,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _statusFilters.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(width: 8),
+                          itemBuilder: (context, index) {
+                            final value = _statusFilters[index];
+                            final selected = _statusFilter == value;
+                            return ChoiceChip(
+                              label: Text(value),
+                              selected: selected,
+                              onSelected: (_) =>
+                                  setState(() => _statusFilter = value),
+                              selectedColor: Colors.blue.shade100,
+                              labelStyle: TextStyle(
+                                color: selected
+                                    ? Colors.blue.shade900
+                                    : Colors.black87,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                    sheetTitle: 'Filter asset loss reports',
+                    activeFilterCount: _statusFilter == 'All' ? 0 : 1,
+                    sheetBuilder: (context, setSheetState) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Status',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final value in _statusFilters)
+                              ChoiceChip(
+                                label: Text(value),
+                                selected: _statusFilter == value,
+                                onSelected: (_) {
+                                  setState(() => _statusFilter = value);
+                                  setSheetState(() {});
+                                },
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                if (!keyboardVisible)
-                  SizedBox(
-                    height: 48,
-                    child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _statusFilters.length,
-                    separatorBuilder: (context, index) => const SizedBox(width: 8),
-                    itemBuilder: (context, index) {
-                      final value = _statusFilters[index];
-                      final selected = _statusFilter == value;
-                      return ChoiceChip(
-                        label: Text(value),
-                        selected: selected,
-                        onSelected: (_) => setState(() => _statusFilter = value),
-                        selectedColor: Colors.blue.shade100,
-                        labelStyle: TextStyle(color: selected ? Colors.blue.shade900 : Colors.black87),
-                      );
-                    },
-                    ),
-                  ),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _refresh,
                     child: FutureBuilder<List<Map<String, dynamic>>>(
                       future: _reportsFuture,
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
                         if (snapshot.hasError) {
-                          return const Center(child: Text('Could not load asset loss reports.'));
+                          return const Center(
+                            child: Text('Could not load asset loss reports.'),
+                          );
                         }
 
                         var rows = snapshot.data ?? [];
                         if (_statusFilter != 'All') {
-                          final statusValue = _statusFilter.toLowerCase().replaceAll(' ', '_');
-                          rows = rows.where((r) => r['status'] == statusValue).toList();
+                          final statusValue = _statusFilter
+                              .toLowerCase()
+                              .replaceAll(' ', '_');
+                          rows = rows
+                              .where((r) => r['status'] == statusValue)
+                              .toList();
                         }
                         if (_searchQuery.isNotEmpty) {
                           rows = rows.where((r) {
-                            final assetName = (r['asset_name'] as String? ?? '').toLowerCase();
-                            final category = (r['asset_category'] as String? ?? '').toLowerCase();
-                            final property = r['property'] as Map<String, dynamic>?;
-                            final address = (property?['address'] as String? ?? '').toLowerCase();
+                            final assetName = (r['asset_name'] as String? ?? '')
+                                .toLowerCase();
+                            final category =
+                                (r['asset_category'] as String? ?? '')
+                                    .toLowerCase();
+                            final property =
+                                r['property'] as Map<String, dynamic>?;
+                            final address =
+                                (property?['address'] as String? ?? '')
+                                    .toLowerCase();
                             return assetName.contains(_searchQuery) ||
                                 category.contains(_searchQuery) ||
                                 address.contains(_searchQuery);
@@ -274,7 +352,10 @@ class _DistrictHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          Text('($count)', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+          Text(
+            '($count)',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+          ),
         ],
       ),
     );
@@ -301,7 +382,8 @@ class _ReportSummaryCard extends StatelessWidget {
     final status = data['status'] as String? ?? 'pending_review';
     final account = data['account'] as Map<String, dynamic>?;
     final property = data['property'] as Map<String, dynamic>?;
-    final estimatedTotal = (data['estimated_total_loss'] as num?)?.toDouble() ?? 0;
+    final estimatedTotal =
+        (data['estimated_total_loss'] as num?)?.toDouble() ?? 0;
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),
@@ -321,7 +403,10 @@ class _ReportSummaryCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     '${data['asset_category']} — ${data['asset_name']}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -330,13 +415,20 @@ class _ReportSummaryCard extends StatelessWidget {
             ),
             if (account != null) ...[
               const SizedBox(height: 4),
-              Text('From: ${account['name'] ?? 'Unknown'}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+              Text(
+                'From: ${account['name'] ?? 'Unknown'}',
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
+              ),
             ],
             if (_propertyLine(property).isNotEmpty) ...[
               const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(Icons.location_on_outlined, size: 14, color: Colors.grey),
+                  const Icon(
+                    Icons.location_on_outlined,
+                    size: 14,
+                    color: Colors.grey,
+                  ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
@@ -356,7 +448,11 @@ class _ReportSummaryCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'Potential loss: RM ${estimatedTotal.toStringAsFixed(2)}',
-              style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.blue, fontSize: 13),
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.blue,
+                fontSize: 13,
+              ),
             ),
           ],
         ),

@@ -4,6 +4,7 @@ import '../../controllers/flood_report_controller.dart';
 import '../../models/flood_report.dart';
 import '../../services/flood_report_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/adaptive_search_filter_header.dart';
 import '../../widgets/status_badge.dart';
 import '../user/report_detail_view.dart';
 
@@ -50,7 +51,9 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
     super.initState();
     _reportsFuture = _controller.getAdminOverview();
     _searchController.addListener(() {
-      setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
+      setState(
+        () => _searchQuery = _searchController.text.trim().toLowerCase(),
+      );
     });
   }
 
@@ -73,8 +76,6 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
 
   @override
   Widget build(BuildContext context) {
-    final keyboardVisible = context.isKeyboardVisible;
-
     return Container(
       color: Colors.white,
       child: SafeArea(
@@ -91,39 +92,99 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search by location, area, type, or description',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchQuery.isEmpty
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: _searchController.clear,
-                            ),
-                      isDense: true,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  child: AdaptiveSearchFilterHeader(
+                    searchField: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText:
+                            'Search by location, area, type, or description',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchQuery.isEmpty
+                            ? null
+                            : IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: _searchController.clear,
+                              ),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    portraitFilters: [
+                      _buildFilterBar(
+                        options: _floodTypeOptions,
+                        selected: _floodTypeFilter,
+                        onSelected: (value) =>
+                            setState(() => _floodTypeFilter = value),
+                        labelBuilder: (value) =>
+                            value == 'all' ? 'All types' : value,
+                      ),
+                      _buildFilterBar(
+                        options: _waterLevelOptions,
+                        selected: _waterLevelFilter,
+                        onSelected: (value) =>
+                            setState(() => _waterLevelFilter = value),
+                        labelBuilder: (value) =>
+                            value == 'all' ? 'All water levels' : value,
+                      ),
+                    ],
+                    sheetTitle: 'Filter flood reports',
+                    activeFilterCount:
+                        (_floodTypeFilter == 'all' ? 0 : 1) +
+                        (_waterLevelFilter == 'all' ? 0 : 1),
+                    sheetBuilder: (context, setSheetState) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Flood type',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final value in _floodTypeOptions)
+                              ChoiceChip(
+                                label: Text(
+                                  value == 'all' ? 'All types' : value,
+                                ),
+                                selected: _floodTypeFilter == value,
+                                onSelected: (_) {
+                                  setState(() => _floodTypeFilter = value);
+                                  setSheetState(() {});
+                                },
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Water level',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final value in _waterLevelOptions)
+                              ChoiceChip(
+                                label: Text(
+                                  value == 'all' ? 'All water levels' : value,
+                                ),
+                                selected: _waterLevelFilter == value,
+                                onSelected: (_) {
+                                  setState(() => _waterLevelFilter = value);
+                                  setSheetState(() {});
+                                },
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                if (!keyboardVisible) ...[
-                  _buildFilterBar(
-                    options: _floodTypeOptions,
-                    selected: _floodTypeFilter,
-                    onSelected: (value) =>
-                        setState(() => _floodTypeFilter = value),
-                    labelBuilder: (value) => value == 'all' ? 'All types' : value,
-                  ),
-                  _buildFilterBar(
-                    options: _waterLevelOptions,
-                    selected: _waterLevelFilter,
-                    onSelected: (value) =>
-                        setState(() => _waterLevelFilter = value),
-                    labelBuilder: (value) =>
-                        value == 'all' ? 'All water levels' : value,
-                  ),
-                ],
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _refresh,
@@ -157,10 +218,17 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
                         }
                         if (_searchQuery.isNotEmpty) {
                           rows = rows.where((r) {
-                            final location = (r['location_name'] as String? ?? '').toLowerCase();
-                            final description = (r['description'] as String? ?? '').toLowerCase();
-                            final floodType = (r['flood_type'] as String? ?? '').toLowerCase();
-                            final area = '${r['district'] ?? ''} ${r['state'] ?? ''}'.toLowerCase();
+                            final location =
+                                (r['location_name'] as String? ?? '')
+                                    .toLowerCase();
+                            final description =
+                                (r['description'] as String? ?? '')
+                                    .toLowerCase();
+                            final floodType = (r['flood_type'] as String? ?? '')
+                                .toLowerCase();
+                            final area =
+                                '${r['district'] ?? ''} ${r['state'] ?? ''}'
+                                    .toLowerCase();
                             return location.contains(_searchQuery) ||
                                 description.contains(_searchQuery) ||
                                 floodType.contains(_searchQuery) ||
@@ -320,7 +388,8 @@ class _AdminReportSummaryCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       [
-                        if ((report.district ?? '').isNotEmpty) report.district!,
+                        if ((report.district ?? '').isNotEmpty)
+                          report.district!,
                         if ((report.state ?? '').isNotEmpty) report.state!,
                       ].join(', '),
                       style: const TextStyle(color: Colors.grey, fontSize: 13),

@@ -3,6 +3,7 @@ import '../../models/account.dart';
 import '../../controllers/user_management_controller.dart';
 import '../../services/user_management_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/adaptive_search_filter_header.dart';
 import '../../widgets/empty_state.dart';
 
 class UserManagementView extends StatefulWidget {
@@ -36,7 +37,9 @@ class _UserManagementViewState extends State<UserManagementView> {
     super.initState();
     _refresh();
     _searchController.addListener(() {
-      setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
+      setState(
+        () => _searchQuery = _searchController.text.trim().toLowerCase(),
+      );
     });
   }
 
@@ -48,12 +51,13 @@ class _UserManagementViewState extends State<UserManagementView> {
 
   List<Account> _applyFilters(List<Account> accounts) {
     return accounts.where((account) {
-      final matchesStatus = _statusFilter == 'All' ||
+      final matchesStatus =
+          _statusFilter == 'All' ||
           account.status == _statusFilter.toLowerCase();
       if (!matchesStatus) return false;
 
-      final matchesRole = _roleFilter == 'All' ||
-          account.role == _roleFilter.toLowerCase();
+      final matchesRole =
+          _roleFilter == 'All' || account.role == _roleFilter.toLowerCase();
       if (!matchesRole) return false;
 
       if (_searchQuery.isEmpty) return true;
@@ -80,9 +84,9 @@ class _UserManagementViewState extends State<UserManagementView> {
     if (ok) {
       _refresh();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update role')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to update role')));
     }
   }
 
@@ -105,9 +109,9 @@ class _UserManagementViewState extends State<UserManagementView> {
       _refresh();
       widget.onUsersChanged?.call();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update status')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to update status')));
     }
   }
 
@@ -124,8 +128,6 @@ class _UserManagementViewState extends State<UserManagementView> {
 
   @override
   Widget build(BuildContext context) {
-    final keyboardVisible = context.isKeyboardVisible;
-
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FC),
       body: SafeArea(
@@ -136,7 +138,11 @@ class _UserManagementViewState extends State<UserManagementView> {
         child: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
+              maxWidth: context.responsive(
+                mobile: 700,
+                tablet: 800,
+                desktop: 900,
+              ),
             ),
             child: Column(
               children: [
@@ -147,71 +153,114 @@ class _UserManagementViewState extends State<UserManagementView> {
                     context.responsive(mobile: 16, tablet: 24, desktop: 32),
                     8,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Search by name or email',
-                          prefixIcon: const Icon(Icons.search),
-                          suffixIcon: _searchQuery.isEmpty
-                              ? null
-                              : IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: _searchController.clear,
-                                ),
-                          isDense: true,
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
+                  child: AdaptiveSearchFilterHeader(
+                    searchField: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search by name or email',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchQuery.isEmpty
+                            ? null
+                            : IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: _searchController.clear,
+                              ),
+                        isDense: true,
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
                         ),
                       ),
-                      if (!keyboardVisible) ...[
-                        const SizedBox(height: 10),
-                        // Keep filters available at normal height, then
-                        // collapse them while the keyboard uses the limited
-                        // landscape viewport. The selected values stay in
-                        // State and return unchanged when the keyboard closes.
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              for (final status in _statusFilters)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: ChoiceChip(
-                                    label: Text(status),
-                                    selected: _statusFilter == status,
-                                    onSelected: (_) =>
-                                        setState(() => _statusFilter = status),
-                                  ),
+                    ),
+                    portraitFilters: [
+                      const SizedBox(height: 10),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            for (final status in _statusFilters)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: ChoiceChip(
+                                  label: Text(status),
+                                  selected: _statusFilter == status,
+                                  onSelected: (_) =>
+                                      setState(() => _statusFilter = status),
                                 ),
-                              Container(
-                                width: 1,
-                                height: 24,
-                                margin: const EdgeInsets.symmetric(horizontal: 4),
-                                color: Colors.grey.shade300,
                               ),
-                              const SizedBox(width: 8),
-                              for (final role in _roleFilters)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: ChoiceChip(
-                                    label: Text(role),
-                                    selected: _roleFilter == role,
-                                    onSelected: (_) =>
-                                        setState(() => _roleFilter = role),
-                                  ),
+                            Container(
+                              width: 1,
+                              height: 24,
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              color: Colors.grey.shade300,
+                            ),
+                            const SizedBox(width: 8),
+                            for (final role in _roleFilters)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: ChoiceChip(
+                                  label: Text(role),
+                                  selected: _roleFilter == role,
+                                  onSelected: (_) =>
+                                      setState(() => _roleFilter = role),
                                 ),
-                            ],
-                          ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    sheetTitle: 'Filter users',
+                    activeFilterCount:
+                        (_statusFilter == 'All' ? 0 : 1) +
+                        (_roleFilter == 'All' ? 0 : 1),
+                    sheetBuilder: (context, setSheetState) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Status',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final status in _statusFilters)
+                              ChoiceChip(
+                                label: Text(status),
+                                selected: _statusFilter == status,
+                                onSelected: (_) {
+                                  setState(() => _statusFilter = status);
+                                  setSheetState(() {});
+                                },
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Role',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final role in _roleFilters)
+                              ChoiceChip(
+                                label: Text(role),
+                                selected: _roleFilter == role,
+                                onSelected: (_) {
+                                  setState(() => _roleFilter = role);
+                                  setSheetState(() {});
+                                },
+                              ),
+                          ],
                         ),
                       ],
-                    ],
+                    ),
                   ),
                 ),
                 Expanded(
@@ -227,9 +276,12 @@ class _UserManagementViewState extends State<UserManagementView> {
                         // keeps the same ListView mounted and its scroll
                         // position intact after actions like toggling a user's
                         // active state.
-                        if (snapshot.connectionState == ConnectionState.waiting &&
+                        if (snapshot.connectionState ==
+                                ConnectionState.waiting &&
                             !snapshot.hasData) {
-                          return const Center(child: CircularProgressIndicator());
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
 
                         final users = _applyFilters(snapshot.data ?? []);
@@ -242,7 +294,11 @@ class _UserManagementViewState extends State<UserManagementView> {
 
                         return ListView.builder(
                           padding: EdgeInsets.all(
-                            context.responsive(mobile: 16, tablet: 24, desktop: 32),
+                            context.responsive(
+                              mobile: 16,
+                              tablet: 24,
+                              desktop: 32,
+                            ),
                           ),
                           itemCount: users.length,
                           itemBuilder: (context, index) {
@@ -269,7 +325,9 @@ class _UserManagementViewState extends State<UserManagementView> {
                                   Row(
                                     children: [
                                       CircleAvatar(
-                                        backgroundColor: roleColor.withValues(alpha: 0.15),
+                                        backgroundColor: roleColor.withValues(
+                                          alpha: 0.15,
+                                        ),
                                         child: Text(
                                           account.name.isNotEmpty
                                               ? account.name[0].toUpperCase()
@@ -283,15 +341,21 @@ class _UserManagementViewState extends State<UserManagementView> {
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               account.name,
-                                              style: const TextStyle(fontWeight: FontWeight.w600),
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                              ),
                                             ),
                                             Text(
                                               account.email,
-                                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey[600],
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -308,25 +372,35 @@ class _UserManagementViewState extends State<UserManagementView> {
                                           // mismatch is what throws a red-screen
                                           // assertion from DropdownButtonFormField.
                                           initialValue:
-                                              _roles.contains(account.role) ? account.role : null,
+                                              _roles.contains(account.role)
+                                              ? account.role
+                                              : null,
                                           hint: Text(account.role),
                                           isDense: true,
                                           decoration: InputDecoration(
                                             labelText: 'Role',
                                             isDense: true,
-                                            contentPadding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 8,
-                                            ),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 10,
+                                                  vertical: 8,
+                                                ),
                                             border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(10),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
                                             ),
                                           ),
                                           items: _roles
-                                              .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                                              .map(
+                                                (r) => DropdownMenuItem(
+                                                  value: r,
+                                                  child: Text(r),
+                                                ),
+                                              )
                                               .toList(),
                                           onChanged: (value) {
-                                            if (value != null) _changeRole(account, value);
+                                            if (value != null)
+                                              _changeRole(account, value);
                                           },
                                         ),
                                       ),
@@ -336,13 +410,18 @@ class _UserManagementViewState extends State<UserManagementView> {
                                           Switch(
                                             value: account.isActive,
                                             activeThumbColor: Colors.green,
-                                            onChanged: (_) => _toggleActive(account),
+                                            onChanged: (_) =>
+                                                _toggleActive(account),
                                           ),
                                           Text(
-                                            account.isActive ? 'Active' : 'Disabled',
+                                            account.isActive
+                                                ? 'Active'
+                                                : 'Disabled',
                                             style: TextStyle(
                                               fontSize: 11,
-                                              color: account.isActive ? Colors.green : Colors.grey,
+                                              color: account.isActive
+                                                  ? Colors.green
+                                                  : Colors.grey,
                                             ),
                                           ),
                                         ],
@@ -355,7 +434,11 @@ class _UserManagementViewState extends State<UserManagementView> {
                                       if (account.status == 'pending')
                                         const Padding(
                                           padding: EdgeInsets.only(right: 8),
-                                          child: Icon(Icons.hourglass_top, size: 16, color: Colors.orange),
+                                          child: Icon(
+                                            Icons.hourglass_top,
+                                            size: 16,
+                                            color: Colors.orange,
+                                          ),
                                         ),
                                       Expanded(
                                         // Always editable, not just while pending —
@@ -364,25 +447,35 @@ class _UserManagementViewState extends State<UserManagementView> {
                                         // rejected being a dead end.
                                         child: DropdownButtonFormField<String>(
                                           initialValue:
-                                              _statuses.contains(account.status) ? account.status : null,
+                                              _statuses.contains(account.status)
+                                              ? account.status
+                                              : null,
                                           hint: Text(account.status),
                                           isDense: true,
                                           decoration: InputDecoration(
                                             labelText: 'Status',
                                             isDense: true,
-                                            contentPadding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 8,
-                                            ),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 10,
+                                                  vertical: 8,
+                                                ),
                                             border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(10),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
                                             ),
                                           ),
                                           items: _statuses
-                                              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                                              .map(
+                                                (s) => DropdownMenuItem(
+                                                  value: s,
+                                                  child: Text(s),
+                                                ),
+                                              )
                                               .toList(),
                                           onChanged: (value) {
-                                            if (value != null) _changeStatus(account, value);
+                                            if (value != null)
+                                              _changeStatus(account, value);
                                           },
                                         ),
                                       ),
