@@ -67,11 +67,16 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
 
   List<PlaceSearchResult> _results = const [];
   bool _searching = false;
+  bool _loadingMore = false;
+  bool _hasMore = false;
+  int _limit = _pageSize;
   bool _panelOpen = false;
   String _query = '';
 
   static const _minQueryLength = 3;
   static const _debounce = Duration(milliseconds: 400);
+  static const _pageSize = 8;
+  static const _maxLimit = 40;
 
   @override
   void initState() {
@@ -125,11 +130,13 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
       setState(() {
         _results = picks;
         _searching = false;
+        _hasMore = false;
         _panelOpen = _focusNode.hasFocus && picks.isNotEmpty;
       });
       return;
     }
 
+    _limit = _pageSize;
     setState(() {
       _searching = true;
       _panelOpen = _focusNode.hasFocus;
@@ -139,12 +146,26 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
 
   Future<void> _runSearch(String query) async {
     final token = ++_searchToken;
-    final results = await _locationService.searchPlaces(query);
+    final results = await _locationService.searchPlaces(query, limit: _limit);
     if (!mounted || token != _searchToken || query != _query) return;
     setState(() {
       _results = results.isNotEmpty ? results : _quickPicks(query);
       _searching = false;
+      _hasMore = results.length >= _limit && _limit < _maxLimit;
       _panelOpen = _focusNode.hasFocus;
+    });
+  }
+
+  Future<void> _loadMore() async {
+    final query = _query;
+    setState(() => _loadingMore = true);
+    _limit = (_limit + _pageSize).clamp(0, _maxLimit);
+    final results = await _locationService.searchPlaces(query, limit: _limit);
+    if (!mounted || query != _query) return;
+    setState(() {
+      _results = results;
+      _loadingMore = false;
+      _hasMore = results.length >= _limit && _limit < _maxLimit;
     });
   }
 
@@ -156,6 +177,8 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
       _panelOpen = false;
       _results = const [];
       _searching = false;
+      _hasMore = false;
+      _loadingMore = false;
     });
     _focusNode.unfocus();
 
@@ -252,6 +275,23 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
                               ),
                               subtitle: _areaSubtitle(place),
                               onTap: () => _select(place),
+                            ),
+                          if (_hasMore)
+                            ListTile(
+                              dense: true,
+                              title: Center(
+                                child: _loadingMore
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : const Text(
+                                        'Load more',
+                                        style: TextStyle(fontWeight: FontWeight.w600),
+                                      ),
+                              ),
+                              onTap: _loadingMore ? null : _loadMore,
                             ),
                         ],
                       ),

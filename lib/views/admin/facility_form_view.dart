@@ -20,10 +20,6 @@ class FacilityFormView extends StatefulWidget {
 
   final FacilityController controller;
   final Facility? existing;
-
-  /// Pre-selects the facility type when creating (ignored when editing) —
-  /// used by the admin's "+ Add Facility" shortcut from a request that
-  /// already knows which type it needs (e.g. 'shelter').
   final String? initialFacilityType;
 
   @override
@@ -163,8 +159,6 @@ class _FacilityFormViewState extends State<FacilityFormView> {
 
     setState(() {
       _isLocating = false;
-      _latitude = details.position.latitude;
-      _longitude = details.position.longitude;
       final readable = details.address?.trim();
       if (readable != null && readable.isNotEmpty) {
         _locationNameController.text = readable;

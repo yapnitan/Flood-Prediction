@@ -63,6 +63,93 @@ class _PpsMapViewState extends State<PpsMapView> {
     });
   }
 
+  Widget _buildMap(List<MapMarkerSpec> markers) {
+    return markers.isEmpty
+        ? const Center(child: Text('No evacuation centers available yet.'))
+        : Padding(
+            padding: const EdgeInsets.all(16),
+            child: LayoutBuilder(
+              builder: (context, constraints) => MiniMap(
+                markers: markers,
+                interactive: true,
+                height: constraints.maxHeight,
+              ),
+            ),
+          );
+  }
+
+  Widget _buildList() {
+    return _shelters.isEmpty
+        ? const SizedBox.shrink()
+        : ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            itemCount: _shelters.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final shelter = _shelters[index];
+              final distanceKm = (_latitude != null && _longitude != null)
+                  ? haversineDistanceKm(
+                      lat1: _latitude!,
+                      lon1: _longitude!,
+                      lat2: shelter.latitude,
+                      lon2: shelter.longitude,
+                    )
+                  : null;
+              return Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.night_shelter, color: Colors.green),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            shelter.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          if (distanceKm != null)
+                            Text(
+                              '${distanceKm.toStringAsFixed(1)} km away'
+                              '${shelter.capacity != null ? ' · capacity ${shelter.capacity}' : ''}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.grey, fontSize: 12),
+                            )
+                          else if (shelter.address != null)
+                            Text(
+                              shelter.address!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.grey, fontSize: 12),
+                            ),
+                        ],
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => openDirections(
+                        context,
+                        latitude: shelter.latitude,
+                        longitude: shelter.longitude,
+                      ),
+                      icon: const Icon(Icons.directions, size: 18),
+                      label: const Text('Directions'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+  }
+
   @override
   Widget build(BuildContext context) {
     final markers = <MapMarkerSpec>[
@@ -86,103 +173,35 @@ class _PpsMapViewState extends State<PpsMapView> {
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
-                  ),
-                  child: Column(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: markers.isEmpty
-                            ? const Center(child: Text('No evacuation centers available yet.'))
-                            : Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) => MiniMap(
-                                    markers: markers,
-                                    interactive: true,
-                                    height: constraints.maxHeight,
-                                  ),
-                                ),
-                              ),
+            : OrientationBuilder(
+                builder: (context, orientation) {
+                  final isLandscape = orientation == Orientation.landscape;
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: context.responsive(
+                          mobile: isLandscape ? 1000 : 700,
+                          tablet: 800,
+                          desktop: 900,
+                        ),
                       ),
-                      Expanded(
-                        flex: 3,
-                        child: _shelters.isEmpty
-                            ? const SizedBox.shrink()
-                            : ListView.separated(
-                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                                itemCount: _shelters.length,
-                                separatorBuilder: (context, index) => const SizedBox(height: 10),
-                                itemBuilder: (context, index) {
-                                  final shelter = _shelters[index];
-                                  final distanceKm = (_latitude != null && _longitude != null)
-                                      ? haversineDistanceKm(
-                                          lat1: _latitude!,
-                                          lon1: _longitude!,
-                                          lat2: shelter.latitude,
-                                          lon2: shelter.longitude,
-                                        )
-                                      : null;
-                                  return Container(
-                                    padding: const EdgeInsets.all(14),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.grey.shade300),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.night_shelter, color: Colors.green),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                shelter.name,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(fontWeight: FontWeight.w600),
-                                              ),
-                                              if (distanceKm != null)
-                                                Text(
-                                                  '${distanceKm.toStringAsFixed(1)} km away'
-                                                  '${shelter.capacity != null ? ' · capacity ${shelter.capacity}' : ''}',
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                                                )
-                                              else if (shelter.address != null)
-                                                Text(
-                                                  shelter.address!,
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                        TextButton.icon(
-                                          onPressed: () => openDirections(
-                                            context,
-                                            latitude: shelter.latitude,
-                                            longitude: shelter.longitude,
-                                          ),
-                                          icon: const Icon(Icons.directions, size: 18),
-                                          label: const Text('Directions'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                      ),
-                    ],
-                  ),
-                ),
+                      child: isLandscape
+                          ? Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(flex: 3, child: _buildMap(markers)),
+                                Expanded(flex: 2, child: _buildList()),
+                              ],
+                            )
+                          : Column(
+                              children: [
+                                Expanded(flex: 2, child: _buildMap(markers)),
+                                Expanded(flex: 3, child: _buildList()),
+                              ],
+                            ),
+                    ),
+                  );
+                },
               ),
       ),
     );

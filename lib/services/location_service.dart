@@ -6,10 +6,6 @@ import 'package:geolocator/geolocator.dart';
 
 import '../utils/malaysia_geocoding.dart';
 
-/// Structured reverse-geocode result — the display address plus (when
-/// Nominatim's response includes them) the Malaysian state/district/
-/// postcode, so callers don't have to derive those by matching keywords
-/// against the flat address string.
 class GeocodeResult {
   const GeocodeResult({this.address, this.state, this.district, this.postcode});
 
@@ -35,10 +31,6 @@ class CurrentLocationDetails {
   final String? postcode;
 }
 
-/// One hit from a forward place search ([LocationService.searchPlaces]) —
-/// the display label, its coordinate, and (best-effort) the Malaysian
-/// state/district/postcode parsed from the same `address` object reverse
-/// geocoding reads.
 class PlaceSearchResult {
   const PlaceSearchResult({
     required this.displayName,
@@ -57,12 +49,9 @@ class PlaceSearchResult {
   final String? postcode;
 }
 
-/// Wraps device GPS access: checks/requests permission, then reads position.
 class LocationService {
   static const _timeout = Duration(seconds: 8);
 
-  /// Never hangs indefinitely — returns null if location services/permission
-  /// are unavailable, denied, or acquisition takes longer than [_timeout].
   Future<Position?> getCurrentPosition() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled()
@@ -88,17 +77,6 @@ class LocationService {
     }
   }
 
-  /// Reverse-geocodes a coordinate via Nominatim, returning both the flat
-  /// display address and (best-effort) the structured Malaysian state/
-  /// district/postcode from its `address` object — used for both "Use
-  /// Current Location" and picking a location from the nearby-locations
-  /// autocomplete, so either path can auto-fill an address form's
-  /// state/district/postcode instead of requiring manual entry.
-  ///
-  /// District is unreliable across Nominatim's OSM admin-level tagging for
-  /// Malaysia — it can land under `county`, `state_district`, or
-  /// `city_district` depending on the area — so all three are tried in
-  /// that order. Returns null on any network/parse failure; never throws.
   Future<GeocodeResult?> reverseGeocode(double latitude, double longitude) async {
     try {
       final response = await http.get(
@@ -123,20 +101,9 @@ class LocationService {
     }
   }
 
-  /// Parses Nominatim's `address` object into the Malaysian
-  /// state/district/postcode. Shared by [reverseGeocode] and [searchPlaces].
   GeocodeResult _areaFromComponents(String? address, Map<String, dynamic>? components) {
-    // Prefer the ISO 3166-2 code: Nominatim omits the free-text `state`
-    // field entirely for the three Federal Territories (Kuala Lumpur/
-    // Labuan/Putrajaya — confirmed by direct testing), but the ISO code
-    // is present regardless and maps 1:1 to a state/territory.
     final isoState = MalaysiaGeocoder.stateFromIsoCode(components?['ISO3166-2-lvl4'] as String?);
     final rawState = components?['state'] as String?;
-    // Kuala Lumpur/Labuan/Putrajaya have no formal "district" subdivision
-    // at all in Nominatim's data (confirmed by direct testing) — their
-    // named areas (e.g. "Wangsa Maju", "Bukit Bintang") show up under
-    // `suburb` instead, so it's tried last, only once none of the more
-    // official district-level tags are present.
     final district = (components?['county'] ??
         components?['state_district'] ??
         components?['city_district'] ??
@@ -151,13 +118,6 @@ class LocationService {
     );
   }
 
-  /// Forward place search via Nominatim, scoped to Malaysia. Backs the
-  /// address autocomplete on the location-picking forms — type any address
-  /// and pick a match instead of only the small hardcoded quick-pick list.
-  /// Returns an empty list on any network/parse failure; never throws.
-  ///
-  /// Callers should debounce (Nominatim's usage policy is ~1 req/sec) and
-  /// only call once the query is a few characters long.
   Future<List<PlaceSearchResult>> searchPlaces(String query, {int limit = 8}) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return const [];
@@ -210,8 +170,6 @@ class LocationService {
     final position = await getCurrentPosition();
     if (position == null) return null;
 
-    // Reverse geocoding is best-effort — GPS is still useful on its own
-    // when it's unavailable (offline, rate-limited, etc.).
     final geocode = await reverseGeocode(position.latitude, position.longitude);
 
     return CurrentLocationDetails(

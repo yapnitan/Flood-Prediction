@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../constants/map_config.dart';
 import '../../services/location_service.dart';
 
 /// Result of picking a point on [PickPropertyLocationView] — the coordinate
@@ -139,6 +140,8 @@ class _PickPropertyLocationViewState extends State<PickPropertyLocationView> {
               initialCenter: _picked ?? _fallbackCenter,
               initialZoom: _picked != null ? 15 : 12,
               onTap: _onTap,
+              cameraConstraint: kMalaysiaCameraConstraint,
+              interactionOptions: kMapInteractionOptions,
             ),
             children: [
               TileLayer(
