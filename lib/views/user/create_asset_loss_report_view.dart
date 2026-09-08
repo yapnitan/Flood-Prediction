@@ -19,11 +19,6 @@ import '../../widgets/selectable_chip.dart';
 import '../../widgets/step_indicator.dart';
 import 'property_form_view.dart';
 
-/// One fully-filled-in asset entry, captured off the "current entry" form
-/// fields via [_CreateAssetLossReportViewState._captureCurrentAsset] —
-/// residents commonly lose more than one item to a flood, so the wizard
-/// lets them queue up several before submitting (each becomes its own
-/// `asset_loss_report` row on submit, sharing the same address/incident).
 class _PendingAsset {
   const _PendingAsset({
     required this.category,
@@ -46,11 +41,6 @@ class _PendingAsset {
   double get totalLoss => quantity * valuePerItem;
 }
 
-/// "Report Asset Loss" wizard (Task/asset report §19): gate on having a
-/// saved address first, then address selection -> asset details -> photos
-/// -> review/submit, looping back to add another asset as many times as
-/// needed. Replaces the old "Report Property Damage" flow
-/// (create_repair_request_view.dart, removed).
 class CreateAssetLossReportView extends StatefulWidget {
   const CreateAssetLossReportView({super.key});
 
@@ -75,11 +65,8 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
   List<FloodIncident> _activeIncidents = [];
   FloodIncident? _selectedIncident;
 
-  // Asset entries queued for submission once the user is done adding items.
   final List<_PendingAsset> _pendingAssets = [];
 
-  // "Current entry" state — the asset currently being filled in, captured
-  // into _pendingAssets and reset when the user adds another.
   String? _selectedCategory;
   final TextEditingController _assetNameController = TextEditingController();
   final FocusNode _assetNameFocusNode = FocusNode();
@@ -146,10 +133,6 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  /// Steps 1 -> 2 -> 3 only — steps 3 and 4 are driven by their own
-  /// dedicated buttons ([_addAnotherAsset]/[_proceedToReview]/
-  /// [_submitAllReports]) instead of a single generic "Next", since step 3
-  /// branches into two different actions.
   void _goToNextStep() {
     if (_currentStep == 1) {
       if (_selectedProperty == null) {
@@ -205,8 +188,6 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
     _photos.clear();
   }
 
-  /// Queues the current entry (already validated on the way into step 3)
-  /// and jumps back to step 2 with a blank entry for the next item.
   void _addAnotherAsset() {
     setState(() {
       _pendingAssets.add(_captureCurrentAsset());
@@ -324,7 +305,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
     );
     if (!mounted || photo == null) return;
     setState(() {
-      _photos.add(photo); // carries through to submission as evidence
+      _photos.add(photo);
       _isAnalyzing = true;
     });
 
@@ -407,14 +388,6 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
     );
   }
 
-  /// §3: block submission entirely until the user has at least one saved
-  /// address. Deliberately doesn't reuse [EmptyState] here — that widget
-  /// sizes itself against a *bounded* parent height (via its own internal
-  /// `LayoutBuilder`/`ConstrainedBox(minHeight: constraints.maxHeight)`),
-  /// but nested in a `Column(mainAxisSize: min)` like this it would receive
-  /// an *unbounded* height, producing a `minHeight: infinity` constraint —
-  /// which renders as a blank screen once assertions are stripped
-  /// (release/profile builds).
   Widget _buildNoAddressGate() {
     return Center(
       child: SingleChildScrollView(
@@ -495,36 +468,45 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
 
   Widget _buildWizard() {
     final keyboardVisible = context.isKeyboardVisible;
+    final horizontalPadding = context.responsive(
+      mobile: 20.0,
+      tablet: 32.0,
+      desktop: 40.0,
+    );
 
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
         ),
-        child: Column(
-          children: [
-            Offstage(
-              offstage: keyboardVisible,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-                child: StepIndicator(
-                  currentStep: _currentStep,
-                  steps: const ['Address', 'Asset', 'Photos', 'Submit'],
-                ),
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.responsive(
-                    mobile: 20,
-                    tablet: 32,
-                    desktop: 40,
+        child: CustomScrollView(
+          slivers: [
+            if (!keyboardVisible)
+              SliverAppBar(
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.white,
+                elevation: 0,
+                toolbarHeight: 0,
+                automaticallyImplyLeading: false,
+                floating: true,
+                snap: true,
+                bottom: PreferredSize(
+                  preferredSize: const Size.fromHeight(78),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    child: StepIndicator(
+                      currentStep: _currentStep,
+                      steps: const ['Address', 'Asset', 'Photos', 'Submit'],
+                    ),
                   ),
                 ),
+              ),
+            SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+              sliver: SliverToBoxAdapter(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -536,72 +518,73 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                 ),
               ),
             ),
-            Offstage(
-              offstage: keyboardVisible,
-              child: Padding(
+            if (!keyboardVisible)
+              SliverPadding(
                 padding: EdgeInsets.fromLTRB(
-                  context.responsive(mobile: 20, tablet: 32, desktop: 40),
+                  horizontalPadding,
                   0,
-                  context.responsive(mobile: 20, tablet: 32, desktop: 40),
+                  horizontalPadding,
                   20,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_currentStep == 3 && !_isSubmitted) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: OutlinedButton.icon(
-                          onPressed: _isSubmitting ? null : _addAnotherAsset,
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add Another Asset'),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_currentStep == 3 && !_isSubmitted) ...[
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: OutlinedButton.icon(
+                            onPressed: _isSubmitting ? null : _addAnotherAsset,
+                            icon: const Icon(Icons.add),
+                            label: const Text('Add Another Asset'),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    Row(
-                      children: [
-                        if (_currentStep > 1 && !_isSubmitted) ...[
+                        const SizedBox(height: 12),
+                      ],
+                      Row(
+                        children: [
+                          if (_currentStep > 1 && !_isSubmitted) ...[
+                            Expanded(
+                              child: SizedBox(
+                                height: 50,
+                                child: OutlinedButton(
+                                  onPressed: () =>
+                                      setState(() => _currentStep--),
+                                  child: const Text('Back'),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
                           Expanded(
                             child: SizedBox(
                               height: 50,
-                              child: OutlinedButton(
-                                onPressed: () => setState(() => _currentStep--),
-                                child: const Text('Back'),
+                              child: ElevatedButton(
+                                onPressed: _footerButtonAction(),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: Text(
+                                  _footerButtonLabel(),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 12),
                         ],
-                        Expanded(
-                          child: SizedBox(
-                            height: 50,
-                            child: ElevatedButton(
-                              onPressed: _footerButtonAction(),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                _footerButtonLabel(),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -625,9 +608,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
         ..._myProperties.map(
           (property) => RadioListTile<int>(
             value: property.id!,
-            // ignore: deprecated_member_use
             groupValue: _selectedProperty?.id,
-            // ignore: deprecated_member_use
             onChanged: (value) => setState(
               () => _selectedProperty = _myProperties.firstWhere(
                 (p) => p.id == value,
@@ -783,17 +764,6 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
               return SelectableChip(
                 label: category,
                 selected: _selectedCategory == category,
-                // Switching category invalidates whatever asset name was
-                // typed for the *previous* category (e.g. "Refrigerator"
-                // no longer makes sense under "Furniture") — clear it so
-                // the name field and its autocomplete suggestions actually
-                // reflect the newly selected category. The clear is deferred
-                // to after this frame builds: RawAutocomplete only refreshes
-                // its options when the controller notifies listeners, and
-                // clearing synchronously here would fire that notification
-                // against the *old* category's optionsBuilder (the rebuild
-                // with the new category hasn't happened yet), leaving stale
-                // suggestions until some later edit happened to trigger it.
                 onTap: () {
                   setState(() => _selectedCategory = category);
                   WidgetsBinding.instance.addPostFrameCallback((_) {
