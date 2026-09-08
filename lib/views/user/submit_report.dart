@@ -19,10 +19,6 @@ class SubmitReportPage extends StatefulWidget {
   const SubmitReportPage({super.key, this.onSubmissionComplete, this.existing});
 
   final VoidCallback? onSubmissionComplete;
-
-  /// When set, the wizard opens pre-filled to edit this report instead of
-  /// starting a fresh submission, and shows its own AppBar (this page is
-  /// normally embedded as a tab in UserHome without one).
   final FloodReport? existing;
 
   @override
@@ -32,7 +28,6 @@ class SubmitReportPage extends StatefulWidget {
 class _SubmitReportState extends State<SubmitReportPage> {
   int _currentStep = 1;
 
-  // Step 1 state
   String? selectedFloodType;
   String? selectedWaterLevel;
   final TextEditingController _locationNameController = TextEditingController();
@@ -44,7 +39,6 @@ class _SubmitReportState extends State<SubmitReportPage> {
   final TextEditingController _districtController = TextEditingController();
   bool _isLocating = false;
 
-  // Step 2 state
   final _detailsFormKey = GlobalKey<FormState>();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _dateTimeController = TextEditingController();
@@ -194,10 +188,6 @@ class _SubmitReportState extends State<SubmitReportPage> {
     });
   }
 
-  /// Fills the State dropdown / District field from a reverse-geocode
-  /// result — both stay editable afterward, since Nominatim's district
-  /// classification for Malaysia isn't reliable enough to lock the field
-  /// (same rationale as the property form).
   void _applyGeocodedArea({String? state, String? district}) {
     if (state != null && MalaysiaGeocoder.states.contains(state)) {
       _selectedState = state;
@@ -232,9 +222,6 @@ class _SubmitReportState extends State<SubmitReportPage> {
     });
   }
 
-  /// Flood reports describe recent, verifiable conditions — reports can't
-  /// be dated in the future, and anything older than 2 days is stale
-  /// enough that it belongs in historical records, not a live report.
   static const Duration _maxReportAge = Duration(days: 2);
 
   Future<void> _selectDateTime() async {
@@ -268,10 +255,6 @@ class _SubmitReportState extends State<SubmitReportPage> {
       time.minute,
     );
 
-    // showDatePicker/showTimePicker are independent, so the calendar-day
-    // restriction above doesn't stop a future *time* on today's date, nor
-    // an earlier-than-allowed *time* on the oldest permitted day — recheck
-    // the combined instant against the exact 2-day window.
     if (selected.isAfter(now)) {
       _showSnack('The observed date and time cannot be in the future.');
       return;
@@ -443,7 +426,6 @@ class _SubmitReportState extends State<SubmitReportPage> {
             ),
             child: CustomScrollView(
               slivers: [
-                // ---- Step indicator ----
                 if (!keyboardVisible)
                   SliverAppBar(
                     backgroundColor: Colors.white,
@@ -468,7 +450,6 @@ class _SubmitReportState extends State<SubmitReportPage> {
                     ),
                   ),
 
-                // ---- Scrollable form content ----
                 SliverPadding(
                   padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                   sliver: SliverToBoxAdapter(
@@ -487,77 +468,78 @@ class _SubmitReportState extends State<SubmitReportPage> {
                     ),
                   ),
                 ),
+
+                if (!keyboardVisible)
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      0,
+                      horizontalPadding,
+                      20,
+                    ),
+                    sliver: SliverToBoxAdapter(
+                      child: Row(
+                        children: [
+                          if (_currentStep > 1 && !_isSubmitted) ...[
+                            Expanded(
+                              child: SizedBox(
+                                height: 50,
+                                child: OutlinedButton(
+                                  onPressed: () =>
+                                      setState(() => _currentStep--),
+                                  child: const Text('Back'),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+                          Expanded(
+                            child: SizedBox(
+                              height: 50,
+                              child: ElevatedButton(
+                                onPressed: _isSubmitting || _isSubmitted
+                                    ? null
+                                    : _goToNextStep,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: Text(
+                                  _isSubmitting
+                                      ? (_isEditing
+                                            ? 'Saving...'
+                                            : 'Submitting...')
+                                      : _isSubmitted
+                                      ? (_isEditing ? 'Saved' : 'Submitted')
+                                      : _currentStep == 1
+                                      ? 'Next'
+                                      : _currentStep == 2
+                                      ? 'Next: Photos'
+                                      : _currentStep == 3
+                                      ? 'Review Report'
+                                      : (_isEditing
+                                            ? 'Save Changes'
+                                            : 'Submit Report'),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
         ),
       ),
-      bottomNavigationBar: keyboardVisible
-          ? null
-          : Material(
-              color: Colors.white,
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    horizontalPadding,
-                    12,
-                    horizontalPadding,
-                    12,
-                  ),
-                  child: Row(
-                    children: [
-                      if (_currentStep > 1 && !_isSubmitted) ...[
-                        Expanded(
-                          child: SizedBox(
-                            height: 50,
-                            child: OutlinedButton(
-                              onPressed: () => setState(() => _currentStep--),
-                              child: const Text('Back'),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                      ],
-                      Expanded(
-                        child: SizedBox(
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _isSubmitting || _isSubmitted
-                                ? null
-                                : _goToNextStep,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Text(
-                              _isSubmitting
-                                  ? (_isEditing ? 'Saving...' : 'Submitting...')
-                                  : _isSubmitted
-                                  ? (_isEditing ? 'Saved' : 'Submitted')
-                                  : _currentStep == 1
-                                  ? 'Next'
-                                  : _currentStep == 2
-                                  ? 'Next: Photos'
-                                  : _currentStep == 3
-                                  ? 'Review Report'
-                                  : (_isEditing ? 'Save Changes' : 'Submit Report'),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
     );
   }
 
@@ -645,8 +627,6 @@ class _SubmitReportState extends State<SubmitReportPage> {
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
-          // Re-seed when a picked location changes _selectedState from code —
-          // DropdownButtonFormField only reads `initialValue` on first build.
           key: ValueKey(_selectedState),
           initialValue: _selectedState,
           isExpanded: true,
