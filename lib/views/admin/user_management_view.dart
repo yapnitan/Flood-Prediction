@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/account.dart';
 import '../../controllers/user_management_controller.dart';
 import '../../services/user_management_service.dart';
@@ -20,13 +21,16 @@ class UserManagementView extends StatefulWidget {
 
 class _UserManagementViewState extends State<UserManagementView> {
   static const _roles = ['user', 'helper', 'admin'];
-  static const _statuses = ['pending', 'active', 'rejected'];
   static const _statusFilters = ['All', 'Pending', 'Active', 'Rejected'];
   static const _roleFilters = ['All', 'User', 'Helper', 'Admin'];
 
   final _controller = UserManagementController(UserManagementService());
   final _searchController = TextEditingController();
   late Future<List<Account>> _usersFuture;
+
+  /// The signed-in admin — their own account's role/status/enabled controls
+  /// are locked so they can't accidentally lock themselves out.
+  final String? _myId = Supabase.instance.client.auth.currentUser?.id;
 
   String _searchQuery = '';
   String _statusFilter = 'All';
@@ -77,42 +81,111 @@ class _UserManagementViewState extends State<UserManagementView> {
     });
   }
 
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _roleLabel(String role) =>
+      role.isEmpty ? role : '${role[0].toUpperCase()}${role.substring(1)}';
+
+  bool _isSelf(Account account) => account.id == _myId;
+
   Future<void> _changeRole(Account account, String role) async {
-    if (role == account.role) return;
-    final ok = await _controller.changeRole(account.id, role);
+    if (role == account.role || _isSelf(account)) return;
+
+    final confirmed = await _confirmRoleChange(account, role);
+    if (confirmed != true) return;
+
+    // A pending/rejected account an admin is deliberately assigning a role
+    // to is being approved by that action — clear it so it isn't locked out
+    // (e.g. a still-pending helper demoted to a plain user).
+    final activate = account.status != 'active';
+    final ok = await _controller.changeRole(account.id, role, activate: activate);
     if (!mounted) return;
     if (ok) {
       _refresh();
+      widget.onUsersChanged?.call();
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to update role')));
+      _snack('Failed to update role');
     }
   }
 
+  Future<bool?> _confirmRoleChange(Account account, String role) {
+    final who = account.name.isNotEmpty ? account.name : account.email;
+    final String body;
+    if (role == 'admin') {
+      body = '$who will be able to manage every account and all data.';
+    } else if (account.role == 'admin') {
+      body = '$who will lose admin access.';
+    } else {
+      body = '$who will become a ${_roleLabel(role)} on their next sign-in.';
+    }
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Change role to ${_roleLabel(role)}?'),
+        content: Text(body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Change role'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _toggleActive(Account account) async {
+    if (_isSelf(account)) return;
     final ok = await _controller.setActive(account.id, !account.isActive);
     if (!mounted) return;
     if (ok) {
       _refresh();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update account status')),
-      );
+      _snack('Failed to update account status');
     }
   }
 
-  Future<void> _changeStatus(Account account, String status) async {
+  Future<void> _setStatus(Account account, String status) async {
     final ok = await _controller.changeStatus(account.id, status);
     if (!mounted) return;
     if (ok) {
       _refresh();
       widget.onUsersChanged?.call();
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to update status')));
+      _snack('Failed to update approval status');
     }
+  }
+
+  Future<void> _approve(Account account) => _setStatus(account, 'active');
+
+  Future<void> _reject(Account account) async {
+    final who = account.name.isNotEmpty ? account.name : account.email;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reject this sign-up?'),
+        content: Text("$who won't be able to log in. You can reconsider later."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await _setStatus(account, 'rejected');
   }
 
   Color _roleColor(String role) {
@@ -124,6 +197,259 @@ class _UserManagementViewState extends State<UserManagementView> {
       default:
         return Colors.blue;
     }
+  }
+
+  Widget _buildUserCard(Account account) {
+    final roleColor = _roleColor(account.role);
+    final isSelf = _isSelf(account);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: roleColor.withValues(alpha: 0.15),
+                child: Text(
+                  account.name.isNotEmpty ? account.name[0].toUpperCase() : '?',
+                  style: TextStyle(color: roleColor, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            account.name.isEmpty ? '(no name)' : account.name,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isSelf) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'You',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    Text(
+                      account.email,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  // Guard against role values outside _roles (blank/legacy
+                  // data) — that mismatch red-screens DropdownButtonFormField.
+                  initialValue:
+                      _roles.contains(account.role) ? account.role : null,
+                  hint: Text(account.role),
+                  isDense: true,
+                  decoration: InputDecoration(
+                    labelText: 'Role',
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  items: _roles
+                      .map((r) => DropdownMenuItem(
+                            value: r,
+                            child: Text(_roleLabel(r)),
+                          ))
+                      .toList(),
+                  onChanged: isSelf
+                      ? null
+                      : (value) {
+                          if (value != null) _changeRole(account, value);
+                        },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                children: [
+                  Switch(
+                    value: account.isActive,
+                    activeThumbColor: Colors.green,
+                    onChanged: isSelf ? null : (_) => _toggleActive(account),
+                  ),
+                  Text(
+                    account.isActive ? 'Active' : 'Disabled',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: account.isActive ? Colors.green : Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          _buildApprovalControl(account),
+        ],
+      ),
+    );
+  }
+
+  /// Approval workflow — shown only for helper/admin accounts. A plain
+  /// `user` never needs approval (migration 0016 makes them `active` on
+  /// sign-up), and there is deliberately no way back to `pending`.
+  Widget _buildApprovalControl(Account account) {
+    if (account.role == 'user') return const SizedBox.shrink();
+
+    final isSelf = _isSelf(account);
+    final Widget content;
+    switch (account.status) {
+      case 'pending':
+        content = Row(
+          children: [
+            const Icon(Icons.hourglass_top, size: 16, color: Colors.orange),
+            const SizedBox(width: 6),
+            const Text(
+              'Awaiting review',
+              style: TextStyle(fontSize: 12, color: Colors.orange),
+            ),
+            const Spacer(),
+            OutlinedButton(
+              onPressed: isSelf ? null : () => _reject(account),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red,
+                visualDensity: VisualDensity.compact,
+              ),
+              child: const Text('Reject'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: isSelf ? null : () => _approve(account),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.green,
+                visualDensity: VisualDensity.compact,
+              ),
+              child: const Text('Approve'),
+            ),
+          ],
+        );
+      case 'rejected':
+        content = Row(
+          children: [
+            const Icon(Icons.block, size: 16, color: Colors.red),
+            const SizedBox(width: 6),
+            const Text(
+              'Rejected',
+              style: TextStyle(fontSize: 12, color: Colors.red),
+            ),
+            const Spacer(),
+            TextButton(
+              onPressed: isSelf ? null : () => _approve(account),
+              child: const Text('Reconsider'),
+            ),
+          ],
+        );
+      default: // 'active'
+        content = Row(
+          children: [
+            Icon(Icons.verified_user_outlined,
+                size: 16, color: Colors.green.shade600),
+            const SizedBox(width: 6),
+            const Text(
+              'Approved',
+              style: TextStyle(fontSize: 12, color: Colors.green),
+            ),
+          ],
+        );
+    }
+    return Padding(padding: const EdgeInsets.only(top: 10), child: content);
+  }
+
+  /// One labelled, wrapping row of filter chips for the portrait inline
+  /// header — "Status" / "Role" each get their own line so nothing is
+  /// hidden off-screen behind a horizontal scroll.
+  Widget _filterRow({
+    required String label,
+    required List<String> options,
+    required String selected,
+    required ValueChanged<String> onSelected,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 9, right: 10),
+            child: SizedBox(
+              width: 44,
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final option in options)
+                  ChoiceChip(
+                    label: Text(option),
+                    selected: selected == option,
+                    onSelected: (_) => onSelected(option),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -175,40 +501,19 @@ class _UserManagementViewState extends State<UserManagementView> {
                       ),
                     ),
                     portraitFilters: [
-                      const SizedBox(height: 10),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            for (final status in _statusFilters)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: ChoiceChip(
-                                  label: Text(status),
-                                  selected: _statusFilter == status,
-                                  onSelected: (_) =>
-                                      setState(() => _statusFilter = status),
-                                ),
-                              ),
-                            Container(
-                              width: 1,
-                              height: 24,
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              color: Colors.grey.shade300,
-                            ),
-                            const SizedBox(width: 8),
-                            for (final role in _roleFilters)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: ChoiceChip(
-                                  label: Text(role),
-                                  selected: _roleFilter == role,
-                                  onSelected: (_) =>
-                                      setState(() => _roleFilter = role),
-                                ),
-                              ),
-                          ],
-                        ),
+                      _filterRow(
+                        label: 'Status',
+                        options: _statusFilters,
+                        selected: _statusFilter,
+                        onSelected: (value) =>
+                            setState(() => _statusFilter = value),
+                      ),
+                      _filterRow(
+                        label: 'Role',
+                        options: _roleFilters,
+                        selected: _roleFilter,
+                        onSelected: (value) =>
+                            setState(() => _roleFilter = value),
                       ),
                     ],
                     sheetTitle: 'Filter users',
@@ -301,190 +606,8 @@ class _UserManagementViewState extends State<UserManagementView> {
                             ),
                           ),
                           itemCount: users.length,
-                          itemBuilder: (context, index) {
-                            final account = users[index];
-                            final roleColor = _roleColor(account.role);
-
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(14),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.04),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      CircleAvatar(
-                                        backgroundColor: roleColor.withValues(
-                                          alpha: 0.15,
-                                        ),
-                                        child: Text(
-                                          account.name.isNotEmpty
-                                              ? account.name[0].toUpperCase()
-                                              : '?',
-                                          style: TextStyle(
-                                            color: roleColor,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              account.name,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            Text(
-                                              account.email,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey[600],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: DropdownButtonFormField<String>(
-                                          // Guard against role values that don't match
-                                          // any of _roles (blank/legacy data) — that
-                                          // mismatch is what throws a red-screen
-                                          // assertion from DropdownButtonFormField.
-                                          initialValue:
-                                              _roles.contains(account.role)
-                                              ? account.role
-                                              : null,
-                                          hint: Text(account.role),
-                                          isDense: true,
-                                          decoration: InputDecoration(
-                                            labelText: 'Role',
-                                            isDense: true,
-                                            contentPadding:
-                                                const EdgeInsets.symmetric(
-                                                  horizontal: 10,
-                                                  vertical: 8,
-                                                ),
-                                            border: OutlineInputBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                          ),
-                                          items: _roles
-                                              .map(
-                                                (r) => DropdownMenuItem(
-                                                  value: r,
-                                                  child: Text(r),
-                                                ),
-                                              )
-                                              .toList(),
-                                          onChanged: (value) {
-                                            if (value != null)
-                                              _changeRole(account, value);
-                                          },
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Column(
-                                        children: [
-                                          Switch(
-                                            value: account.isActive,
-                                            activeThumbColor: Colors.green,
-                                            onChanged: (_) =>
-                                                _toggleActive(account),
-                                          ),
-                                          Text(
-                                            account.isActive
-                                                ? 'Active'
-                                                : 'Disabled',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: account.isActive
-                                                  ? Colors.green
-                                                  : Colors.grey,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    children: [
-                                      if (account.status == 'pending')
-                                        const Padding(
-                                          padding: EdgeInsets.only(right: 8),
-                                          child: Icon(
-                                            Icons.hourglass_top,
-                                            size: 16,
-                                            color: Colors.orange,
-                                          ),
-                                        ),
-                                      Expanded(
-                                        // Always editable, not just while pending —
-                                        // lets admin approve/reject or reconsider a
-                                        // past decision at any time, rather than
-                                        // rejected being a dead end.
-                                        child: DropdownButtonFormField<String>(
-                                          initialValue:
-                                              _statuses.contains(account.status)
-                                              ? account.status
-                                              : null,
-                                          hint: Text(account.status),
-                                          isDense: true,
-                                          decoration: InputDecoration(
-                                            labelText: 'Status',
-                                            isDense: true,
-                                            contentPadding:
-                                                const EdgeInsets.symmetric(
-                                                  horizontal: 10,
-                                                  vertical: 8,
-                                                ),
-                                            border: OutlineInputBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                          ),
-                                          items: _statuses
-                                              .map(
-                                                (s) => DropdownMenuItem(
-                                                  value: s,
-                                                  child: Text(s),
-                                                ),
-                                              )
-                                              .toList(),
-                                          onChanged: (value) {
-                                            if (value != null)
-                                              _changeStatus(account, value);
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
+                          itemBuilder: (context, index) =>
+                              _buildUserCard(users[index]),
                         );
                       },
                     ),

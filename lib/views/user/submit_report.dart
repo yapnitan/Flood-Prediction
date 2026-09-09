@@ -80,9 +80,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
     _selectedState = existing.state;
     _districtController.text = existing.district ?? '';
     _observedAt = existing.observedAt;
-    _dateTimeController.text =
-        '${existing.observedAt.day.toString().padLeft(2, '0')}/${existing.observedAt.month.toString().padLeft(2, '0')}/${existing.observedAt.year} '
-        '${TimeOfDay.fromDateTime(existing.observedAt).format(context)}';
+    _dateTimeController.text = _formatObservedAt(existing.observedAt);
     _descriptionController.text = existing.description;
     _contactController.text = existing.contactNumber ?? '';
   }
@@ -266,10 +264,18 @@ class _SubmitReportState extends State<SubmitReportPage> {
 
     setState(() {
       _observedAt = selected;
-      _dateTimeController.text =
-          '${selected.day.toString().padLeft(2, '0')}/${selected.month.toString().padLeft(2, '0')}/${selected.year} '
-          '${time.format(context)}';
+      _dateTimeController.text = _formatObservedAt(selected);
     });
+  }
+
+  /// `dd/MM/yyyy HH:mm` — context-free so it's safe to call from initState
+  /// (unlike `TimeOfDay.format(context)`, which needs the widget tree).
+  static String _formatObservedAt(DateTime dt) {
+    final date =
+        '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+    final time =
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    return '$date $time';
   }
 
   Future<void> _submitReport() async {
@@ -349,8 +355,12 @@ class _SubmitReportState extends State<SubmitReportPage> {
       Navigator.of(context).pop(true);
       return;
     }
+    // Pushed as a full page — the callback pops back to Home and refreshes.
+    if (widget.onSubmissionComplete != null) {
+      widget.onSubmissionComplete!();
+      return;
+    }
     setState(_resetForm);
-    widget.onSubmissionComplete?.call();
   }
 
   Future<void> _pickPhotos(ImageSource source) async {
@@ -413,7 +423,10 @@ class _SubmitReportState extends State<SubmitReportPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: _isEditing ? AppBar(title: const Text('Edit Report')) : null,
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Edit Report' : 'Report a Flood'),
+        centerTitle: true,
+      ),
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
@@ -426,7 +439,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
             ),
             child: CustomScrollView(
               slivers: [
-                if (!keyboardVisible)
+                if (!keyboardVisible && !_isSubmitted)
                   SliverAppBar(
                     backgroundColor: Colors.white,
                     surfaceTintColor: Colors.white,
@@ -469,7 +482,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
                   ),
                 ),
 
-                if (!keyboardVisible)
+                if (!keyboardVisible && !_isSubmitted)
                   SliverPadding(
                     padding: EdgeInsets.fromLTRB(
                       horizontalPadding,
@@ -480,7 +493,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
                     sliver: SliverToBoxAdapter(
                       child: Row(
                         children: [
-                          if (_currentStep > 1 && !_isSubmitted) ...[
+                          if (_currentStep > 1) ...[
                             Expanded(
                               child: SizedBox(
                                 height: 50,
@@ -497,9 +510,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
                             child: SizedBox(
                               height: 50,
                               child: ElevatedButton(
-                                onPressed: _isSubmitting || _isSubmitted
-                                    ? null
-                                    : _goToNextStep,
+                                onPressed: _isSubmitting ? null : _goToNextStep,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.blue,
                                   shape: RoundedRectangleBorder(
@@ -511,8 +522,6 @@ class _SubmitReportState extends State<SubmitReportPage> {
                                       ? (_isEditing
                                             ? 'Saving...'
                                             : 'Submitting...')
-                                      : _isSubmitted
-                                      ? (_isEditing ? 'Saved' : 'Submitted')
                                       : _currentStep == 1
                                       ? 'Next'
                                       : _currentStep == 2
@@ -833,45 +842,64 @@ class _SubmitReportState extends State<SubmitReportPage> {
 
   Widget _buildReviewStep() {
     if (_isSubmitted) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.only(top: 56),
-          child: Column(
-            children: [
-              const Icon(
-                Icons.check_circle_outline,
-                color: Colors.green,
-                size: 72,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _isEditing ? 'Report updated' : 'Report submitted',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(8, 56, 8, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 92,
+                height: 92,
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.check_rounded,
+                  color: Colors.green.shade600,
+                  size: 52,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                _isEditing
-                    ? 'Your changes have been saved.'
-                    : 'Thank you for helping keep your community informed.',
+            ),
+            const SizedBox(height: 20),
+            Text(
+              _isEditing ? 'Report updated' : 'Report submitted',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _isEditing
+                  ? 'Your changes have been saved.'
+                  : 'Thank you for helping keep your community informed.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 14,
+                height: 1.4,
               ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: 180,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _completeSubmission,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _completeSubmission,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text('OK'),
+                ),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }

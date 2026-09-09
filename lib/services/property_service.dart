@@ -60,12 +60,35 @@ class PropertyService {
 
   Future<Property?> updateProperty(int propertyId, Property property) async {
     try {
+      // Only the form-editable fields — never `account_id` (immutable; sending
+      // it as null would orphan the row and fail the RLS `with check`),
+      // `id`, `created_at`, or `risk_level` (owned by the risk simulator).
+      final payload = <String, dynamic>{
+        'label': property.label,
+        'address': property.address,
+        'lat': property.lat,
+        'lng': property.lng,
+        'state': property.state,
+        'district': property.district,
+        'postcode': property.postcode,
+        'property_type': property.propertyType,
+        'floors': property.floors,
+        'estimated_value': property.estimatedValue,
+      };
       final updated = await _supabase
           .from(_table)
-          .update(property.toJson())
+          .update(payload)
           .eq('id', propertyId)
           .select()
-          .single();
+          .maybeSingle();
+      if (updated == null) {
+        debugPrint(
+          'PropertyService.updateProperty: 0 rows updated for $propertyId — '
+          'RLS "Users manage their own properties" policy missing (migration '
+          '0014) or the property is not yours.',
+        );
+        return null;
+      }
       return Property.fromJson(updated);
     } catch (error) {
       debugPrint('PropertyService.updateProperty error: $error');
@@ -79,7 +102,12 @@ class PropertyService {
   /// 0028_restrict_property_deletion.sql), or null on success.
   Future<String?> deleteProperty(int propertyId) async {
     try {
-      await _supabase.from(_table).delete().eq('id', propertyId);
+      final rows =
+          await _supabase.from(_table).delete().eq('id', propertyId).select();
+      if ((rows as List).isEmpty) {
+        debugPrint('PropertyService.deleteProperty: 0 rows deleted for $propertyId');
+        return 'Could not delete this property. Please try again.';
+      }
       return null;
     } on PostgrestException catch (e) {
       debugPrint('PropertyService.deleteProperty error: $e');
