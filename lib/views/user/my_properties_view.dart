@@ -54,27 +54,31 @@ class _MyPropertiesViewState extends State<MyPropertiesView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete this property?'),
-        content: Text('This removes "${property.displayLabel}" from your saved locations.'),
+        title: const Text('Remove this address?'),
+        content: Text(
+          'This removes "${property.displayLabel}" from your saved locations. '
+          "If it's linked to asset-loss reports it will be archived (hidden) "
+          'rather than deleted, so those reports keep their location.',
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: const Text('Remove'),
           ),
         ],
       ),
     );
     if (confirmed != true) return;
 
-    final error = await _controller.deleteProperty(property.id!);
+    final result = await _controller.deleteProperty(property.id!);
     if (!mounted) return;
-    if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
-      return;
+    if (result.message != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(result.message!)));
     }
-    _refresh();
+    if (result.changed) _refresh();
   }
 
   @override

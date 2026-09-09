@@ -6,7 +6,8 @@ class PropertyController {
 
   PropertyController(this.propertyService);
 
-  Future<List<Property>> getMyProperties() => propertyService.getMyProperties();
+  Future<List<Property>> getMyProperties({bool includeArchived = false}) =>
+      propertyService.getMyProperties(includeArchived: includeArchived);
 
   Future<Property?> getPropertyById(int propertyId) => propertyService.getPropertyById(propertyId);
 
@@ -15,5 +16,6 @@ class PropertyController {
   Future<Property?> updateProperty(int propertyId, Property property) =>
       propertyService.updateProperty(propertyId, property);
 
-  Future<String?> deleteProperty(int propertyId) => propertyService.deleteProperty(propertyId);
+  Future<({bool changed, String? message})> deleteProperty(int propertyId) =>
+      propertyService.deleteProperty(propertyId);
 }

@@ -11,14 +11,16 @@ class PropertyService {
 
   final SupabaseClient _supabase;
 
-  Future<List<Property>> getMyProperties() async {
+  /// Archived properties ("deleted" but kept for their linked asset-loss
+  /// reports) are excluded unless [includeArchived] is set.
+  Future<List<Property>> getMyProperties({bool includeArchived = false}) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
-    final data = await _supabase
-        .from(_table)
-        .select()
-        .eq('account_id', userId)
-        .order('created_at', ascending: false);
+    var query = _supabase.from(_table).select().eq('account_id', userId);
+    if (!includeArchived) {
+      query = query.isFilter('archived_at', null);
+    }
+    final data = await query.order('created_at', ascending: false);
     return (data as List).map((e) => Property.fromJson(e)).toList();
   }
 
@@ -96,28 +98,61 @@ class PropertyService {
     }
   }
 
-  /// Returns a user-facing error message on failure (most commonly the
-  /// property still being referenced by an asset loss report — RESTRICTed
-  /// at the DB level so it can't be silently orphaned, see
-  /// 0028_restrict_property_deletion.sql), or null on success.
-  Future<String?> deleteProperty(int propertyId) async {
+  /// Removes a saved property. `changed` is true when the list should
+  /// refresh (deleted, or archived); `message` is a note to show the user
+  /// (an error, or the "archived instead" explanation), or null on a clean
+  /// delete.
+  ///
+  /// A property still referenced by an asset-loss report can't be deleted
+  /// (FK ON DELETE RESTRICT, 0028_restrict_property_deletion.sql) — those
+  /// records, especially verified ones in the Economic Loss Dashboard, must
+  /// not vanish. Such a property is archived instead: kept in the table so
+  /// its reports keep their location, hidden from the user's list.
+  Future<({bool changed, String? message})> deleteProperty(int propertyId) async {
     try {
       final rows =
           await _supabase.from(_table).delete().eq('id', propertyId).select();
       if ((rows as List).isEmpty) {
         debugPrint('PropertyService.deleteProperty: 0 rows deleted for $propertyId');
-        return 'Could not delete this property. Please try again.';
+        return (
+          changed: false,
+          message: 'Could not delete this property. Please try again.',
+        );
       }
-      return null;
+      return (changed: true, message: null);
     } on PostgrestException catch (e) {
       debugPrint('PropertyService.deleteProperty error: $e');
       if (e.code == '23503') {
-        return 'This property has asset loss reports linked to it and cannot be deleted.';
+        try {
+          await _supabase.from(_table).update({
+            'archived_at': DateTime.now().toUtc().toIso8601String(),
+          }).eq('id', propertyId);
+          return (
+            changed: true,
+            message: "This address is linked to asset-loss reports, so it's "
+                'been archived (removed from your list) instead of deleted.',
+          );
+        } catch (archiveError) {
+          debugPrint(
+            'PropertyService.deleteProperty archive fallback error: $archiveError',
+          );
+          return (
+            changed: false,
+            message:
+                'This property has asset loss reports linked to it and cannot be removed.',
+          );
+        }
       }
-      return 'Could not delete this property. Please try again.';
+      return (
+        changed: false,
+        message: 'Could not delete this property. Please try again.',
+      );
     } catch (error) {
       debugPrint('PropertyService.deleteProperty error: $error');
-      return 'Could not delete this property. Please try again.';
+      return (
+        changed: false,
+        message: 'Could not delete this property. Please try again.',
+      );
     }
   }
 }

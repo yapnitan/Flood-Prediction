@@ -7,6 +7,45 @@ import '../../utils/responsive.dart';
 import '../../widgets/adaptive_search_filter_header.dart';
 import '../../widgets/empty_state.dart';
 
+/// Circle avatar for a user row — shows their profile picture (the
+/// `avatars` bucket is public, so a plain network image) and falls back to
+/// the first letter of their name while it loads or if it fails / isn't set.
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.name, required this.url, required this.color});
+
+  final String name;
+  final String? url;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final letter = Text(
+      name.isNotEmpty ? name[0].toUpperCase() : '?',
+      style: TextStyle(color: color, fontWeight: FontWeight.bold),
+    );
+    if (url == null || url!.isEmpty) {
+      return CircleAvatar(
+        backgroundColor: color.withValues(alpha: 0.15),
+        child: letter,
+      );
+    }
+    return CircleAvatar(
+      backgroundColor: color.withValues(alpha: 0.15),
+      child: ClipOval(
+        child: Image.network(
+          url!,
+          width: 40,
+          height: 40,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => Center(child: letter),
+          loadingBuilder: (context, child, progress) =>
+              progress == null ? child : Center(child: letter),
+        ),
+      ),
+    );
+  }
+}
+
 class UserManagementView extends StatefulWidget {
   const UserManagementView({super.key, this.onUsersChanged});
 
@@ -222,12 +261,10 @@ class _UserManagementViewState extends State<UserManagementView> {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                backgroundColor: roleColor.withValues(alpha: 0.15),
-                child: Text(
-                  account.name.isNotEmpty ? account.name[0].toUpperCase() : '?',
-                  style: TextStyle(color: roleColor, fontWeight: FontWeight.bold),
-                ),
+              _Avatar(
+                name: account.name,
+                url: account.avatarUrl,
+                color: roleColor,
               ),
               const SizedBox(width: 12),
               Expanded(
