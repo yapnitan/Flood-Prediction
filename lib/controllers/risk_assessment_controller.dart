@@ -5,6 +5,7 @@ import '../models/simulation_factor.dart';
 import '../services/risk_assessment_service.dart';
 import '../services/flood_simulation_service.dart';
 import '../services/flood_report_service.dart';
+import '../services/connectivity_service.dart';
 import '../utils/malaysia_geocoding.dart';
 import 'historical_flood_controller.dart';
 import 'environment_controller.dart';
@@ -15,11 +16,17 @@ class SimulationOutcome {
   final List<String> recommendations;
   final String? error;
 
+  /// Set by [RiskAssessmentController.refreshSimulation] when the device is
+  /// offline: the re-score was skipped (not failed), so callers should keep
+  /// showing the previously saved score rather than surfacing an error.
+  final bool offline;
+
   SimulationOutcome({
     required this.simulation,
     required this.factors,
     required this.recommendations,
     this.error,
+    this.offline = false,
   });
 }
 
@@ -239,6 +246,50 @@ class RiskAssessmentController {
     );
 
     return (simulation: simulation, result: result);
+  }
+
+  /// Re-runs the full assessment pipeline for an already-saved simulation,
+  /// reusing its stored property inputs (location, structure, protections,
+  /// elevation override) but re-gathering every time-varying signal —
+  /// historical floods, recent community reports, river forecast, weather —
+  /// so its risk score reflects current conditions. The new score and
+  /// factor breakdown are persisted in place, exactly as [updateAssessment]
+  /// would for an edit with unchanged inputs.
+  ///
+  /// Skipped when offline: the pipeline depends on live terrain/weather/
+  /// flood APIs, and scoring against failed lookups would wrongly deflate
+  /// the saved score. Callers get [SimulationOutcome.offline] and should
+  /// keep displaying the stored values.
+  Future<SimulationOutcome> refreshSimulation(FloodSimulation simulation) async {
+    final id = simulation.id;
+    if (id == null) {
+      return SimulationOutcome(
+        simulation: simulation,
+        factors: const [],
+        recommendations: const [],
+        error: 'This assessment has not been saved yet.',
+      );
+    }
+    if (!ConnectivityService.instance.isOnline) {
+      return SimulationOutcome(
+        simulation: simulation,
+        factors: const [],
+        recommendations: const [],
+        offline: true,
+      );
+    }
+    return updateAssessment(
+      simulationId: id,
+      propertyName: simulation.propertyName,
+      structureType: simulation.structureType,
+      latitude: simulation.latitude,
+      longitude: simulation.longitude,
+      state: simulation.state,
+      district: simulation.district,
+      userElevationMeters: simulation.userElevationMeters,
+      hasFloodBarriers: simulation.hasFloodBarriers,
+      hasRaisedFoundation: simulation.hasRaisedFoundation,
+    );
   }
 
   Future<List<FloodSimulation>> listSimulations() async {
