@@ -10,8 +10,8 @@ class UserManagementController {
     return userManagementService.getAllAccounts();
   }
 
-  Future<bool> changeRole(String id, String role) {
-    return userManagementService.updateRole(id, role);
+  Future<bool> changeRole(String id, String role, {bool activate = false}) {
+    return userManagementService.updateRole(id, role, activate: activate);
   }
 
   Future<bool> setActive(String id, bool isActive) {

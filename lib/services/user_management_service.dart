@@ -28,10 +28,17 @@ class UserManagementService {
     }
   }
 
-  Future<bool> updateRole(String id, String role) async {
+  /// [activate] also clears a `pending`/`rejected` status to `active` — an
+  /// admin deliberately assigning a role is an act of approval, and leaving
+  /// a demoted-to-`user` account stuck at `pending` would lock it out.
+  Future<bool> updateRole(String id, String role, {bool activate = false}) async {
     try {
-      await supabase.from(_table).update({'role': role}).eq('id', id);
-      return true;
+      final rows = await supabase
+          .from(_table)
+          .update({'role': role, if (activate) 'status': 'active'})
+          .eq('id', id)
+          .select();
+      return _changed(rows, 'updateRole', id);
     } catch (e) {
       debugPrint('UserManagementService.updateRole error: $e');
       return false;
@@ -40,8 +47,12 @@ class UserManagementService {
 
   Future<bool> setActive(String id, bool isActive) async {
     try {
-      await supabase.from(_table).update({'is_active': isActive}).eq('id', id);
-      return true;
+      final rows = await supabase
+          .from(_table)
+          .update({'is_active': isActive})
+          .eq('id', id)
+          .select();
+      return _changed(rows, 'setActive', id);
     } catch (e) {
       debugPrint('UserManagementService.setActive error: $e');
       return false;
@@ -52,12 +63,29 @@ class UserManagementService {
   /// approve a pending sign-up, or 'rejected' to reject it.
   Future<bool> updateStatus(String id, String status) async {
     try {
-      await supabase.from(_table).update({'status': status}).eq('id', id);
-      return true;
+      final rows = await supabase
+          .from(_table)
+          .update({'status': status})
+          .eq('id', id)
+          .select();
+      return _changed(rows, 'updateStatus', id);
     } catch (e) {
       debugPrint('UserManagementService.updateStatus error: $e');
       return false;
     }
   }
 
+  /// `.update()` succeeds silently even when RLS matched 0 rows — `.select()`
+  /// lets us tell a real change from a no-op (missing admin policy / trigger).
+  bool _changed(Object? rows, String op, String id) {
+    final list = rows as List;
+    if (list.isEmpty) {
+      debugPrint(
+        'UserManagementService.$op: 0 rows for $id — the admin update policy '
+        'on `account` is missing (apply migration 0016) or you are not an admin.',
+      );
+      return false;
+    }
+    return true;
+  }
 }
