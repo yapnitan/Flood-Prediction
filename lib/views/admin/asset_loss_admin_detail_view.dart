@@ -107,8 +107,11 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Reject this report?'),
-        content: const Text(
-          'It will not contribute to the Economic Loss Dashboard.',
+        content: Text(
+          _status == 'helper_verified'
+              ? 'Its verified loss will be removed from the Economic Loss '
+                  'Dashboard.'
+              : 'It will not contribute to the Economic Loss Dashboard.',
         ),
         actions: [
           TextButton(
@@ -316,7 +319,8 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
                           ],
                         ],
 
-                        if (_status == 'pending_review') ...[
+                        if (_status == 'pending_review' ||
+                            _status == 'helper_verified') ...[
                           const Divider(height: 32),
                           const Text(
                             'Admin Approval',
@@ -325,6 +329,19 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
                               fontSize: 15,
                             ),
                           ),
+                          if (_status == 'helper_verified') ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              'This report is already counting toward the '
+                              'Economic Loss Dashboard at its verified figure. '
+                              'Approving keeps it (at your approved figure); '
+                              'rejecting removes it.',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 10),
                           Row(
                             children: [

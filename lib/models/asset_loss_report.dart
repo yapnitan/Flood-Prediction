@@ -117,6 +117,21 @@ class AssetLossReport {
   };
 
   bool get isPending => status == 'pending_review';
+
+  /// A helper has verified this report in the field; it is awaiting the
+  /// admin's final approve/reject.
+  bool get isHelperVerified => status == 'helper_verified';
+
   bool get isVerified => status == 'verified';
   bool get isRejected => status == 'rejected';
+
+  /// The figure this report contributes to the Economic Loss Dashboard, or
+  /// `null` if it contributes nothing yet. A helper-verified report counts
+  /// its verified figure immediately; admin approval locks in the approved
+  /// figure; a rejected or still-pending report counts nothing.
+  double? get economicLossContribution {
+    if (isVerified) return approvedTotalLoss;
+    if (isHelperVerified) return verifiedTotalLoss;
+    return null;
+  }
 }

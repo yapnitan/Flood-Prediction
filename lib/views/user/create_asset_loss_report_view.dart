@@ -85,6 +85,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
   bool _isSubmitting = false;
   bool _isSubmitted = false;
   bool _isAnalyzing = false;
+  bool _allowPop = false;
 
   /// How many reports were actually submitted — the current-entry asset is
   /// combined with [_pendingAssets] only at submit time, so this is captured
@@ -387,9 +388,40 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
     );
   }
 
+  Future<void> _confirmDiscardAndLeave() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        title: const Text('Discard report?'),
+        content: const Text(
+          'Your input in this form will be lost if you go back.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Keep Editing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+
+    if (discard != true || !mounted) return;
+    setState(() => _allowPop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).pop();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(title: const Text('Report Asset Loss'), centerTitle: true),
       body: SafeArea(
@@ -399,6 +431,14 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
             ? _buildNoAddressGate()
             : _buildWizard(),
       ),
+    );
+
+    return PopScope(
+      canPop: _allowPop || _isSubmitted,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) await _confirmDiscardAndLeave();
+      },
+      child: scaffold,
     );
   }
 

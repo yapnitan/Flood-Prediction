@@ -42,7 +42,17 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
   final ImagePicker _imagePicker = ImagePicker();
   final List<XFile> _photos = [];
   bool _isSubmitting = false;
-  bool _isSubmitted = false;
+
+  String get _status =>
+      widget.data['status'] as String? ?? 'pending_review';
+
+  /// A helper may only verify a report that is still pending review and has
+  /// not been verified by anyone yet — matches migration 0036/0038's RLS.
+  bool get _alreadyVerified =>
+      (widget.data['verification_result'] as String?) != null ||
+      _status == 'helper_verified';
+  bool get _reportSettled => _status == 'verified' || _status == 'rejected';
+  bool get _canVerify => !_alreadyVerified && !_reportSettled;
 
   @override
   void initState() {
@@ -108,7 +118,7 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
   }
 
   Future<void> _submit() async {
-    if (_isSubmitting) return;
+    if (_isSubmitting || !_canVerify) return;
 
     final quantity = int.tryParse(_quantityController.text.trim());
     final value = CurrencyInputFormatter.parse(_valueController.text);
@@ -146,24 +156,19 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
             : _notesController.text.trim(),
         verificationPhotos: _photos,
       );
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
+      debugPrint('AssetLossHelperVerifyView._submit error: $error');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not submit the verification. Please try again.'),
-        ),
+        SnackBar(content: Text('Could not submit the verification: $error')),
       );
       return;
     }
     if (!mounted) return;
-    setState(() {
-      _isSubmitting = false;
-      _isSubmitted = true;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Verification submitted for admin review.')),
-    );
+    // Back to the helper dashboard — it shows the confirmation snackbar and
+    // refreshes the list so this report moves to the "Reviewed" section.
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -178,7 +183,7 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
     final lng = (property?['lng'] as num?)?.toDouble();
 
     return AbsorbPointer(
-      absorbing: _isSubmitting || _isSubmitted,
+      absorbing: _isSubmitting,
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
@@ -305,18 +310,56 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
                         ),
                       ),
 
-                    if (_isSubmitted) ...[
+                    if (!_canVerify) ...[
                       const Divider(height: 32),
-                      const Row(
-                        children: [
-                          Icon(Icons.check_circle, color: Colors.green),
-                          SizedBox(width: 8),
-                          Text(
-                            'Verification submitted — awaiting admin review.',
-                            style: TextStyle(color: Colors.green),
-                          ),
-                        ],
+                      _ClosedNotice(
+                        settled: _reportSettled,
+                        status: data['status'] as String? ?? 'pending_review',
                       ),
+                      if (_alreadyVerified) ...[
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Recorded Verification',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ReviewCard(
+                          title: 'Result',
+                          value: verificationResultLabels[
+                                  data['verification_result']] ??
+                              '${data['verification_result']}',
+                        ),
+                        if (data['verified_quantity'] != null)
+                          ReviewCard(
+                            title: 'Verified quantity',
+                            value: '${data['verified_quantity']}',
+                          ),
+                        if (data['verified_value_per_item'] != null)
+                          ReviewCard(
+                            title: 'Verified value per item',
+                            value: formatRinggit(
+                              (data['verified_value_per_item'] as num?) ?? 0,
+                            ),
+                          ),
+                        if (data['verified_condition'] != null)
+                          ReviewCard(
+                            title: 'Observed condition',
+                            value: assetConditionLabels[
+                                    data['verified_condition']] ??
+                                '${data['verified_condition']}',
+                          ),
+                        if ((data['verification_notes'] as String?)
+                                ?.trim()
+                                .isNotEmpty ??
+                            false)
+                          ReviewCard(
+                            title: 'Notes',
+                            value: data['verification_notes'] as String,
+                          ),
+                      ],
                     ] else ...[
                       const Divider(height: 32),
                       const Text(
@@ -441,16 +484,12 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: _isSubmitting || _isSubmitted
-                              ? null
-                              : _submit,
+                          onPressed: _isSubmitting ? null : _submit,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
                           ),
                           child: Text(
-                            _isSubmitted
-                                ? 'Submitted'
-                                : _isSubmitting
+                            _isSubmitting
                                 ? 'Submitting...'
                                 : 'Submit Verification',
                             style: const TextStyle(
@@ -469,6 +508,44 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Shown in place of the verification form when the report can no longer be
+/// verified by a helper.
+class _ClosedNotice extends StatelessWidget {
+  const _ClosedNotice({required this.settled, required this.status});
+
+  final bool settled;
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = settled
+        ? 'An admin has already ${status == 'rejected' ? 'rejected' : 'approved'} '
+              'this report — no verification is needed.'
+        : 'This report has already been verified and is now awaiting the '
+              'admin\'s approval. Only an admin can change the outcome now.';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.lock_outline, size: 18, color: Colors.grey.shade600),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+            ),
+          ),
+        ],
       ),
     );
   }

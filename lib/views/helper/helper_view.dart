@@ -180,6 +180,27 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
 
   Future<void> _refresh() => _load();
 
+  Future<void> _openReport(Map<String, dynamic> data) async {
+    final submitted = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AssetLossHelperVerifyView(
+          data: data,
+          controller: _reportController,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (submitted == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Verification submitted for admin review.'),
+        ),
+      );
+    }
+    _refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -195,16 +216,21 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
       );
     }
 
-    // Pending first, then newest first within each group.
-    final sorted = [..._reports]..sort((a, b) {
-        final aPending = a['status'] == 'pending_review' ? 0 : 1;
-        final bPending = b['status'] == 'pending_review' ? 0 : 1;
-        if (aPending != bPending) return aPending.compareTo(bPending);
-        return (b['created_at'] as String).compareTo(a['created_at'] as String);
-      });
+    int byNewest(Map<String, dynamic> a, Map<String, dynamic> b) =>
+        (b['created_at'] as String).compareTo(a['created_at'] as String);
+
+    // A helper can only act on reports that are still pending AND not yet
+    // verified by anyone (matches migration 0036's RLS). Everything else is
+    // view-only.
+    bool awaitingVerification(Map<String, dynamic> r) =>
+        r['status'] == 'pending_review' && r['verification_result'] == null;
+
+    final toVerify = _reports.where(awaitingVerification).toList()..sort(byNewest);
+    final reviewed = _reports.where((r) => !awaitingVerification(r)).toList()
+      ..sort(byNewest);
 
     final pendingByDistrict = <String, List<Map<String, dynamic>>>{};
-    for (final r in sorted.where((r) => r['status'] == 'pending_review')) {
+    for (final r in toVerify) {
       final property = r['property'] as Map<String, dynamic>?;
       final key = '${property?['district'] ?? 'Unknown'}, ${property?['state'] ?? ''}';
       pendingByDistrict.putIfAbsent(key, () => []).add(r);
@@ -275,31 +301,49 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
                     ),
                   );
                 }),
-              const SizedBox(height: 16),
-              if (sorted.isEmpty)
+              const SizedBox(height: 24),
+              const Text(
+                'Awaiting Your Verification',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+              const SizedBox(height: 10),
+              if (toVerify.isEmpty)
                 const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: Text('No reports in your areas yet.', style: TextStyle(color: Colors.grey))),
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Text('Nothing to verify right now.',
+                      style: TextStyle(color: Colors.grey)),
                 )
               else
-                ...sorted.map((data) => Padding(
+                ...toVerify.map((data) => Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: _ReportCard(
                         data: data,
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => AssetLossHelperVerifyView(
-                                data: data,
-                                controller: _reportController,
-                              ),
-                            ),
-                          );
-                          _refresh();
-                        },
+                        onTap: () => _openReport(data),
                       ),
                     )),
+              if (reviewed.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                const Text(
+                  'Reviewed',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Already verified or decided by an admin — view only.',
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+                const SizedBox(height: 10),
+                ...reviewed.map((data) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Opacity(
+                        opacity: 0.7,
+                        child: _ReportCard(
+                          data: data,
+                          onTap: () => _openReport(data),
+                        ),
+                      ),
+                    )),
+              ],
             ],
           ),
         ),
@@ -367,6 +411,17 @@ class _ReportCard extends StatelessWidget {
               'Potential loss: ${formatRinggit(estimatedTotal)}',
               style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.blue, fontSize: 13),
             ),
+            if (status == 'helper_verified') ...[
+              const SizedBox(height: 4),
+              Text(
+                'Verified — awaiting admin approval',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.green.shade700,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ],
         ),
       ),

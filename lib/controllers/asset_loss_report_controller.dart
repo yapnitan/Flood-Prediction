@@ -25,6 +25,20 @@ class AssetLossReportController {
     return service.getReportById(reportId);
   }
 
+  /// Resident edits their own still-pending report.
+  Future<bool> updateReport(
+    String id,
+    AssetLossReport report,
+    List<String> existingPhotoPaths,
+    List<XFile> newPhotos,
+  ) {
+    return service.updateReport(id, report, existingPhotoPaths, newPhotos);
+  }
+
+  /// Resident deletes their own still-pending report (and its photos).
+  Future<bool> deleteReport(String id, {List<String> photoPaths = const []}) =>
+      service.deleteReport(id, photoPaths: photoPaths);
+
   Future<String> getSignedPhotoUrl(String path) => service.getSignedPhotoUrl(path);
 
   /// For Admin

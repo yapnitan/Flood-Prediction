@@ -65,11 +65,45 @@ void main() {
   });
 
   group('AssetLossReport status getters', () {
-    test('isPending/isVerified/isRejected reflect the status field exactly', () {
+    test('isPending/isHelperVerified/isVerified/isRejected reflect the status field exactly', () {
       expect(AssetLossReport.fromJson(_row(status: 'pending_review')).isPending, isTrue);
+      expect(AssetLossReport.fromJson(_row(status: 'helper_verified')).isHelperVerified, isTrue);
       expect(AssetLossReport.fromJson(_row(status: 'verified')).isVerified, isTrue);
       expect(AssetLossReport.fromJson(_row(status: 'rejected')).isRejected, isTrue);
       expect(AssetLossReport.fromJson(_row(status: 'verified')).isPending, isFalse);
+      expect(AssetLossReport.fromJson(_row(status: 'helper_verified')).isPending, isFalse);
+    });
+  });
+
+  group('AssetLossReport.economicLossContribution', () {
+    test('a still-pending report contributes nothing', () {
+      final report = AssetLossReport.fromJson(_row(status: 'pending_review'));
+      expect(report.economicLossContribution, isNull);
+    });
+
+    test('a helper-verified report contributes its verified figure', () {
+      final report = AssetLossReport.fromJson(_row(
+        status: 'helper_verified',
+        verifiedTotalLoss: 2600.0,
+      ));
+      expect(report.economicLossContribution, 2600.0);
+    });
+
+    test('an admin-approved report contributes its approved figure', () {
+      final report = AssetLossReport.fromJson(_row(
+        status: 'verified',
+        verifiedTotalLoss: 2600.0,
+        approvedTotalLoss: 2400.0,
+      ));
+      expect(report.economicLossContribution, 2400.0);
+    });
+
+    test('a rejected report contributes nothing even if it was verified', () {
+      final report = AssetLossReport.fromJson(_row(
+        status: 'rejected',
+        verifiedTotalLoss: 2600.0,
+      ));
+      expect(report.economicLossContribution, isNull);
     });
   });
 

@@ -51,6 +51,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
   DateTime? _observedAt;
   bool _isSubmitting = false;
   bool _isSubmitted = false;
+  bool _allowPop = false;
 
   final List<String> floodTypes = [
     "Street Flooding",
@@ -413,6 +414,37 @@ class _SubmitReportState extends State<SubmitReportPage> {
     );
   }
 
+  Future<void> _confirmDiscardAndLeave() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        scrollable: true,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        title: const Text('Discard report?'),
+        content: const Text(
+          'Your input in this form will be lost if you go back.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Keep Editing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+
+    if (discard != true || !mounted) return;
+    setState(() => _allowPop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).pop();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = context.screenWidth;
@@ -425,7 +457,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
       desktop: 40,
     );
 
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit Report' : 'Report a Flood'),
@@ -561,6 +593,14 @@ class _SubmitReportState extends State<SubmitReportPage> {
           ),
         ),
       ),
+    );
+
+    return PopScope(
+      canPop: _allowPop || _isSubmitted,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) await _confirmDiscardAndLeave();
+      },
+      child: scaffold,
     );
   }
 

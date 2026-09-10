@@ -18,6 +18,7 @@ class StatusBadge extends StatelessWidget {
     'verified': Colors.teal,
     'resolved': Colors.green,
     'pending_review': Colors.orange,
+    'helper_verified': Colors.blue,
   };
 
   static const Map<String, String> _labels = {
@@ -32,6 +33,7 @@ class StatusBadge extends StatelessWidget {
     'verified': 'Verified',
     'resolved': 'Resolved',
     'pending_review': 'Pending Review',
+    'helper_verified': 'Helper Verified',
   };
 
   @override

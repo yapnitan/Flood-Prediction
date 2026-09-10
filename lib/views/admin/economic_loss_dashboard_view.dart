@@ -8,9 +8,10 @@ import '../../utils/currency_input.dart';
 import '../../utils/responsive.dart';
 
 /// Admin's Economic Loss Dashboard (Task/asset report §11-§17): combines
-/// VERIFIED/APPROVED asset loss with Resource Consumption Cost, and
-/// distinguishes reported-potential from verified figures throughout —
-/// never lets a pending report silently inflate the official total.
+/// counted asset loss (helper-verified + admin-approved) with Resource
+/// Consumption Cost, and distinguishes reported-potential, helper-verified
+/// and admin-approved figures throughout — never lets a still-pending
+/// report silently inflate the official total.
 class EconomicLossDashboardView extends StatefulWidget {
   const EconomicLossDashboardView({super.key});
 
@@ -46,26 +47,54 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
   double _sum(Iterable<Map<String, dynamic>> rows, String field) =>
       rows.fold(0.0, (sum, r) => sum + ((r[field] as num?)?.toDouble() ?? 0));
 
+  /// What one report contributes to the official total: an admin-approved
+  /// report counts its approved figure; a helper-verified report (still
+  /// awaiting admin approval) counts its verified figure; anything else
+  /// contributes nothing.
+  static double _contribution(Map<String, dynamic> r) {
+    switch (r['status']) {
+      case 'verified':
+        return (r['approved_total_loss'] as num?)?.toDouble() ?? 0;
+      case 'helper_verified':
+        return (r['verified_total_loss'] as num?)?.toDouble() ?? 0;
+      default:
+        return 0;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final verifiedReports = _reports.where((r) => r['status'] == 'verified').toList();
+    // Reports that count toward the official total right now: admin-approved
+    // plus helper-verified (the latter drop out again if the admin rejects).
+    final countedReports = _reports
+        .where((r) =>
+            r['status'] == 'verified' || r['status'] == 'helper_verified')
+        .toList();
     final pendingReports = _reports.where((r) => r['status'] == 'pending_review').toList();
 
-    final approvedAssetLoss = _sum(verifiedReports, 'approved_total_loss');
+    final adminApprovedLoss = _sum(
+      _reports.where((r) => r['status'] == 'verified'),
+      'approved_total_loss',
+    );
+    final helperVerifiedLoss = _sum(
+      _reports.where((r) => r['status'] == 'helper_verified'),
+      'verified_total_loss',
+    );
+    final countedAssetLoss = adminApprovedLoss + helperVerifiedLoss;
     final potentialPending = _sum(pendingReports, 'estimated_total_loss');
-    final totalEconomicLoss = approvedAssetLoss + _resourceCost;
+    final totalEconomicLoss = countedAssetLoss + _resourceCost;
 
     final byState = <String, double>{};
     final byDistrict = <String, double>{};
     final byCategory = <String, double>{};
     final byIncident = <String, double>{};
 
-    for (final r in verifiedReports) {
-      final amount = (r['approved_total_loss'] as num?)?.toDouble() ?? 0;
+    for (final r in countedReports) {
+      final amount = _contribution(r);
       final property = r['property'] as Map<String, dynamic>?;
       final incident = r['flood_incident'] as Map<String, dynamic>?;
       final state = property?['state'] as String? ?? 'Unknown';
@@ -92,18 +121,22 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _TotalCard(total: totalEconomicLoss, assetLoss: approvedAssetLoss, resourceCost: _resourceCost),
+                  _TotalCard(total: totalEconomicLoss, assetLoss: countedAssetLoss, resourceCost: _resourceCost),
                   const SizedBox(height: 16),
-                  _PotentialVsVerifiedCard(potential: potentialPending, verified: approvedAssetLoss),
+                  _PotentialVsVerifiedCard(
+                    potential: potentialPending,
+                    helperVerified: helperVerifiedLoss,
+                    adminApproved: adminApprovedLoss,
+                  ),
                   const SizedBox(height: 16),
-                  _BreakdownCard(title: 'Verified Asset Loss by State', amounts: byState),
+                  _BreakdownCard(title: 'Counted Asset Loss by State', amounts: byState),
                   const SizedBox(height: 16),
-                  _BreakdownCard(title: 'Verified Asset Loss by District', amounts: byDistrict),
+                  _BreakdownCard(title: 'Counted Asset Loss by District', amounts: byDistrict),
                   const SizedBox(height: 16),
-                  _BreakdownCard(title: 'Verified Asset Loss by Asset Category', amounts: byCategory),
+                  _BreakdownCard(title: 'Counted Asset Loss by Asset Category', amounts: byCategory),
                   if (byIncident.isNotEmpty) ...[
                     const SizedBox(height: 16),
-                    _BreakdownCard(title: 'Verified Asset Loss by Flood Incident', amounts: byIncident),
+                    _BreakdownCard(title: 'Counted Asset Loss by Flood Incident', amounts: byIncident),
                   ],
                 ],
               ),
@@ -191,12 +224,19 @@ class _StatColumn extends StatelessWidget {
   }
 }
 
-/// §17: never conflates a pending report's amount with the verified total.
+/// §17: never conflates a pending report's amount with the counted total,
+/// and shows how much of the counted total is still only helper-verified
+/// (i.e. could still be removed if the admin rejects it).
 class _PotentialVsVerifiedCard extends StatelessWidget {
-  const _PotentialVsVerifiedCard({required this.potential, required this.verified});
+  const _PotentialVsVerifiedCard({
+    required this.potential,
+    required this.helperVerified,
+    required this.adminApproved,
+  });
 
   final double potential;
-  final double verified;
+  final double helperVerified;
+  final double adminApproved;
 
   @override
   Widget build(BuildContext context) {
@@ -204,7 +244,7 @@ class _PotentialVsVerifiedCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Reported vs Verified Asset Loss', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const Text('Reported vs Counted Asset Loss', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -216,9 +256,21 @@ class _PotentialVsVerifiedCard extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
+              Icon(Icons.fact_check_outlined, size: 18, color: Colors.blue.shade700),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Helper-verified, awaiting approval: ${formatRinggit(helperVerified)}',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
               const Icon(Icons.check_circle, size: 18, color: Colors.green),
               const SizedBox(width: 8),
-              Expanded(child: Text('Verified/approved loss: ${formatRinggit(verified)}')),
+              Expanded(child: Text('Admin-approved loss: ${formatRinggit(adminApproved)}')),
             ],
           ),
         ],
@@ -245,7 +297,7 @@ class _BreakdownCard extends StatelessWidget {
           Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 16),
           if (sorted.isEmpty)
-            const Text('No verified losses yet.', style: TextStyle(color: Colors.grey))
+            const Text('No counted losses yet.', style: TextStyle(color: Colors.grey))
           else
             ...sorted.map((entry) {
               final fraction = maxValue == 0 ? 0.0 : entry.value / maxValue;
