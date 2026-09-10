@@ -147,6 +147,8 @@ class _FacilityFormViewState extends State<FacilityFormView> {
 
     setState(() {
       _isLocating = false;
+      _latitude = details.position.latitude;
+      _longitude = details.position.longitude;
       final readable = details.address?.trim();
       if (readable != null && readable.isNotEmpty) {
         _locationNameController.text = readable;
