@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Password [TextField] with a leading lock icon, a trailing show/hide eye
-/// toggle, and an [errorText] slot — Flutter renders that directly beneath
-/// the field, so every password field in the app shows its own error in the
-/// same place instead of one combined message above the form.
 class PasswordField extends StatefulWidget {
   const PasswordField({
     super.key,
@@ -22,8 +18,6 @@ class PasswordField extends StatefulWidget {
   final IconData prefixIcon;
   final String? errorText;
 
-  /// Matches the bold label/input text styling used on the Login and
-  /// Register screens; other screens use the plain default style.
   final bool bold;
   final ValueChanged<String>? onChanged;
 

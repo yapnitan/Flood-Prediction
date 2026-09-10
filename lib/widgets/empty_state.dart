@@ -1,11 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Centered icon + title + optional subtitle for an empty/error list state,
-/// still scrollable (wrapped in a `LayoutBuilder`+`SingleChildScrollView`)
-/// so pull-to-refresh keeps working even with nothing to show. This exact
-/// shape was duplicated across `helper_view.dart`, `user_management_view.dart`,
-/// `report_history_view.dart`, and the Batch 5 planner screens — one widget
-/// now instead of each screen reimplementing it.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,

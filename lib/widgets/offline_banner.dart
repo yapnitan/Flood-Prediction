@@ -3,9 +3,6 @@ import 'package:flutter/material.dart';
 import '../services/connectivity_service.dart';
 import '../services/offline_sync_service.dart';
 
-/// Shown at the top of a screen while the device is offline, so "why isn't
-/// this saving/updating" has an obvious answer. Collapses to nothing once
-/// back online.
 class OfflineBanner extends StatelessWidget {
   const OfflineBanner({super.key});
 

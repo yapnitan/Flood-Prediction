@@ -3,11 +3,6 @@ import 'package:flutter/material.dart';
 typedef FilterSheetBuilder =
     Widget Function(BuildContext context, StateSetter setSheetState);
 
-/// Keeps filters inline in portrait and moves them into a sheet launched from
-/// beside the search field in landscape.
-///
-/// The decision uses the current orientation and the keyboard inset supplied
-/// by Flutter, so it does not depend on a particular phone size.
 class AdaptiveSearchFilterHeader extends StatelessWidget {
   const AdaptiveSearchFilterHeader({
     super.key,

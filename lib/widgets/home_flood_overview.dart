@@ -31,17 +31,6 @@ import '../utils/maps_launcher.dart';
 import 'info_box.dart';
 import 'photo_gallery_viewer.dart';
 
-/// Home tab's "what's the flood situation right now" block: the combined
-/// flood-status badge (historical baseline + live rainfall + nearby
-/// community reports, see [AreaRiskController]) together with the live map
-/// of the current location and nearby community flood reports.
-///
-/// These were originally two separate widgets that each fetched GPS
-/// position independently. On a real device, two concurrent
-/// `Geolocator.getCurrentPosition()` calls fired from the same screen
-/// aren't reliably serviced in parallel — one silently times out. Merging
-/// them into a single widget means there's only ever one GPS call shared
-/// by both the badge and the map.
 class HomeFloodOverview extends StatefulWidget {
   const HomeFloodOverview({super.key});
 
@@ -81,8 +70,6 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
   RiverFloodData? _riverFlood;
   bool _isLoadingAreaRisk = true;
 
-  /// Task 12 "weather warnings" — notifies once when rainfall crosses this
-  /// threshold, not on every refresh while it stays high.
   static const double _heavyRainfallThresholdMm = 20;
   bool _heavyRainfallWarned = false;
 
@@ -103,9 +90,6 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     _position = position;
     if (!mounted) return;
 
-    // Loaded independently so the map (which doesn't wait on weather/
-    // historical/report lookups) can appear before the slower badge does,
-    // rather than both waiting on whichever input is slowest.
     unawaited(_loadMap(position));
     unawaited(_loadAreaRisk(position));
     unawaited(_loadEvacuationCenters());
@@ -125,10 +109,6 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     });
   }
 
-  /// Evacuation center markers are fetched independently of flood reports
-  /// (separate service, separate loading flag) so a slow/failed shelter
-  /// lookup never blocks the flood report markers from appearing, and
-  /// vice versa.
   Future<void> _loadEvacuationCenters() async {
     final centers = await _facilityService.getFacilitiesByType('shelter');
     if (!mounted) return;
@@ -144,8 +124,6 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
       return;
     }
 
-    // Task 12 "nearby flood reports" — arms a session-based Realtime watch
-    // around the user's current location once it's known.
     RealtimeAlertService.instance.watchNearbyFloodReports(
       latitude: position.latitude,
       longitude: position.longitude,
@@ -184,11 +162,6 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     }
   }
 
-  /// Re-fetches report markers and recomputes the area risk badge, reusing
-  /// the already-known GPS position rather than requesting a fresh one.
-  /// Called by [UserHome] via a [GlobalKey] after a new report is
-  /// submitted, since this widget stays alive inside the Home tab's
-  /// `IndexedStack` rather than being recreated.
   Future<void> refresh() async {
     setState(() => _isLoadingAreaRisk = true);
     await Future.wait([
@@ -198,12 +171,6 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     ]);
   }
 
-  /// Unlike [refresh], re-runs the full GPS acquisition (including the
-  /// permission check/request) instead of reusing [_position]. Called by
-  /// [UserHome]'s pull-to-refresh so a user who previously denied location
-  /// access gets prompted again; if it's granted this time, location-based
-  /// content updates, and if denied again the page keeps working off the
-  /// fallback center.
   Future<void> refreshLocation() async {
     setState(() {
       _isLoadingMap = true;
@@ -221,8 +188,6 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     ]);
   }
 
-  /// The closest fetched evacuation center to the user's current position,
-  /// or `null` if the position or the center list isn't available yet.
   Facility? get _nearestEvacuationCenter {
     final location = _currentLocation;
     if (location == null || _evacuationCenters.isEmpty) return null;
@@ -244,9 +209,6 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     return nearest;
   }
 
-  /// The nearby reports' water levels averaged into a single category:
-  /// Low/Medium/High are scored 1/2/3, averaged, then rounded back to the
-  /// nearest category. Null when there are no nearby reports.
   static const _waterLevelRank = {'Low': 1, 'Medium': 2, 'High': 3};
   static const _waterLevelLabels = ['Low', 'Medium', 'High'];
 
@@ -583,10 +545,6 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     );
   }
 
-  /// Opens the nearby community reports behind the Home tab's "Water level"
-  /// / "Nearby reports" tiles — the same 5 km / 24 h list [AreaRiskController]
-  /// scored. One report opens straight into its detail sheet; several show a
-  /// pickable list first.
   void _showNearbyReports() {
     final reports = _nearbyReports;
     if (reports.isEmpty) return;
@@ -665,7 +623,6 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     );
   }
 
-  /// Details for the InfoBanjir rain gauge behind the "Rainfall" tile.
   void _showRainfallStationInfo(InfoBanjirStation station) {
     showModalBottomSheet(
       context: context,
@@ -970,13 +927,6 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                             'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.example.flood_prediction',
                       ),
-                      // Task 13 "heatmap" — flutter_map_heatmap has no
-                      // release compatible with flutter_map 8.x (its latest
-                      // pins flutter_map <8.0.0), so density is approximated
-                      // with flutter_map's own CircleLayer instead: one
-                      // translucent, severity-colored circle per report,
-                      // overlapping circles in a dense area visually "add up"
-                      // into a hotter patch without an extra dependency.
                       CircleLayer(
                         circles: _reports
                             .map(
@@ -990,9 +940,6 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                             )
                             .toList(),
                       ),
-                      // Reports are clustered — a busy area can have many
-                      // overlapping pins at low zoom, so group them into a
-                      // count bubble that expands as the user zooms in.
                       MarkerClusterLayerWidget(
                         options: MarkerClusterLayerOptions(
                           maxClusterRadius: 45,
@@ -1131,10 +1078,6 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
 
         const SizedBox(height: 20),
 
-        // ---- Rainfall / Water level / Nearby reports ----
-        // Wrapped in IntrinsicHeight + stretch so all three cards match the
-        // height of whichever has the most content (e.g. "No reports
-        // nearby" wraps to two lines while "3.2 mm" doesn't).
         IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1161,13 +1104,15 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                 child: _StatBox(
                   label: "Water level",
                   isLoading: _isLoadingAreaRisk,
-                  value: _averageWaterLevel ?? 'No reports nearby',
+                  value: _averageWaterLevel ?? '—',
                   valueColor: _averageWaterLevel == null
                       ? null
                       : _areaRiskColor(_averageWaterLevel),
-                  caption: _nearbyReports.length > 1
-                      ? 'avg of ${_nearbyReports.length} reports'
-                      : null,
+                  caption: _averageWaterLevel == null
+                      ? 'no reports'
+                      : (_nearbyReports.length > 1
+                            ? 'avg of ${_nearbyReports.length} reports'
+                            : 'from 1 report'),
                   onTap: _nearbyReports.isEmpty ? null : _showNearbyReports,
                 ),
               ),
@@ -1187,7 +1132,6 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
 
         const SizedBox(height: 20),
 
-        // ---- Route to nearest evacuation center ----
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
@@ -1212,10 +1156,6 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
   }
 }
 
-/// The "Flood Risk" text and its alert icon used to be two separate
-/// [InfoBox] tiles side by side; combined here into a single card so the
-/// icon reads as part of the same statement rather than a disconnected
-/// second box.
 class _FloodRiskCard extends StatelessWidget {
   final AreaRiskResult? areaRisk;
   final bool isLoading;
@@ -1288,9 +1228,6 @@ class _FloodRiskCard extends StatelessWidget {
   }
 }
 
-/// One expandable row in the Flood Risk details sheet: the factor's name and
-/// points out of its max, a progress bar, its one-line value; expands to show
-/// how it's scored plus the underlying data.
 class _RiskFactorTile extends StatelessWidget {
   const _RiskFactorTile({
     required this.name,
@@ -1396,8 +1333,6 @@ IconData _areaRiskIcon(String? level) {
   }
 }
 
-/// Approximate "heat" radius (meters) for a report's density circle —
-/// higher water level reads as a wider hazard footprint.
 double _reportHeatRadius(String waterLevel) {
   switch (waterLevel) {
     case 'High':
@@ -1422,10 +1357,6 @@ Color _areaRiskColor(String? level) {
   }
 }
 
-/// Small labelled stat tile — rainfall, nearest report's water level,
-/// nearby report count — sharing the same [InfoBox] card style as
-/// [_FloodRiskCard]. Pass [onTap] to make the tile open a detail sheet;
-/// it then shows a chevron affordance next to the value.
 class _StatBox extends StatelessWidget {
   final String label;
   final String value;
@@ -1461,23 +1392,24 @@ class _StatBox extends StatelessWidget {
             child: CircularProgressIndicator(strokeWidth: 2),
           )
         else
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: Text(
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
                   value,
-                  textAlign: TextAlign.center,
+                  maxLines: 1,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: valueColor,
                   ),
                 ),
-              ),
-              if (tappable)
-                Icon(Icons.chevron_right, size: 16, color: Colors.grey[600]),
-            ],
+                if (tappable)
+                  Icon(Icons.chevron_right, size: 16, color: Colors.grey[600]),
+              ],
+            ),
           ),
         if (!isLoading && caption != null) ...[
           const SizedBox(height: 2),

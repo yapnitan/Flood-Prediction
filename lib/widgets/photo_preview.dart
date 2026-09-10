@@ -3,8 +3,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-/// Thumbnail with a remove button for a picked photo not yet uploaded,
-/// used on submission wizards' photo step.
 class PhotoPreview extends StatelessWidget {
   const PhotoPreview({super.key, required this.photo, required this.onRemove});
 

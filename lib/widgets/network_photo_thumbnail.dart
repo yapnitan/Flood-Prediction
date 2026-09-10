@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Thumbnail for an already-uploaded photo, resolved from a storage path to
-/// a signed URL via [urlResolver] (whichever feature's service owns that
-/// bucket — repair requests, flood reports, asset loss reports, ...).
-/// Distinct from [PhotoPreview], which only handles local XFile picker
-/// images pre-upload.
 class NetworkPhotoThumbnail extends StatelessWidget {
   const NetworkPhotoThumbnail({
     super.key,
@@ -29,9 +24,6 @@ class NetworkPhotoThumbnail extends StatelessWidget {
       builder: (context, snapshot) {
         final Widget child;
         if (snapshot.hasError) {
-          // Resolving the signed URL failed (e.g. the caller isn't allowed to
-          // read this object under storage RLS) — show the broken state
-          // rather than spinning forever.
           child = _brokenImage;
         } else if (snapshot.hasData) {
           child = Image.network(

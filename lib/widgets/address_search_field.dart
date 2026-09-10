@@ -19,7 +19,6 @@ class AddressSearchField extends StatefulWidget {
   final FocusNode focusNode;
   final String hintText;
 
-  /// Fired when the user picks an address (quick-pick or search result).
   final void Function(String name, double latitude, double longitude) onSelected;
   final VoidCallback? onQueryEdited;
 
