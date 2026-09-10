@@ -287,8 +287,9 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Text(
-                'Take or choose a photo of the damaged item — Claude will fill '
-                'in the category, name, condition and an estimated value.',
+                'Take or choose a photo of the damaged item — Gemini will fill '
+                'in the category, name, condition and quantity. You enter the '
+                'loss amount.',
                 style: TextStyle(color: Colors.grey, fontSize: 12),
               ),
             ),
@@ -342,9 +343,6 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
       if ((s.assetName ?? '').isNotEmpty) _assetNameController.text = s.assetName!;
       if (s.condition != null) _selectedCondition = s.condition;
       if ((s.quantity ?? 0) > 0) _quantityController.text = '${s.quantity}';
-      if (s.estimatedValuePerItem != null) {
-        _valueController.text = s.estimatedValuePerItem!.toStringAsFixed(2);
-      }
       final desc = suggestion.description;
       if (desc != null &&
           desc.isNotEmpty &&
@@ -355,8 +353,8 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
 
     _showSnack(
       suggestion.note != null
-          ? 'AI filled in the details — ${suggestion.note}'
-          : 'AI filled in the details — please check and adjust.',
+          ? 'Gemini filled in the details — ${suggestion.note}'
+          : 'Gemini filled in the details — check them and enter the loss amount.',
     );
   }
 
@@ -738,9 +736,9 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Snap the damaged item and Claude suggests the category, '
-                    'name, condition and an estimated value. You can edit '
-                    'everything afterwards.',
+                    'Snap the damaged item and Gemini identifies the category, '
+                    'name, condition and quantity. You enter the loss amount, '
+                    'and can edit everything afterwards.',
                     style: TextStyle(color: Colors.grey, fontSize: 12),
                   ),
                   const SizedBox(height: 10),
