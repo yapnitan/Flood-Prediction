@@ -7,7 +7,6 @@ import '../../utils/malaysia_geocoding.dart';
 import '../../utils/responsive.dart';
 import '../../utils/validators.dart';
 import '../../widgets/location_search_field.dart';
-import '../../widgets/selectable_chip.dart';
 import '../user/pick_property_location_view.dart';
 
 class FacilityFormView extends StatefulWidget {
@@ -15,12 +14,10 @@ class FacilityFormView extends StatefulWidget {
     super.key,
     required this.controller,
     this.existing,
-    this.initialFacilityType,
   });
 
   final FacilityController controller;
   final Facility? existing;
-  final String? initialFacilityType;
 
   @override
   State<FacilityFormView> createState() => _FacilityFormViewState();
@@ -38,7 +35,6 @@ class _FacilityFormViewState extends State<FacilityFormView> {
   final TextEditingController _districtController = TextEditingController();
   final FocusNode _locationFocusNode = FocusNode();
 
-  String _facilityType = 'shelter';
   double? _latitude;
   double? _longitude;
 
@@ -101,12 +97,6 @@ class _FacilityFormViewState extends State<FacilityFormView> {
 
   bool get _isEditing => widget.existing != null;
 
-  static const _facilityTypes = [
-    'shelter',
-    'distribution_center',
-    'medical_station',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -119,8 +109,6 @@ class _FacilityFormViewState extends State<FacilityFormView> {
     _contactController = TextEditingController(
       text: existing?.contactNumber ?? '',
     );
-    _facilityType =
-        existing?.facilityType ?? widget.initialFacilityType ?? 'shelter';
     _latitude = existing?.latitude;
     _longitude = existing?.longitude;
     _state = existing?.state;
@@ -222,7 +210,9 @@ class _FacilityFormViewState extends State<FacilityFormView> {
     final facility = Facility(
       id: widget.existing?.id,
       name: _nameController.text.trim(),
-      facilityType: _facilityType,
+      // Admin-managed evacuation centers are always shelters. Keeping this
+      // fixed here also converts any legacy facility when it is edited.
+      facilityType: 'shelter',
       latitude: _latitude!,
       longitude: _longitude!,
       address: _addressController.text.trim().isEmpty
@@ -295,26 +285,6 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Facility Type',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 8,
-                        children: _facilityTypes.map((type) {
-                          return SelectableChip(
-                            label: Facility.typeLabels[type]!,
-                            selected: _facilityType == type,
-                            onTap: () => setState(() => _facilityType = type),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 24),
                       TextFormField(
                         controller: _nameController,
                         decoration: const InputDecoration(
