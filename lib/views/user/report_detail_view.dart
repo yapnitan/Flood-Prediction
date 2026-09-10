@@ -94,17 +94,6 @@ class _ReportDetailViewState extends State<ReportDetailView> {
     }
   }
 
-  Future<void> _toggleVerified() async {
-    setState(() => _isBusy = true);
-    final verified = _report.status != 'verified';
-    final ok = await _controller.setVerified(_report.id!, verified);
-    if (!mounted) return;
-    setState(() {
-      _isBusy = false;
-      if (ok) _report = _report.copyWith(status: verified ? 'verified' : 'submitted');
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final report = _report;
@@ -116,15 +105,6 @@ class _ReportDetailViewState extends State<ReportDetailView> {
         title: const Text('Report Details'),
         centerTitle: true,
         actions: [
-          if (_isAdminViewer)
-            IconButton(
-              tooltip: report.status == 'verified' ? 'Unverify' : 'Verify',
-              icon: Icon(
-                report.status == 'verified' ? Icons.verified : Icons.verified_outlined,
-                color: report.status == 'verified' ? Colors.teal : null,
-              ),
-              onPressed: _isBusy ? null : _toggleVerified,
-            ),
           if (_canEditOrDelete) ...[
             IconButton(
               tooltip: 'Edit report',
@@ -170,7 +150,8 @@ class _ReportDetailViewState extends State<ReportDetailView> {
                           ),
                         ),
                       ),
-                      StatusBadge(status: report.status),
+                      if (!_isAdminViewer)
+                        StatusBadge(status: report.status),
                     ],
                   ),
                   const SizedBox(height: 20),

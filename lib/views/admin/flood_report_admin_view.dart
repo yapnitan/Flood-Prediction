@@ -5,12 +5,11 @@ import '../../models/flood_report.dart';
 import '../../services/flood_report_service.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/adaptive_search_filter_header.dart';
-import '../../widgets/status_badge.dart';
 import '../user/report_detail_view.dart';
 
 /// Admin-facing list of every flood report submitted by residents, with
 /// filtering by flood type/water level. Reuses [FloodReport],
-/// [FloodReportController], [StatusBadge], and [ReportDetailView] — the
+/// [FloodReportController], and [ReportDetailView] — the
 /// same model, controller, and detail page the resident-facing Report
 /// History flow already uses — rather than duplicating them for admin.
 ///
@@ -337,21 +336,13 @@ class _AdminReportSummaryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    report.floodType,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                StatusBadge(status: report.status),
-              ],
+            Text(
+              report.floodType,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
             if (reporterName != null && reporterName!.isNotEmpty) ...[
               const SizedBox(height: 4),

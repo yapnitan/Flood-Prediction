@@ -156,30 +156,6 @@ class FloodReportService {
     }
   }
 
-  /// Admin-only (enforced by RLS) — toggles between 'submitted' and
-  /// 'verified'. There's no rejection state for reports (unlike repair
-  /// requests); an unverified report simply stays 'submitted'.
-  Future<bool> setVerified(String id, bool verified) async {
-    try {
-      final rows = await _supabase
-          .from(_table)
-          .update({'status': verified ? 'verified' : 'submitted'})
-          .eq('id', id)
-          .select();
-      if ((rows as List).isEmpty) {
-        debugPrint(
-          'FloodReportService.setVerified: 0 rows for $id — the admin update '
-          'policy is missing (apply migration 0018).',
-        );
-        return false;
-      }
-      return true;
-    } catch (error) {
-      debugPrint('FloodReportService.setVerified error: $error');
-      return false;
-    }
-  }
-
   /// Reports submitted by the currently authenticated user, most recent
   /// first — backs the Report History page. Falls back to the offline
   /// cache (same as [getRecent]) when offline or the live fetch fails, so
