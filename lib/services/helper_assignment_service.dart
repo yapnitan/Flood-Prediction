@@ -72,22 +72,38 @@ class HelperAssignmentService {
     }
   }
 
-  /// Deactivates [existingAssignmentId] (if any) and assigns [helperId] to a
-  /// new place in one call — the admin-facing "change place" action (a
-  /// helper may only have one active place).
+  /// The admin-facing "change place" action: updates the helper's existing
+  /// assignment row in place (state + district), rather than deactivating it
+  /// and inserting a new one — so a helper keeps exactly one row and no
+  /// stale inactive history piles up. Falls back to a fresh insert only if
+  /// there's no existing row to update.
   Future<String?> reassign({
     required String? existingAssignmentId,
     required String helperId,
     required String state,
     required String district,
   }) async {
-    if (existingAssignmentId != null) {
-      await setStatus(existingAssignmentId, 'inactive');
+    if (existingAssignmentId == null) {
+      return assign(HelperDistrictAssignment(
+        helperId: helperId,
+        state: state,
+        district: district,
+      ));
     }
-    return assign(HelperDistrictAssignment(
-      helperId: helperId,
-      state: state,
-      district: district,
-    ));
+    try {
+      await _supabase.from(_table).update({
+        'state': state,
+        'district': district,
+        'status': 'active',
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', existingAssignmentId);
+      return null;
+    } on PostgrestException catch (e) {
+      debugPrint('HelperAssignmentService.reassign error: $e');
+      return 'Could not change the place. Please try again.';
+    } catch (error) {
+      debugPrint('HelperAssignmentService.reassign error: $error');
+      return 'Could not change the place. Please try again.';
+    }
   }
 }
