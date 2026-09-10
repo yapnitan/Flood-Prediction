@@ -80,6 +80,13 @@ class _AdminHomeState extends State<AdminHome> {
     });
   }
 
+  Future<void> _refreshAdminCounts() async {
+    await Future.wait([
+      _loadPendingCount(),
+      _loadPendingHelperCount(),
+    ]);
+  }
+
   void _onNavTap(int index) {
     if (index == 2) {
       _showReportChooser();
@@ -144,6 +151,7 @@ class _AdminHomeState extends State<AdminHome> {
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       _AdminDashboardTab(
+        onRefresh: _refreshAdminCounts,
         onManageEvacuationCenters: () => _onNavTap(3),
         onManageEconomicLoss: () => Navigator.push(
           context,
@@ -277,12 +285,14 @@ class _AdminHomeState extends State<AdminHome> {
 /// Quick at-a-glance counts of registered accounts by role.
 class _AdminDashboardTab extends StatefulWidget {
   const _AdminDashboardTab({
+    required this.onRefresh,
     required this.onManageEvacuationCenters,
     required this.onManageEconomicLoss,
     required this.onManageHelperAssignments,
     required this.onManageFloodIncidents,
   });
 
+  final Future<void> Function() onRefresh;
   final VoidCallback onManageEvacuationCenters;
   final VoidCallback onManageEconomicLoss;
   final VoidCallback onManageHelperAssignments;
@@ -305,25 +315,44 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
     _sheltersFuture = _facilityController.getAllFacilities();
   }
 
+  Future<void> _refresh() async {
+    final usersFuture = _controller.listUsers();
+    final sheltersFuture = _facilityController.getAllFacilities();
+
+    setState(() {
+      _usersFuture = usersFuture;
+      _sheltersFuture = sheltersFuture;
+    });
+
+    await Future.wait([
+      usersFuture,
+      sheltersFuture,
+      widget.onRefresh(),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.all(
-          context.responsive(mobile: 20, tablet: 28, desktop: 32),
-        ),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: context.responsive(
-                mobile: 700,
-                tablet: 800,
-                desktop: 900,
+      child: RefreshIndicator(
+        onRefresh: _refresh,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.all(
+            context.responsive(mobile: 20, tablet: 28, desktop: 32),
+          ),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: context.responsive(
+                  mobile: 700,
+                  tablet: 800,
+                  desktop: 900,
+                ),
               ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 // ---- Stat Cards Section ----
                 FutureBuilder<List<Account>>(
                   future: _usersFuture,
@@ -399,7 +428,8 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
                   onManageHelperAssignments: widget.onManageHelperAssignments,
                   onManageFloodIncidents: widget.onManageFloodIncidents,
                 ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
