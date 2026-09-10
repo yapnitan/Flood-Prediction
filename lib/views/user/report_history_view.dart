@@ -80,6 +80,7 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(title: const Text('Report History'), centerTitle: true),
       body: SafeArea(
         child: Center(
