@@ -39,8 +39,13 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
   List<ShelterOccupancyReport> _dailyLog = [];
   Map<String, Facility> _facilitiesById = {};
 
+  /// Global period filter — applies to the whole dashboard. Asset-loss
+  /// reports are filtered by their `created_at` date; shelter occupancy by
+  /// its `occupancy_date`.
   String _monthFilter = 'all'; // 'YYYY-MM'
   String _dayFilter = 'all'; // 'YYYY-MM-DD'
+
+  bool get _filtering => _monthFilter != 'all' || _dayFilter != 'all';
 
   @override
   void initState() {
@@ -67,13 +72,53 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
   String _monthKey(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}';
 
-  List<ShelterOccupancyReport> get _filteredLog => _dailyLog.where((r) {
-        if (_monthFilter != 'all' && _monthKey(r.occupancyDate) != _monthFilter) {
-          return false;
-        }
-        if (_dayFilter != 'all' && r.dateKey != _dayFilter) return false;
-        return true;
-      }).toList();
+  String _dayKey(DateTime d) =>
+      '${_monthKey(d)}-${d.day.toString().padLeft(2, '0')}';
+
+  bool _inPeriod(DateTime? d) {
+    if (d == null) return !_filtering; // undated rows only show unfiltered
+    if (_monthFilter != 'all' && _monthKey(d) != _monthFilter) return false;
+    if (_dayFilter != 'all' && _dayKey(d) != _dayFilter) return false;
+    return true;
+  }
+
+  DateTime? _reportDate(Map<String, dynamic> r) {
+    final raw = (r['created_at'] ?? r['reviewed_at']) as String?;
+    return raw == null ? null : DateTime.tryParse(raw)?.toLocal();
+  }
+
+  List<Map<String, dynamic>> get _filteredReports =>
+      _reports.where((r) => _inPeriod(_reportDate(r))).toList();
+
+  List<ShelterOccupancyReport> get _filteredLog =>
+      _dailyLog.where((r) => _inPeriod(r.occupancyDate)).toList();
+
+  /// Every YYYY-MM that has asset-loss reports or shelter occupancy, newest
+  /// first.
+  List<String> get _availableMonths {
+    final set = <String>{};
+    for (final r in _reports) {
+      final d = _reportDate(r);
+      if (d != null) set.add(_monthKey(d));
+    }
+    for (final r in _dailyLog) {
+      set.add(_monthKey(r.occupancyDate));
+    }
+    return set.toList()..sort((a, b) => b.compareTo(a));
+  }
+
+  List<String> get _availableDays {
+    if (_monthFilter == 'all') return const [];
+    final set = <String>{};
+    for (final r in _reports) {
+      final d = _reportDate(r);
+      if (d != null && _monthKey(d) == _monthFilter) set.add(_dayKey(d));
+    }
+    for (final r in _dailyLog) {
+      if (_monthKey(r.occupancyDate) == _monthFilter) set.add(r.dateKey);
+    }
+    return set.toList()..sort((a, b) => b.compareTo(a));
+  }
 
   double _sum(Iterable<Map<String, dynamic>> rows, String field) =>
       rows.fold(0.0, (sum, r) => sum + ((r[field] as num?)?.toDouble() ?? 0));
@@ -109,39 +154,34 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
     return '${p[2]}/${p[1]}/${p[0]}';
   }
 
-  Widget _buildResourceCostCard(double allTimeTotal) {
-    final months = _dailyLog
-        .map((r) => _monthKey(r.occupancyDate))
-        .toSet()
-        .toList()
-      ..sort((a, b) => b.compareTo(a));
-    final days = _monthFilter == 'all'
-        ? <String>[]
-        : (_dailyLog
-            .where((r) => _monthKey(r.occupancyDate) == _monthFilter)
-            .map((r) => r.dateKey)
-            .toSet()
-            .toList()
-          ..sort((a, b) => b.compareTo(a)));
-
-    final filtered = _filteredLog;
-    final byDate = <String, List<ShelterOccupancyReport>>{};
-    for (final r in filtered) {
-      byDate.putIfAbsent(r.dateKey, () => []).add(r);
-    }
-    final orderedDates = byDate.keys.toList()..sort((a, b) => b.compareTo(a));
-    final filteredTotal = filtered.fold<double>(0, (s, r) => s + r.cost);
-    final filtering = _monthFilter != 'all' || _dayFilter != 'all';
-
+  /// Global month / date selector — filters the whole dashboard.
+  Widget _buildPeriodFilter() {
+    final months = _availableMonths;
+    final days = _availableDays;
     return _Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Resource Consumption Cost by Date',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          Row(
+            children: [
+              const Icon(Icons.filter_alt_outlined, size: 18, color: Colors.grey),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text('Period',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              ),
+              if (_filtering)
+                TextButton(
+                  onPressed: () => setState(() {
+                    _monthFilter = 'all';
+                    _dayFilter = 'all';
+                  }),
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                  child: const Text('Clear'),
+                ),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
@@ -182,6 +222,28 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResourceCostCard(double allTimeTotal) {
+    final filtered = _filteredLog;
+    final byDate = <String, List<ShelterOccupancyReport>>{};
+    for (final r in filtered) {
+      byDate.putIfAbsent(r.dateKey, () => []).add(r);
+    }
+    final orderedDates = byDate.keys.toList()..sort((a, b) => b.compareTo(a));
+    final filteredTotal = filtered.fold<double>(0, (s, r) => s + r.cost);
+
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Resource Consumption Cost by Date',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
           const SizedBox(height: 12),
           if (orderedDates.isEmpty)
             Text(
@@ -204,18 +266,18 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                filtering ? 'Selected period' : 'All-time total',
+                _filtering ? 'Selected period' : 'All-time total',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
               Text(
-                formatRinggit(filtering ? filteredTotal : allTimeTotal),
+                formatRinggit(_filtering ? filteredTotal : allTimeTotal),
                 style: const TextStyle(
                   fontWeight: FontWeight.bold, fontSize: 14, color: Colors.teal,
                 ),
               ),
             ],
           ),
-          if (filtering) ...[
+          if (_filtering) ...[
             const SizedBox(height: 2),
             Text(
               'All-time total: ${formatRinggit(allTimeTotal)}',
@@ -242,25 +304,30 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    // Everything below respects the global month / date filter.
+    final reports = _filteredReports;
+    final log = _filteredLog;
+
     // Reports that count toward the official total right now: admin-approved
     // plus helper-verified (the latter drop out again if the admin rejects).
-    final countedReports = _reports
+    final countedReports = reports
         .where((r) =>
             r['status'] == 'verified' || r['status'] == 'helper_verified')
         .toList();
-    final pendingReports = _reports.where((r) => r['status'] == 'pending_review').toList();
+    final pendingReports = reports.where((r) => r['status'] == 'pending_review').toList();
 
     final adminApprovedLoss = _sum(
-      _reports.where((r) => r['status'] == 'verified'),
+      reports.where((r) => r['status'] == 'verified'),
       'approved_total_loss',
     );
     final helperVerifiedLoss = _sum(
-      _reports.where((r) => r['status'] == 'helper_verified'),
+      reports.where((r) => r['status'] == 'helper_verified'),
       'verified_total_loss',
     );
     final countedAssetLoss = adminApprovedLoss + helperVerifiedLoss;
     final potentialPending = _sum(pendingReports, 'estimated_total_loss');
-    final resourceCostTotal =
+    final resourceCostTotal = log.fold<double>(0, (sum, r) => sum + r.cost);
+    final resourceCostAllTime =
         _dailyLog.fold<double>(0, (sum, r) => sum + r.cost);
     final totalEconomicLoss = countedAssetLoss + resourceCostTotal;
 
@@ -285,10 +352,10 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
       }
     }
 
-    // Resource-cost dimensions, from the shelter daily log.
+    // Resource-cost dimensions, from the (filtered) shelter daily log.
     final resourceByDate = <String, double>{};
     final resourceByShelter = <String, double>{};
-    for (final r in _dailyLog) {
+    for (final r in log) {
       final d = _dayLabel(r.dateKey);
       resourceByDate[d] = (resourceByDate[d] ?? 0) + r.cost;
       final name = _facilitiesById[r.facilityId]?.name ?? 'Unknown shelter';
@@ -316,7 +383,18 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _TotalCard(total: totalEconomicLoss, assetLoss: countedAssetLoss, resourceCost: resourceCostTotal),
+                  _buildPeriodFilter(),
+                  const SizedBox(height: 16),
+                  _TotalCard(
+                    total: totalEconomicLoss,
+                    assetLoss: countedAssetLoss,
+                    resourceCost: resourceCostTotal,
+                    periodLabel: _filtering
+                        ? (_dayFilter != 'all'
+                            ? _dayLabel(_dayFilter)
+                            : _monthLabel(_monthFilter))
+                        : null,
+                  ),
                   const SizedBox(height: 16),
                   _PotentialVsVerifiedCard(
                     potential: potentialPending,
@@ -326,7 +404,7 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
                   const SizedBox(height: 16),
                   _BreakdownExplorerCard(dimensions: dimensions),
                   const SizedBox(height: 16),
-                  _buildResourceCostCard(resourceCostTotal),
+                  _buildResourceCostCard(resourceCostAllTime),
                 ],
               ),
             ),
@@ -358,11 +436,20 @@ class _Card extends StatelessWidget {
 }
 
 class _TotalCard extends StatelessWidget {
-  const _TotalCard({required this.total, required this.assetLoss, required this.resourceCost});
+  const _TotalCard({
+    required this.total,
+    required this.assetLoss,
+    required this.resourceCost,
+    this.periodLabel,
+  });
 
   final double total;
   final double assetLoss;
   final double resourceCost;
+
+  /// Non-null when the dashboard is filtered to a month/date — shown next to
+  /// the heading so the figure isn't mistaken for the all-time total.
+  final String? periodLabel;
 
   String _rm(double v) => formatRinggit(v);
 
@@ -372,7 +459,12 @@ class _TotalCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Total Estimated Economic Loss', style: TextStyle(color: Colors.grey, fontSize: 13)),
+          Text(
+            periodLabel == null
+                ? 'Total Estimated Economic Loss'
+                : 'Estimated Economic Loss · $periodLabel',
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
+          ),
           const SizedBox(height: 6),
           Text(_rm(total), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blue)),
           const Divider(height: 28),
