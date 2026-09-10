@@ -493,9 +493,14 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
           maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
         ),
         child: CustomScrollView(
+          // Stable keys so removing the chrome slivers when the keyboard
+          // opens can't make Flutter match the form-content sliver against a
+          // keyless sibling SliverPadding and rebuild it — that tears down the
+          // focused TextField and drops the keyboard as it opens.
           slivers: [
             if (!keyboardVisible && !_isSubmitted)
               SliverAppBar(
+                key: const ValueKey('asset-loss-step-indicator'),
                 backgroundColor: Colors.white,
                 surfaceTintColor: Colors.white,
                 elevation: 0,
@@ -518,6 +523,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                 ),
               ),
             SliverPadding(
+              key: const ValueKey('asset-loss-form-content'),
               padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
               sliver: SliverToBoxAdapter(
                 child: Column(
@@ -533,6 +539,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
             ),
             if (!keyboardVisible && !_isSubmitted)
               SliverPadding(
+                key: const ValueKey('asset-loss-nav-buttons'),
                 padding: EdgeInsets.fromLTRB(
                   horizontalPadding,
                   0,

@@ -50,9 +50,13 @@ class _UserHomeState extends State<UserHome> {
   }
 
   void _showReportChooser() {
+    // Navigate with the State's own `context` (stable while UserHome is
+    // mounted), never the sheet builder's context — that one is defunct the
+    // moment the sheet is popped, so a callback captured from it (e.g.
+    // SubmitReportPage.onSubmissionComplete) could no longer pop.
     showModalBottomSheet<void>(
       context: context,
-      builder: (context) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Wrap(
           children: [
             ListTile(
@@ -63,7 +67,7 @@ class _UserHomeState extends State<UserHome> {
               title: const Text('Report a flood'),
               subtitle: const Text('Share live flood conditions in your area'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(sheetContext);
                 // Pushed as a full page (with its own back button) so it
                 // matches "Report Asset Loss", rather than swapping the
                 // bottom-nav tab underneath.
@@ -72,7 +76,6 @@ class _UserHomeState extends State<UserHome> {
                   MaterialPageRoute(
                     builder: (_) => SubmitReportPage(
                       onSubmissionComplete: () {
-                        Navigator.of(context).pop();
                         _homeOverviewKey.currentState?.refresh();
                       },
                     ),
@@ -90,7 +93,7 @@ class _UserHomeState extends State<UserHome> {
                 'Report assets lost or damaged by a flood',
               ),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(sheetContext);
                 Navigator.pushNamed(context, AppRoutes.assetLossCreate);
               },
             ),

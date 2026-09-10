@@ -355,12 +355,16 @@ class _SubmitReportState extends State<SubmitReportPage> {
       Navigator.of(context).pop(true);
       return;
     }
-    // Pushed as a full page — the callback pops back to Home and refreshes.
-    if (widget.onSubmissionComplete != null) {
-      widget.onSubmissionComplete!();
-      return;
+    // Pushed as a full page from Home: tell Home to refresh, then close
+    // ourselves with our own (always-valid) context. The callback used to
+    // own the pop, but it captured a stale context and silently failed.
+    widget.onSubmissionComplete?.call();
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+    } else {
+      setState(_resetForm);
     }
-    setState(_resetForm);
   }
 
   Future<void> _pickPhotos(ImageSource source) async {
@@ -438,9 +442,15 @@ class _SubmitReportState extends State<SubmitReportPage> {
               ),
             ),
             child: CustomScrollView(
+              // Stable keys so that removing the chrome slivers when the
+              // keyboard opens can't make Flutter match the form-content
+              // sliver against a sibling (both are keyless SliverPaddings) and
+              // rebuild it from scratch — that was tearing down the focused
+              // TextField and dropping the keyboard as it tried to open.
               slivers: [
                 if (!keyboardVisible && !_isSubmitted)
                   SliverAppBar(
+                    key: const ValueKey('report-step-indicator'),
                     backgroundColor: Colors.white,
                     surfaceTintColor: Colors.white,
                     elevation: 0,
@@ -464,6 +474,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
                   ),
 
                 SliverPadding(
+                  key: const ValueKey('report-form-content'),
                   padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                   sliver: SliverToBoxAdapter(
                     child: Column(
@@ -484,6 +495,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
 
                 if (!keyboardVisible && !_isSubmitted)
                   SliverPadding(
+                    key: const ValueKey('report-nav-buttons'),
                     padding: EdgeInsets.fromLTRB(
                       horizontalPadding,
                       0,
