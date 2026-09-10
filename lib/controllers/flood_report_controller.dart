@@ -37,6 +37,11 @@ class FloodReportController {
     return floodReportService.deleteReport(id);
   }
 
+  /// Admin: confirm (or un-confirm) a community flood report.
+  Future<bool> setVerified(String id, bool verified) {
+    return floodReportService.setVerified(id, verified);
+  }
+
   /// For Admin
   Future<List<Map<String, dynamic>>> getAdminOverview() {
     return floodReportService.getAllReportsWithAccountInfo();

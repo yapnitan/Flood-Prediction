@@ -139,6 +139,27 @@ class FloodReportService {
     }
   }
 
+  /// Admin-only (migration 0018's "Admins can update any flood report" RLS).
+  /// Toggles a report between 'submitted' and 'verified'. Returns false if
+  /// nothing was updated (not an admin, or the policy isn't deployed).
+  Future<bool> setVerified(String id, bool verified) async {
+    try {
+      final rows = await _supabase
+          .from(_table)
+          .update({'status': verified ? 'verified' : 'submitted'})
+          .eq('id', id)
+          .select();
+      if ((rows as List).isEmpty) {
+        debugPrint('FloodReportService.setVerified: 0 rows updated for $id');
+        return false;
+      }
+      return true;
+    } catch (error) {
+      debugPrint('FloodReportService.setVerified error: $error');
+      return false;
+    }
+  }
+
   Future<bool> deleteReport(String id) async {
     try {
       final rows = await _supabase.from(_table).delete().eq('id', id).select();
