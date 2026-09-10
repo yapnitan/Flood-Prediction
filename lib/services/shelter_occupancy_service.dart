@@ -19,12 +19,12 @@ class ShelterOccupancyService {
         ShelterOccupancyReport(
           facilityId: report.facilityId,
           recordedBy: recordedBy,
+          occupancyDate: report.occupancyDate,
           adults: report.adults,
           children: report.children,
           elderly: report.elderly,
           infants: report.infants,
           personsWithDisabilities: report.personsWithDisabilities,
-          days: report.days,
         ).toJson(),
       );
       return true;

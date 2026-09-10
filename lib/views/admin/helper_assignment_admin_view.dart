@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../controllers/asset_loss_report_controller.dart';
 import '../../controllers/facility_controller.dart';
 import '../../controllers/helper_assignment_controller.dart';
 import '../../controllers/property_controller.dart';
 import '../../controllers/user_management_controller.dart';
 import '../../models/account.dart';
 import '../../models/helper_district_assignment.dart';
-import '../../services/asset_loss_report_service.dart';
 import '../../services/facility_service.dart';
 import '../../services/helper_assignment_service.dart';
 import '../../services/property_service.dart';
@@ -33,7 +31,6 @@ class HelperAssignmentAdminView extends StatefulWidget {
 class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
   final _assignmentController = HelperAssignmentController(HelperAssignmentService());
   final _userManagementController = UserManagementController(UserManagementService());
-  final _assetLossController = AssetLossReportController(AssetLossReportService());
   final _propertyController = PropertyController(PropertyService());
   final _facilityController = FacilityController(FacilityService());
   final _searchController = TextEditingController();
@@ -52,8 +49,6 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
   /// admin can't typo a district that won't match anything.
   Map<String, List<String>> _districtsByState = {};
 
-  Map<String, int> _pendingByDistrict = {};
-  Map<String, int> _completedByDistrict = {};
   String _searchQuery = '';
   String _statusFilter = 'all';
   String _stateFilter = 'all';
@@ -101,23 +96,9 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
   Future<void> _load() async {
     final assignments = await _assignmentController.getAllWithHelperInfo();
     final accounts = await _userManagementController.listUsers();
-    final reports = await _assetLossController.getAdminOverview();
     final propertyPairs = await _propertyController.getStateDistrictPairs();
     final facilities = await _facilityController.getAllFacilities();
     if (!mounted) return;
-
-    final pending = <String, int>{};
-    final completed = <String, int>{};
-    for (final r in reports) {
-      final property = r['property'] as Map<String, dynamic>?;
-      if (property == null) continue;
-      final key = '${property['state']}|${property['district']}';
-      if (r['status'] == 'pending_review') {
-        pending[key] = (pending[key] ?? 0) + 1;
-      } else if (r['status'] == 'verified' || r['status'] == 'rejected') {
-        completed[key] = (completed[key] ?? 0) + 1;
-      }
-    }
 
     final districtsByState = <String, Set<String>>{};
     void addPair(String? state, String? district) {
@@ -149,8 +130,6 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
         for (final e in districtsByState.entries)
           e.key: (e.value.toList()..sort()),
       };
-      _pendingByDistrict = pending;
-      _completedByDistrict = completed;
       _isLoading = false;
     });
   }
@@ -512,7 +491,6 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                                     final a = assignments[index];
                               final account = a['account'] as Map<String, dynamic>?;
                               final isActive = a['status'] == 'active';
-                              final key = '${a['state']}|${a['district']}';
                               return Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
@@ -551,15 +529,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text('${a['district']}, ${a['state']}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Text('Pending: ${_pendingByDistrict[key] ?? 0}', style: const TextStyle(fontSize: 12)),
-                                        const SizedBox(width: 16),
-                                        Text('Completed: ${_completedByDistrict[key] ?? 0}', style: const TextStyle(fontSize: 12)),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
+                                    const SizedBox(height: 12),
                                     Row(
                                       children: [
                                         if (isActive) ...[

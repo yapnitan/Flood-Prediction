@@ -5,6 +5,7 @@ class ShelterOccupancyReport {
     this.id,
     required this.facilityId,
     this.recordedBy,
+    required this.occupancyDate,
     required this.adults,
     required this.children,
     required this.elderly,
@@ -19,14 +20,19 @@ class ShelterOccupancyReport {
   final String? id;
   final String facilityId;
   final String? recordedBy;
+
+  /// The calendar date this headcount is for (helper-picked). One logical
+  /// report per (facility, occupancyDate); the newest [recordedAt] wins.
+  final DateTime occupancyDate;
+
   final int adults;
   final int children;
   final int elderly;
   final int infants;
   final int personsWithDisabilities;
 
-  /// How many days occupants are expected to stay — multiplies the per-day
-  /// resource rates.
+  /// Legacy multiplier (migration 0032) — always 1 for entries created under
+  /// the daily-log model. Kept so historical rows still read/display.
   final int days;
   final int? totalVictims;
   final double? resourceCost;
@@ -44,10 +50,22 @@ class ShelterOccupancyReport {
         days: days,
       );
 
+  /// The figure this report contributes to the Economic Loss Dashboard.
+  double get cost => resourceCost ?? calculatedResourceCost;
+
+  /// `2026-09-08` — for keying and the `occupancy_date` column.
+  String get dateKey =>
+      '${occupancyDate.year.toString().padLeft(4, '0')}-'
+      '${occupancyDate.month.toString().padLeft(2, '0')}-'
+      '${occupancyDate.day.toString().padLeft(2, '0')}';
+
   factory ShelterOccupancyReport.fromJson(Map<String, dynamic> json) => ShelterOccupancyReport(
     id: json['id'] as String?,
     facilityId: json['facility_id'] as String,
     recordedBy: json['recorded_by'] as String?,
+    occupancyDate: json['occupancy_date'] != null
+        ? DateTime.parse(json['occupancy_date'] as String)
+        : DateTime.parse((json['recorded_at'] as String).split('T').first),
     adults: json['adults'] as int,
     children: json['children'] as int,
     elderly: json['elderly'] as int,
@@ -62,6 +80,7 @@ class ShelterOccupancyReport {
   Map<String, dynamic> toJson() => {
     'facility_id': facilityId,
     'recorded_by': recordedBy,
+    'occupancy_date': dateKey,
     'adults': adults,
     'children': children,
     'elderly': elderly,
