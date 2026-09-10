@@ -17,7 +17,7 @@ class UserManagementController {
   Future<bool> setActive(String id, bool isActive) {
     return userManagementService.setActive(id, isActive);
   }
-  
+
   Future<bool> changeStatus(String id, String status) {
     return userManagementService.updateStatus(id, status);
   }

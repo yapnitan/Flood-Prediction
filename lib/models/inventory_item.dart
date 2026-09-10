@@ -1,5 +1,4 @@
-/// One item in a household's emergency supply inventory — e.g. "Bottled
-/// water", 12 units, category "Water & Food".
+
 class InventoryItem {
   const InventoryItem({
     this.id,

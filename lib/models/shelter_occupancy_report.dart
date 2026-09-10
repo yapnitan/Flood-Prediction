@@ -21,8 +21,6 @@ class ShelterOccupancyReport {
   final String facilityId;
   final String? recordedBy;
 
-  /// The calendar date this headcount is for (helper-picked). One logical
-  /// report per (facility, occupancyDate); the newest [recordedAt] wins.
   final DateTime occupancyDate;
 
   final int adults;
@@ -30,9 +28,6 @@ class ShelterOccupancyReport {
   final int elderly;
   final int infants;
   final int personsWithDisabilities;
-
-  /// Legacy multiplier (migration 0032) — always 1 for entries created under
-  /// the daily-log model. Kept so historical rows still read/display.
   final int days;
   final int? totalVictims;
   final double? resourceCost;
@@ -50,10 +45,8 @@ class ShelterOccupancyReport {
         days: days,
       );
 
-  /// The figure this report contributes to the Economic Loss Dashboard.
   double get cost => resourceCost ?? calculatedResourceCost;
 
-  /// `2026-09-08` — for keying and the `occupancy_date` column.
   String get dateKey =>
       '${occupancyDate.year.toString().padLeft(4, '0')}-'
       '${occupancyDate.month.toString().padLeft(2, '0')}-'

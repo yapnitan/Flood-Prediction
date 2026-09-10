@@ -1,5 +1,4 @@
-/// Current weather conditions for a coordinate, sourced from the Open-Meteo
-/// forecast API. `weatherCode` follows the WMO weather interpretation codes.
+
 class WeatherData {
   final double latitude;
   final double longitude;
@@ -35,8 +34,7 @@ class WeatherData {
       observedAt: DateTime.parse(current['time'] as String),
     );
   }
-
-  /// Human-readable condition for [weatherCode] (WMO code 4677).
+  
   String get description => _wmoDescriptions[weatherCode] ?? 'Unknown';
 
   static const Map<int, String> _wmoDescriptions = {

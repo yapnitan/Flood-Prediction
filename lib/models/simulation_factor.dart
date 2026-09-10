@@ -1,6 +1,4 @@
-/// One contributing factor to a [FloodSimulation]'s risk score — e.g.
-/// "Historical flood frequency" or "Flood barriers" — with the points it
-/// added (positive) or subtracted (negative, for mitigations).
+
 class SimulationFactor {
   final String? id;
   final String? simulationId;

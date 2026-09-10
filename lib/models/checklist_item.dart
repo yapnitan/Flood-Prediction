@@ -1,4 +1,4 @@
-/// One item on an [EmergencyChecklist] — e.g. "Torchlight", "First aid kit".
+
 class ChecklistItem {
   const ChecklistItem({
     this.id,

@@ -1,12 +1,9 @@
 import 'river_flood_data.dart';
 
-/// A saved flood risk assessment for one property.
 class FloodSimulation {
   final String? id;
   final String accountId;
 
-  /// The resident's saved address (public.property) this assessment is for.
-  /// Null only for assessments created before addresses were linked.
   final int? propertyId;
 
   final String propertyName;
@@ -15,34 +12,15 @@ class FloodSimulation {
   final double longitude;
   final String state;
   final String district;
-
-  /// User-declared elevation override, if provided; otherwise the
-  /// assessment falls back to [terrainElevationMeters].
   final double? userElevationMeters;
-
-  /// Ground elevation at the property's coordinates, from the terrain API.
   final double? terrainElevationMeters;
-
-  /// Ground elevation at the district's centroid — the local baseline the
-  /// property's elevation is compared against.
   final double? baselineElevationMeters;
 
   final bool hasFloodBarriers;
   final bool hasRaisedFoundation;
   final int nearbyFloodCount;
-
-  /// Community flood reports (public.flood_report) submitted within ~10km in
-  /// the last 7 days, counted at assessment time — a live "it's flooding
-  /// here now" signal on top of the historical [nearbyFloodCount].
   final int recentReportCount;
-
-  /// Nearby river's forecast flow vs. its recent average at assessment time
-  /// (GloFAS via Open-Meteo Flood API) — informational, and feeds a small
-  /// live-signal factor when elevated/high.
   final RiverFloodLevel riverFloodLevel;
-
-  /// Snapshot of conditions at assessment time — informational only, not
-  /// a factor in [riskScore].
   final String? currentWeatherSummary;
 
   final double riskScore;

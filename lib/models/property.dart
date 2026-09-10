@@ -19,10 +19,6 @@ class Property {
 
   final int? id;
   final String? accountId;
-
-  /// User-chosen name for this saved address — "Home"/"Work"/"Other" or a
-  /// custom label — shown wherever the resident picks among their
-  /// properties (risk simulator, Asset Loss Report address selection).
   final String? label;
   final String? address;
   final double lat;
@@ -34,9 +30,6 @@ class Property {
   final int? floors;
   final double? estimatedValue;
   final String? riskLevel;
-
-  /// Set when the user "deleted" this address but it's still referenced by
-  /// asset-loss reports — the row is kept, just hidden from their list.
   final DateTime? archivedAt;
   bool get isArchived => archivedAt != null;
   final DateTime? createdAt;
@@ -75,9 +68,6 @@ class Property {
     'estimated_value': estimatedValue,
     'risk_level': riskLevel,
   };
-
-  /// Short label for a selection dropdown — prefers the user's own label,
-  /// then the address, falling back to coordinates when neither is set.
   String get displayLabel {
     final l = label;
     final addr = address;

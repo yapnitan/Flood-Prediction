@@ -23,9 +23,6 @@ class FloodReport {
   final double latitude;
   final double longitude;
 
-  /// Malaysian state/district the report's coordinates fall in, reverse-
-  /// geocoded when the location was picked. Both nullable — older reports
-  /// predate this, and reverse geocoding is best-effort.
   final String? state;
   final String? district;
   final String floodType;
@@ -37,9 +34,6 @@ class FloodReport {
   final String status;
   final DateTime? createdAt;
 
-  /// An admin has confirmed this report (migration 0018 allows only
-  /// 'submitted' / 'verified'). Verified reports are locked from further
-  /// reporter edits and shown with a ✓ instead of a ⚠.
   bool get isVerified => status == 'verified';
 
   factory FloodReport.fromJson(Map<String, dynamic> json) => FloodReport(
@@ -52,9 +46,6 @@ class FloodReport {
     district: json['district'] as String?,
     floodType: json['flood_type'] as String,
     waterLevel: json['water_level'] as String,
-    // Stored as UTC (see toJson); converted back to local time here so
-    // displaying `.day`/`.month`/`.hour` etc. matches what the user
-    // actually picked, rather than the UTC calendar date/time.
     observedAt: DateTime.parse(json['observed_at'] as String).toLocal(),
     description: json['description'] as String,
     contactNumber: json['contact_number'] as String?,

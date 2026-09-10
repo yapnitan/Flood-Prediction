@@ -1,7 +1,4 @@
-/// How the nearby river's forecast flow compares to its recent average —
-/// derived from GloFAS river-discharge data (Open-Meteo Flood API). This is
-/// a live/forecast signal for "is the river rising", not a property's
-/// persistent risk profile.
+
 enum RiverFloodLevel { unknown, low, normal, elevated, high }
 
 extension RiverFloodLevelInfo on RiverFloodLevel {
@@ -11,9 +8,6 @@ extension RiverFloodLevelInfo on RiverFloodLevel {
         (level) => level.name == key,
         orElse: () => RiverFloodLevel.unknown,
       );
-
-  /// One-line description for the simulation detail screen. `null` for
-  /// [RiverFloodLevel.unknown] — there's no modelled river to talk about.
   String? get description {
     switch (this) {
       case RiverFloodLevel.unknown:
@@ -32,8 +26,6 @@ extension RiverFloodLevelInfo on RiverFloodLevel {
   }
 }
 
-/// Parsed GloFAS river-discharge window for a coordinate: the recent
-/// baseline vs. the forecast peak. [level] buckets the ratio between them.
 class RiverFloodData {
   const RiverFloodData({
     this.currentDischarge,
@@ -42,18 +34,13 @@ class RiverFloodData {
     this.forecastPeakDate,
   });
 
-  /// m³/s at the coordinate's river reach for today.
   final double? currentDischarge;
 
-  /// Mean m³/s over the past ~7 days — the baseline the forecast is compared to.
   final double? recentMean;
 
-  /// Highest forecast m³/s over the next ~7 days.
   final double? forecastMax;
   final DateTime? forecastPeakDate;
 
-  /// forecastMax / recentMean, or null when either is missing / the river
-  /// isn't modelled here (GloFAS only covers rivers above a catchment size).
   double? get riseRatio {
     final base = recentMean;
     final peak = forecastMax;

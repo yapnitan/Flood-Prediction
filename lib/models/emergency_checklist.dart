@@ -1,5 +1,4 @@
-/// A named group of [ChecklistItem]s owned by one account — e.g. "Home
-/// go-bag" or "Car emergency kit". Users can keep several.
+
 class EmergencyChecklist {
   const EmergencyChecklist({
     this.id,

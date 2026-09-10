@@ -3,23 +3,10 @@ class Account {
   String name;
   String email;
   String role;
-
-  /// Admin on/off switch — blocks login regardless of [status]. Any role
-  /// can be disabled at any time.
   bool isActive;
-
-  /// Approval workflow — separate from [isActive]. Values: 'pending',
-  /// 'active', 'rejected'. New helper sign-ups start as 'pending' and
-  /// need an admin to approve them before they can log in.
   String status;
-
-  /// Notification preferences, editable from the Profile > Notification
-  /// Settings screen.
   bool notifyEmail;
   bool notifyPush;
-
-  /// Public URL of the user's profile picture, or null if they haven't
-  /// set one — the Profile screen falls back to a placeholder icon.
   String? avatarUrl;
 
   Account({

@@ -21,9 +21,6 @@ class Facility {
   final double longitude;
   final String? address;
 
-  /// Derived from the location the admin picked when creating or editing the
-  /// facility (search suggestion, map pick, or "Use Current Location" reverse
-  /// geocoding) — editable afterwards on the form.
   final String? state;
   final String? district;
   final int? capacity;

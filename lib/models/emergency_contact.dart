@@ -1,5 +1,4 @@
-/// One entry in a household's emergency contact list — e.g. a family
-/// member, neighbor, or doctor to reach during a flood emergency.
+
 class EmergencyContact {
   const EmergencyContact({
     this.id,

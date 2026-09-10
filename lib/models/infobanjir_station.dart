@@ -1,10 +1,4 @@
-/// One JPS/DID Public InfoBanjir telemetry station and its latest readings.
-/// Source: the public "latest readings" feed at publicinfobanjir.water.gov.my
-/// — the same data behind the InfoBanjir map. A station may report rainfall,
-/// river water level, or both.
-///
-/// The feed uses single-letter keys and `-9999` / blank / negative values as
-/// "no data" sentinels, so parsing is defensive.
+
 class InfoBanjirStation {
   const InfoBanjirStation({
     required this.id,
@@ -35,34 +29,25 @@ class InfoBanjirStation {
   final String? district;
   final String? state;
 
-  // ---- Rainfall ----
   final bool measuresRainfall;
   final double? rainfall1hMm;
   final double? rainfall3hMm;
   final double? rainfallTodayMm;
 
-  /// The feed's own label: "No Rainfall" / "Light" / "Moderate" / "Heavy" /
-  /// "Very Heavy" (or "Error"/blank when the sensor is down).
   final String? rainfallIntensity;
   final DateTime? rainfallUpdatedAt;
 
-  // ---- River water level ----
   final bool measuresWaterLevel;
   final double? waterLevelM;
   final double? normalLevelM;
   final double? metresAboveNormal;
-
-  /// The feed's official status: "Normal" / "Alert" / "Warning" / "Danger"
-  /// (or "Error"/blank when the sensor is down).
   final String? waterLevelStatus;
 
-  /// "Rising" / "Receding" / "No Change".
   final String? waterLevelTrend;
   final DateTime? waterLevelUpdatedAt;
 
   bool get isRising => waterLevelTrend == 'Rising';
 
-  /// A rainfall station with a usable, non-stale 1-hour reading.
   bool hasFreshRainfall({Duration maxAge = const Duration(hours: 3)}) {
     if (!measuresRainfall ||
         rainfall1hMm == null ||
@@ -72,7 +57,6 @@ class InfoBanjirStation {
     return DateTime.now().toUtc().difference(rainfallUpdatedAt!) <= maxAge;
   }
 
-  /// A river gauge with a usable, non-stale level reading and a real status.
   bool hasFreshWaterLevel({Duration maxAge = const Duration(hours: 3)}) {
     final status = waterLevelStatus;
     if (!measuresWaterLevel ||
@@ -125,16 +109,12 @@ class InfoBanjirStation {
 
   static double? _double(Object? v) => double.tryParse(v?.toString().trim() ?? '');
 
-  /// A measurement value, or null for the feed's sentinels
-  /// (`-9999`, `-10004`, blank, or any negative).
   static double? _reading(Object? v) {
     final d = _double(v);
     if (d == null || d < 0) return null;
     return d;
   }
 
-  /// Feed timestamps are `dd/MM/yyyy HH:mm` in Malaysian time (UTC+8);
-  /// returned as a UTC instant so staleness checks work on any device clock.
   static DateTime? _dateTime(Object? v) {
     final s = v?.toString().trim();
     if (s == null || s.isEmpty) return null;
