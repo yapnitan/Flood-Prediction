@@ -74,15 +74,86 @@ class AssetLossReportService {
     return true;
   }
 
+  /// Edits an editable report's fields (own report, still `pending_review` —
+  /// enforced by RLS + the column trigger). [existingPhotoPaths] carries
+  /// forward the photos already attached; [newPhotos] are uploaded into the
+  /// same `{userId}/{reportId}/` folder and appended.
+  Future<bool> updateReport(
+    String id,
+    AssetLossReport report,
+    List<String> existingPhotoPaths,
+    List<XFile> newPhotos,
+  ) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return false;
+    try {
+      var photoPaths = existingPhotoPaths;
+      if (newPhotos.isNotEmpty) {
+        final uploaded = await _uploadPhotos(
+          userId,
+          id,
+          newPhotos,
+          startIndex: existingPhotoPaths.length,
+        );
+        photoPaths = [...existingPhotoPaths, ...uploaded];
+      }
+      await _supabase.from(_table).update({
+        'asset_category': report.assetCategory,
+        'asset_name': report.assetName,
+        'condition': report.condition,
+        'quantity': report.quantity,
+        'estimated_value_per_item': report.estimatedValuePerItem,
+        'description': report.description,
+        'flood_incident_id': report.floodIncidentId,
+        'photo_paths': photoPaths,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', id);
+      return true;
+    } catch (error) {
+      debugPrint('AssetLossReportService.updateReport error: $error');
+      return false;
+    }
+  }
+
+  Future<bool> deleteReport(String id, {List<String> photoPaths = const []}) async {
+    try {
+      // `.select()` returns the deleted rows — an empty result means RLS
+      // blocked it (e.g. the delete policy isn't deployed), which otherwise
+      // looks like success.
+      final deleted = await _supabase.from(_table).delete().eq('id', id).select();
+      if ((deleted as List).isEmpty) {
+        debugPrint(
+          'AssetLossReportService.deleteReport: nothing deleted for $id '
+          '(RLS blocked or already gone)',
+        );
+        return false;
+      }
+      if (photoPaths.isNotEmpty) {
+        // Best-effort — storage isn't cascade-linked to the row.
+        try {
+          await _supabase.storage.from(_photoBucket).remove(photoPaths);
+        } catch (error) {
+          debugPrint('AssetLossReportService.deleteReport photo cleanup: $error');
+        }
+      }
+      return true;
+    } catch (error) {
+      debugPrint('AssetLossReportService.deleteReport error: $error');
+      return false;
+    }
+  }
+
   Future<List<String>> _uploadPhotos(
     String userId,
     String reportId,
-    List<XFile> photos,
-  ) async {
+    List<XFile> photos, {
+    int startIndex = 0,
+  }) async {
     final paths = <String>[];
-    for (var index = 0; index < photos.length; index++) {
+    for (var i = 0; i < photos.length; i++) {
+      final index = startIndex + i;
       try {
-        final bytes = await photos[index].readAsBytes();
+        final bytes = await photos[i].readAsBytes();
         final path = '$userId/$reportId/photo_$index.jpg';
         await _supabase.storage.from(_photoBucket).uploadBinary(
               path,
@@ -181,6 +252,8 @@ class AssetLossReportService {
     return List<Map<String, dynamic>>.from(data);
   }
 
+  /// The verify-once / district-match rules are enforced by RLS (0036) and by
+  /// the verify screen only opening its form for still-verifiable reports.
   Future<void> submitHelperVerification({
     required String reportId,
     required int verifiedQuantity,
