@@ -42,7 +42,6 @@ class _PropertyFormViewState extends State<PropertyFormView> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _labelController = TextEditingController();
   final TextEditingController _districtController = TextEditingController();
-  final TextEditingController _postcodeController = TextEditingController();
   final TextEditingController _floorsController = TextEditingController();
   final TextEditingController _estimatedValueController =
       TextEditingController();
@@ -52,12 +51,12 @@ class _PropertyFormViewState extends State<PropertyFormView> {
   double? _latitude;
   double? _longitude;
 
-  /// State is a fixed dropdown, district free text — same pattern already
-  /// used for the risk simulator's property location (create_simulation_view.dart),
-  /// rather than trying to auto-derive district from reverse geocoding
-  /// (nothing in this project resolves a coordinate to a Malaysian district
-  /// reliably yet).
-  late String _state;
+  /// State and district are both display-only — auto-filled from the picked
+  /// address's reverse geocode (`_applyGeocodedFields`) rather than
+  /// user-editable, since Nominatim's district classification isn't reliable
+  /// enough to trust for a value locked at submit time, and state is picked
+  /// from a fixed, known-good list of Malaysian states.
+  final TextEditingController _stateController = TextEditingController();
   bool _isLocating = false;
   bool _isSaving = false;
 
@@ -69,12 +68,11 @@ class _PropertyFormViewState extends State<PropertyFormView> {
   void initState() {
     super.initState();
     final existing = widget.existing;
-    _state = existing?.state ?? MalaysiaGeocoder.states.first;
+    _stateController.text = existing?.state ?? MalaysiaGeocoder.states.first;
     if (existing == null) return;
     _labelController.text = existing.label ?? '';
     _addressController.text = existing.address ?? '';
     _districtController.text = existing.district ?? '';
-    _postcodeController.text = existing.postcode ?? '';
     _floorsController.text = existing.floors?.toString() ?? '';
     _estimatedValueController.text = existing.estimatedValue == null
         ? ''
@@ -88,8 +86,8 @@ class _PropertyFormViewState extends State<PropertyFormView> {
   void dispose() {
     _addressController.dispose();
     _labelController.dispose();
+    _stateController.dispose();
     _districtController.dispose();
-    _postcodeController.dispose();
     _floorsController.dispose();
     _estimatedValueController.dispose();
     _locationFocusNode.dispose();
@@ -118,30 +116,19 @@ class _PropertyFormViewState extends State<PropertyFormView> {
       if (readable != null && readable.isNotEmpty) {
         _addressController.text = readable;
       }
-      _applyGeocodedFields(
-        state: details.state,
-        district: details.district,
-        postcode: details.postcode,
-      );
+      _applyGeocodedFields(state: details.state, district: details.district);
     });
   }
 
-  /// Fills in state/district/postcode from a reverse-geocode result —
-  /// still always editable afterward, since Nominatim's district
-  /// classification isn't reliable enough to lock the field.
-  void _applyGeocodedFields({
-    String? state,
-    String? district,
-    String? postcode,
-  }) {
+  /// Fills in state/district from a reverse-geocode result — the only way
+  /// these fields are ever set, since both are display-only in the form
+  /// below.
+  void _applyGeocodedFields({String? state, String? district}) {
     if (state != null && MalaysiaGeocoder.states.contains(state)) {
-      _state = state;
+      _stateController.text = state;
     }
     if (district != null && district.trim().isNotEmpty) {
       _districtController.text = district.trim();
-    }
-    if (postcode != null && postcode.trim().isNotEmpty) {
-      _postcodeController.text = postcode.trim();
     }
   }
 
@@ -166,7 +153,6 @@ class _PropertyFormViewState extends State<PropertyFormView> {
       _applyGeocodedFields(
         state: picked.geocode?.state,
         district: picked.geocode?.district,
-        postcode: picked.geocode?.postcode,
       );
     });
   }
@@ -196,13 +182,12 @@ class _PropertyFormViewState extends State<PropertyFormView> {
           : _addressController.text.trim(),
       lat: _latitude!,
       lng: _longitude!,
-      state: _state,
+      state: _stateController.text.trim().isEmpty
+          ? null
+          : _stateController.text.trim(),
       district: _districtController.text.trim().isEmpty
           ? null
           : _districtController.text.trim(),
-      postcode: _postcodeController.text.trim().isEmpty
-          ? null
-          : _postcodeController.text.trim(),
       propertyType: _propertyType,
       floors: int.tryParse(_floorsController.text.trim()),
       estimatedValue: CurrencyInputFormatter.parse(_estimatedValueController.text),
@@ -316,11 +301,8 @@ class _PropertyFormViewState extends State<PropertyFormView> {
                           _longitude = lng;
                         }),
                         onArea: ({state, district, postcode}) => setState(
-                          () => _applyGeocodedFields(
-                            state: state,
-                            district: district,
-                            postcode: postcode,
-                          ),
+                          () =>
+                              _applyGeocodedFields(state: state, district: district),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -380,33 +362,19 @@ class _PropertyFormViewState extends State<PropertyFormView> {
                         ),
                       ],
                       const SizedBox(height: 20),
-                      DropdownButtonFormField<String>(
-                        // DropdownButtonFormField's `initialValue` (it's a
-                        // FormField under the hood) is only applied on the
-                        // widget's first build — programmatically changing
-                        // `_state` later (e.g. from "Use Current Location") and
-                        // calling setState does NOT make the dropdown re-display
-                        // the new value on its own. Keying it on `_state` forces
-                        // Flutter to treat a change as a brand-new widget
-                        // instance, which re-seeds it correctly.
-                        key: ValueKey(_state),
-                        initialValue: _state,
+                      TextField(
+                        controller: _stateController,
+                        enabled: false,
                         decoration: const InputDecoration(
                           labelText: 'State',
+                          hintText: 'e.g. Selangor',
                           border: OutlineInputBorder(),
                         ),
-                        items: MalaysiaGeocoder.states
-                            .map(
-                              (s) => DropdownMenuItem(value: s, child: Text(s)),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null) setState(() => _state = value);
-                        },
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _districtController,
+                        enabled: false,
                         decoration: const InputDecoration(
                           labelText: 'District',
                           hintText: 'e.g. Petaling',
@@ -414,21 +382,8 @@ class _PropertyFormViewState extends State<PropertyFormView> {
                         ),
                         validator: (value) =>
                             value == null || value.trim().isEmpty
-                            ? 'Enter the district.'
+                            ? 'Could not detect the district — pick a more specific address.'
                             : null,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _postcodeController,
-                        keyboardType: TextInputType.number,
-                        maxLength: 5,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        decoration: const InputDecoration(
-                          labelText: 'Postcode (optional)',
-                          border: OutlineInputBorder(),
-                        ),
                       ),
                       const SizedBox(height: 24),
                       const Text(

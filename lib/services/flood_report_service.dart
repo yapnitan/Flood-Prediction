@@ -98,9 +98,9 @@ class FloodReportService {
 
   /// Overwrites an editable report's fields (own report, still `submitted`
   /// — enforced by RLS, see 0018_flood_report_edit_delete_verify.sql).
-  /// [existingPhotoPaths] carries forward photos already on the report
-  /// (the edit form doesn't let you remove them, only add more); any
-  /// [newPhotos] are uploaded and appended.
+  /// [existingPhotoPaths] is whatever the edit form's user is left with
+  /// after any removals (a subset of the report's original photo paths);
+  /// any [newPhotos] are uploaded and appended to that set.
   Future<bool> updateReport(
     String id,
     FloodReport report,
@@ -289,6 +289,28 @@ class FloodReportService {
     } catch (error) {
       debugPrint('FloodReportService.getPhotoUrls error: $error');
       return [];
+    }
+  }
+
+  /// Same as [getPhotoUrls], but keeps each URL paired with its storage
+  /// path (path -> signed URL) — the edit form needs this to know which
+  /// path to drop when the resident removes a specific existing photo.
+  Future<Map<String, String>> getPhotoUrlsByPath(
+    List<String> paths, {
+    int expiresInSeconds = 600,
+  }) async {
+    if (paths.isEmpty) return {};
+    try {
+      final results = await _supabase.storage
+          .from(_photoBucket)
+          .createSignedUrlsResult(paths, expiresInSeconds);
+      return {
+        for (final r in results.whereType<SignedUrlSuccess>())
+          r.path: r.signedUrl,
+      };
+    } catch (error) {
+      debugPrint('FloodReportService.getPhotoUrlsByPath error: $error');
+      return {};
     }
   }
 

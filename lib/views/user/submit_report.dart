@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import '../../controllers/flood_report_controller.dart';
@@ -35,7 +36,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
   final LocationService _locationService = LocationService();
   double? _selectedLatitude;
   double? _selectedLongitude;
-  String? _selectedState;
+  final TextEditingController _stateController = TextEditingController();
   final TextEditingController _districtController = TextEditingController();
   bool _isLocating = false;
 
@@ -48,6 +49,13 @@ class _SubmitReportState extends State<SubmitReportPage> {
   final FloodReportController _controller = FloodReportController(
     FloodReportService(),
   );
+
+  /// Storage paths of this report's already-uploaded photos, kept editable
+  /// so the resident can remove one — mutated locally and only sent to the
+  /// server on save. Paired with `_existingPhotoUrlsFuture` (path -> signed
+  /// URL) so the grid below can render a thumbnail per path.
+  List<String> _existingPhotoPaths = [];
+  Future<Map<String, String>>? _existingPhotoUrlsFuture;
   DateTime? _observedAt;
   bool _isSubmitting = false;
   bool _isSubmitted = false;
@@ -78,12 +86,16 @@ class _SubmitReportState extends State<SubmitReportPage> {
     _locationNameController.text = existing.locationName;
     _selectedLatitude = existing.latitude;
     _selectedLongitude = existing.longitude;
-    _selectedState = existing.state;
+    _stateController.text = existing.state ?? '';
     _districtController.text = existing.district ?? '';
     _observedAt = existing.observedAt;
     _dateTimeController.text = _formatObservedAt(existing.observedAt);
     _descriptionController.text = existing.description;
     _contactController.text = existing.contactNumber ?? '';
+    _existingPhotoPaths = List.of(existing.photoPaths);
+    _existingPhotoUrlsFuture = _controller.getPhotoUrlsByPath(
+      _existingPhotoPaths,
+    );
   }
 
   @override
@@ -92,6 +104,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
     _dateTimeController.dispose();
     _contactController.dispose();
     _locationNameController.dispose();
+    _stateController.dispose();
     _districtController.dispose();
     _locationFocusNode.dispose();
     super.dispose();
@@ -128,8 +141,10 @@ class _SubmitReportState extends State<SubmitReportPage> {
       _showSnack('Please select or enter a location.');
       return false;
     }
-    if (_selectedState == null) {
-      _showSnack('Please select the state for this location.');
+    if (_stateController.text.trim().isEmpty) {
+      _showSnack(
+        'Could not detect the state for this location — pick a more specific address.',
+      );
       return false;
     }
     if (_districtController.text.trim().isEmpty) {
@@ -189,7 +204,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
 
   void _applyGeocodedArea({String? state, String? district}) {
     if (state != null && MalaysiaGeocoder.states.contains(state)) {
-      _selectedState = state;
+      _stateController.text = state;
     }
     if (district != null && district.trim().isNotEmpty) {
       _districtController.text = district.trim();
@@ -288,7 +303,9 @@ class _SubmitReportState extends State<SubmitReportPage> {
       locationName: _locationNameController.text.trim(),
       latitude: _selectedLatitude ?? 3.1390,
       longitude: _selectedLongitude ?? 101.6869,
-      state: _selectedState,
+      state: _stateController.text.trim().isEmpty
+          ? null
+          : _stateController.text.trim(),
       district: _districtController.text.trim().isEmpty
           ? null
           : _districtController.text.trim(),
@@ -306,7 +323,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
         ? await _controller.updateReport(
             existingId,
             report,
-            widget.existing!.photoPaths,
+            _existingPhotoPaths,
             _photos,
           )
         : await _controller.submit(report, _photos);
@@ -345,7 +362,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
     _locationNameController.clear();
     _selectedLatitude = null;
     _selectedLongitude = null;
-    _selectedState = null;
+    _stateController.clear();
     _districtController.clear();
     _photos.clear();
     _isSubmitted = false;
@@ -683,27 +700,24 @@ class _SubmitReportState extends State<SubmitReportPage> {
         ),
         const SizedBox(height: 4),
         const Text(
-          'Auto-filled from the location you pick — adjust if it looks wrong.',
+          'Auto-filled from the location you pick — cannot be edited manually.',
           style: TextStyle(fontSize: 12, color: Colors.grey),
         ),
         const SizedBox(height: 10),
-        DropdownButtonFormField<String>(
-          key: ValueKey(_selectedState),
-          initialValue: _selectedState,
-          isExpanded: true,
+        TextField(
+          controller: _stateController,
+          enabled: false,
           decoration: const InputDecoration(
             labelText: 'State',
+            hintText: 'e.g. Selangor',
             border: OutlineInputBorder(),
             isDense: true,
           ),
-          items: MalaysiaGeocoder.states
-              .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-              .toList(),
-          onChanged: (value) => setState(() => _selectedState = value),
         ),
         const SizedBox(height: 12),
         TextField(
           controller: _districtController,
+          enabled: false,
           decoration: const InputDecoration(
             labelText: 'District',
             hintText: 'e.g. Petaling',
@@ -782,11 +796,15 @@ class _SubmitReportState extends State<SubmitReportPage> {
           TextFormField(
             controller: _dateTimeController,
             readOnly: true,
-            onTap: _selectDateTime,
-            decoration: const InputDecoration(
+            enabled: !_isEditing,
+            onTap: _isEditing ? null : _selectDateTime,
+            decoration: InputDecoration(
               labelText: 'Date and time observed',
-              prefixIcon: Icon(Icons.calendar_today),
-              border: OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.calendar_today),
+              helperText: _isEditing
+                  ? 'Cannot be changed after submission.'
+                  : null,
+              border: const OutlineInputBorder(),
             ),
             validator: (value) => value == null || value.isEmpty
                 ? 'Select when you observed the flooding.'
@@ -797,6 +815,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
             controller: _descriptionController,
             minLines: 4,
             maxLines: 6,
+            maxLength: 100,
             decoration: const InputDecoration(
               labelText: 'Description',
               hintText:
@@ -812,6 +831,8 @@ class _SubmitReportState extends State<SubmitReportPage> {
           TextFormField(
             controller: _contactController,
             keyboardType: TextInputType.phone,
+            maxLength: 11,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: const InputDecoration(
               labelText: 'Contact number (optional)',
               prefixIcon: Icon(Icons.phone),
@@ -836,8 +857,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
         const SizedBox(height: 8),
         Text(
           _isEditing
-              ? 'This report already has ${widget.existing!.photoPaths.length} photo(s) attached. '
-                    'Existing photos are kept — anything you add below is appended to them.'
+              ? 'Remove any existing photo you no longer want, or add more below.'
               : 'Photos help responders verify the report. They are optional.',
           style: const TextStyle(color: Colors.grey),
         ),
@@ -851,6 +871,17 @@ class _SubmitReportState extends State<SubmitReportPage> {
           ),
         ),
         const SizedBox(height: 16),
+        if (_isEditing) ...[
+          _buildExistingPhotosGrid(),
+          const SizedBox(height: 20),
+          Text(
+            'New photos',
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+        ],
         if (_photos.isEmpty)
           Container(
             width: double.infinity,
@@ -860,11 +891,11 @@ class _SubmitReportState extends State<SubmitReportPage> {
               border: Border.all(color: Colors.grey.shade300),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Column(
+            child: Column(
               children: [
-                Icon(Icons.image_outlined, size: 42, color: Colors.grey),
-                SizedBox(height: 8),
-                Text('No photos added yet'),
+                const Icon(Icons.image_outlined, size: 42, color: Colors.grey),
+                const SizedBox(height: 8),
+                Text(_isEditing ? 'No new photos added yet' : 'No photos added yet'),
               ],
             ),
           )
@@ -888,6 +919,98 @@ class _SubmitReportState extends State<SubmitReportPage> {
             ),
           ),
         const SizedBox(height: 30),
+      ],
+    );
+  }
+
+  /// This report's already-uploaded photos, each with a remove button —
+  /// removing one only updates `_existingPhotoPaths` locally; nothing is
+  /// deleted from storage until the form is saved (`_submitReport` sends
+  /// the trimmed list, which `FloodReportService.updateReport` uses to
+  /// overwrite `photo_paths` wholesale).
+  Widget _buildExistingPhotosGrid() {
+    if (_existingPhotoPaths.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Existing photos',
+          style: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        FutureBuilder<Map<String, String>>(
+          future: _existingPhotoUrlsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+            final urlsByPath = snapshot.data ?? {};
+            final paths = _existingPhotoPaths
+                .where(urlsByPath.containsKey)
+                .toList();
+            if (paths.isEmpty) {
+              return const Text(
+                'Photos unavailable',
+                style: TextStyle(color: Colors.grey),
+              );
+            }
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: paths.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: context.responsive(
+                  mobile: 3,
+                  tablet: 4,
+                  desktop: 5,
+                ),
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemBuilder: (context, index) {
+                final path = paths[index];
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        urlsByPath[path]!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const ColoredBox(
+                              color: Color(0xFFF2F2F2),
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                color: Colors.grey,
+                              ),
+                            ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: IconButton.filled(
+                        onPressed: () =>
+                            setState(() => _existingPhotoPaths.remove(path)),
+                        icon: const Icon(Icons.close, size: 16),
+                        tooltip: 'Remove photo',
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        ),
       ],
     );
   }
@@ -974,14 +1097,15 @@ class _SubmitReportState extends State<SubmitReportPage> {
           title: 'Location',
           value: _locationNameController.text.trim(),
         ),
-        if (_selectedState != null ||
+        if (_stateController.text.trim().isNotEmpty ||
             _districtController.text.trim().isNotEmpty)
           ReviewCard(
             title: 'Area',
             value: [
               if (_districtController.text.trim().isNotEmpty)
                 _districtController.text.trim(),
-              ?_selectedState,
+              if (_stateController.text.trim().isNotEmpty)
+                _stateController.text.trim(),
             ].join(', '),
           ),
         ReviewCard(title: 'Flood type', value: selectedFloodType!),
@@ -998,9 +1122,10 @@ class _SubmitReportState extends State<SubmitReportPage> {
           ),
         ReviewCard(
           title: 'Photos',
-          value: _photos.isEmpty
-              ? 'No photos attached'
-              : '${_photos.length} photo(s) attached',
+          value: () {
+            final total = _existingPhotoPaths.length + _photos.length;
+            return total == 0 ? 'No photos attached' : '$total photo(s) attached';
+          }(),
         ),
         const SizedBox(height: 30),
       ],

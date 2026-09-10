@@ -44,10 +44,23 @@ class _ReportDetailViewState extends State<ReportDetailView> {
   late FloodReport _report;
   bool _isBusy = false;
 
+  static const _editWindow = Duration(days: 3);
+
   bool get _isOwner =>
       _report.reporterId != null &&
       _report.reporterId == Supabase.instance.client.auth.currentUser?.id;
-  bool get _canEditOrDelete => _isOwner && _report.status == 'submitted';
+
+  /// A report can no longer be edited (or deleted) once it's more than 3
+  /// days past its submit date — an old report is treated as settled
+  /// history rather than something still open to correction.
+  bool get _withinEditWindow {
+    final submittedAt = _report.createdAt;
+    if (submittedAt == null) return true;
+    return DateTime.now().difference(submittedAt) <= _editWindow;
+  }
+
+  bool get _canEditOrDelete =>
+      _isOwner && _report.status == 'submitted' && _withinEditWindow;
 
   @override
   void initState() {
@@ -190,31 +203,45 @@ class _ReportDetailViewState extends State<ReportDetailView> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Icon(
-                        report.isVerified
-                            ? Icons.verified
-                            : Icons.schedule_outlined,
-                        size: 16,
-                        color: report.isVerified ? Colors.teal : Colors.orange,
+                  if (_isOwner &&
+                      _report.status == 'submitted' &&
+                      !_withinEditWindow) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        report.isVerified
-                            ? 'Verified by an admin'
-                            : 'Awaiting admin verification',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: report.isVerified
-                              ? Colors.teal
-                              : Colors.orange.shade800,
-                        ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    ],
-                  ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 18,
+                            color: Colors.blue.shade900,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'This report can no longer be edited or deleted — '
+                              'the ${_editWindow.inDays}-day window after '
+                              'submission has passed.',
+                              style: TextStyle(
+                                color: Colors.blue.shade900,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   if (widget.reporterName != null && widget.reporterName!.isNotEmpty)
                     ReviewCard(title: 'Reported by', value: widget.reporterName!),

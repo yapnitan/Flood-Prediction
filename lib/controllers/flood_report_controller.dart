@@ -37,6 +37,12 @@ class FloodReportController {
     return floodReportService.deleteReport(id);
   }
 
+  /// Path -> signed URL, for showing a report's already-uploaded photos
+  /// (with the ability to remove one) on the edit form.
+  Future<Map<String, String>> getPhotoUrlsByPath(List<String> paths) {
+    return floodReportService.getPhotoUrlsByPath(paths);
+  }
+
   /// Admin: confirm (or un-confirm) a community flood report.
   Future<bool> setVerified(String id, bool verified) {
     return floodReportService.setVerified(id, verified);
