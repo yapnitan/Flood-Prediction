@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/flood_report_controller.dart';
 import '../../models/flood_report.dart';
 import '../../services/flood_report_service.dart';
+import '../../utils/malaysia_geocoding.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/adaptive_search_filter_header.dart';
 import '../user/report_detail_view.dart';
@@ -32,6 +33,7 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
   late Future<List<Map<String, dynamic>>> _reportsFuture;
   String _floodTypeFilter = 'all';
   String _waterLevelFilter = 'all';
+  String _stateFilter = 'all';
   String _searchQuery = '';
 
   // Same options offered on the submission form (submit_report.dart), so
@@ -127,11 +129,13 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
                         labelBuilder: (value) =>
                             value == 'all' ? 'All water levels' : value,
                       ),
+                      _buildStateFilterDropdown(),
                     ],
                     sheetTitle: 'Filter flood reports',
                     activeFilterCount:
                         (_floodTypeFilter == 'all' ? 0 : 1) +
-                        (_waterLevelFilter == 'all' ? 0 : 1),
+                        (_waterLevelFilter == 'all' ? 0 : 1) +
+                        (_stateFilter == 'all' ? 0 : 1),
                     sheetBuilder: (context, setSheetState) => Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -180,6 +184,34 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
                               ),
                           ],
                         ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'State',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          key: ValueKey('sheet-state-$_stateFilter'),
+                          initialValue: _stateFilter,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          items: _stateOptions
+                              .map(
+                                (state) => DropdownMenuItem(
+                                  value: state,
+                                  child: Text(_stateLabel(state)),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (state) {
+                            if (state == null) return;
+                            setState(() => _stateFilter = state);
+                            setSheetState(() {});
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -212,6 +244,13 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
                           rows = rows
                               .where(
                                 (r) => r['water_level'] == _waterLevelFilter,
+                              )
+                              .toList();
+                        }
+                        if (_stateFilter != 'all') {
+                          rows = rows
+                              .where(
+                                (report) => report['state'] == _stateFilter,
                               )
                               .toList();
                         }
@@ -276,6 +315,37 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  List<String> get _stateOptions => ['all', ...MalaysiaGeocoder.states];
+
+  String _stateLabel(String state) => state == 'all' ? 'All states' : state;
+
+  Widget _buildStateFilterDropdown() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('page-state-$_stateFilter'),
+        initialValue: _stateFilter,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'State',
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        items: _stateOptions
+            .map(
+              (state) => DropdownMenuItem(
+                value: state,
+                child: Text(_stateLabel(state)),
+              ),
+            )
+            .toList(),
+        onChanged: (state) {
+          if (state != null) setState(() => _stateFilter = state);
+        },
       ),
     );
   }
