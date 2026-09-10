@@ -292,21 +292,17 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                     children: [
                       TextFormField(
                         controller: _nameController,
-                        inputFormatters: const [WordCountInputFormatter(20)],
+                        maxLength: 20,
                         decoration: const InputDecoration(
                           labelText: 'Facility name',
-                          hintText: 'e.g. Dewan Komuniti Cyberjaya (max 20 words)',
+                          hintText: 'e.g. Dewan Cyberjaya (max 20 characters)',
                           border: OutlineInputBorder(),
                         ),
                         validator: (value) {
                           final trimmed = value?.trim() ?? '';
                           if (trimmed.isEmpty) return 'Enter a facility name.';
-                          final wordCount = trimmed
-                              .split(RegExp(r'\s+'))
-                              .where((w) => w.isNotEmpty)
-                              .length;
-                          if (wordCount > 20) {
-                            return 'Facility name cannot exceed 20 words.';
+                          if (trimmed.length > 20) {
+                            return 'Facility name cannot exceed 20 characters.';
                           }
                           return null;
                         },

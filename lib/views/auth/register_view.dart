@@ -251,6 +251,7 @@ class _RegisterViewState extends State<RegistrationPage> {
 
         TextField(
           controller: nameController,
+          maxLength: 20,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
           decoration: _decoration(
             label: "Enter your name",
