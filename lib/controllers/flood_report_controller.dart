@@ -42,10 +42,6 @@ class FloodReportController {
     return floodReportService.getAllReportsWithAccountInfo();
   }
 
-  Future<bool> setVerified(String id, bool verified) {
-    return floodReportService.setVerified(id, verified);
-  }
-
   Future<List<FloodReport>> getNearby({
     required double latitude,
     required double longitude,

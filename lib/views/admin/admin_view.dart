@@ -65,9 +65,7 @@ class _AdminHomeState extends State<AdminHome> {
     if (!mounted) return;
     setState(() {
       _pendingAssetLossCount = reports
-          .where((r) =>
-              r['status'] == 'pending_review' ||
-              r['status'] == 'helper_verified')
+          .where((report) => report['status'] == 'pending_review')
           .length;
     });
   }
@@ -100,8 +98,15 @@ class _AdminHomeState extends State<AdminHome> {
   /// "Report" doesn't navigate directly — same interaction pattern as
   /// the User view's "Submit Report" chooser — it opens a sheet to pick
   /// which report to view first.
-  void _showReportChooser() {
-    showModalBottomSheet<void>(
+  Future<void> _showReportChooser() async {
+    try {
+      await _loadPendingCount();
+    } catch (_) {
+      // Keep the chooser available with the last successfully loaded counts.
+    }
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
       context: context,
       builder: (context) => SafeArea(
         child: Wrap(
@@ -128,6 +133,7 @@ class _AdminHomeState extends State<AdminHome> {
               ),
               title: const Text('View Asset Loss Reports'),
               subtitle: const Text('Potential asset losses reported by residents'),
+              trailing: _reportCountBadge(_pendingAssetLossCount),
               onTap: () {
                 Navigator.pop(context);
                 setState(() {
@@ -145,6 +151,11 @@ class _AdminHomeState extends State<AdminHome> {
   Widget _navIcon(IconData icon, int count) {
     if (count == 0) return Icon(icon);
     return Badge(label: Text('$count'), child: Icon(icon));
+  }
+
+  Widget? _reportCountBadge(int count) {
+    if (count == 0) return null;
+    return Badge(label: Text('$count'));
   }
 
   @override
