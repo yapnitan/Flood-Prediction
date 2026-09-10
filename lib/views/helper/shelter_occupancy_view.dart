@@ -390,6 +390,12 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
   int get _headcount =>
       _value(_adults) + _value(_children) + _value(_elderly) + _value(_infants) + _value(_pwd);
 
+  /// A shelter with a set capacity cannot be logged over that capacity.
+  bool get _overCapacity {
+    final capacity = widget.shelter.capacity;
+    return capacity != null && _headcount > capacity;
+  }
+
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -409,6 +415,17 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
   }
 
   Future<void> _save() async {
+    if (_overCapacity) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Total headcount ($_headcount) is over this shelter\'s capacity '
+            '(${widget.shelter.capacity}). Reduce the numbers before saving.',
+          ),
+        ),
+      );
+      return;
+    }
     setState(() => _isSaving = true);
     final ok = await widget.controller.record(ShelterOccupancyReport(
       facilityId: widget.shelter.id!,
@@ -494,12 +511,20 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
             _countField('Infants', _infants),
             _countField('Persons with disabilities', _pwd),
             _CapacityIndicator(headcount: _headcount, capacity: widget.shelter.capacity),
+            if (_overCapacity)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Cannot save — the headcount is over this shelter\'s capacity.',
+                  style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+                ),
+              ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: _isSaving ? null : _save,
+                onPressed: (_isSaving || _overCapacity) ? null : _save,
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
                 child: Text(
                   _isSaving ? 'Saving...' : 'Save',

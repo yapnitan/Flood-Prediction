@@ -22,9 +22,10 @@ alter table public.shelter_occupancy_report
 create index if not exists idx_shelter_occupancy_report_facility_date
   on public.shelter_occupancy_report (facility_id, occupancy_date, recorded_at desc);
 
--- A helper may only log occupancy for the last 3 days (today and the two
--- days before) — enforced server-side, not just by bounding the date picker.
--- Rebuilds the district-scoped insert policy from 0040 with the date window.
+-- A helper may only log occupancy that is (a) for the last 3 days — today and
+-- the two days before — and (b) not over the shelter's set capacity. Enforced
+-- server-side, not just in the app. Rebuilds the district-scoped insert
+-- policy from 0040 with those two extra conditions.
 drop policy if exists "Assigned helpers log district shelter occupancy"
   on public.shelter_occupancy_report;
 
@@ -35,6 +36,11 @@ create policy "Assigned helpers log district shelter occupancy"
   with check (
     recorded_by = auth.uid()
     and occupancy_date between (current_date - 2) and current_date
+    and (adults + children + elderly + infants + persons_with_disabilities)
+        <= coalesce(
+             (select f.capacity from public.facilities f
+              where f.id = shelter_occupancy_report.facility_id),
+             2147483647)
     and exists (
       select 1
       from public.helper_district_assignment hda
