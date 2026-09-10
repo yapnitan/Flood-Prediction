@@ -42,7 +42,6 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
   final _floodSimulationService = FloodSimulationService();
   final _historicalFloodController = HistoricalFloodController(HistoricalFloodService());
   final _floodReportService = FloodReportService();
-  final _riskAssessmentService = RiskAssessmentService();
   final _riskController = RiskAssessmentController(
     HistoricalFloodController(HistoricalFloodService()),
     EnvironmentController(TerrainService(), WeatherService()),
@@ -168,24 +167,25 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
     await _loadContext();
   }
 
-  /// Recomputed purely client-side from the toggle state — the property's
-  /// elevation/history/structure stay fixed at what was saved, only the
-  /// mitigation flags vary, so this is a real "what if I added barriers"
-  /// preview, not a re-run of the full assessment pipeline.
-  RiskAssessmentResult get _previewResult {
-    final sim = _sim;
-    return _riskAssessmentService.assess(
-      RiskAssessmentInput(
-        nearbyFloodCount: sim.nearbyFloodCount,
-        recentNearbyReportCount: sim.recentReportCount,
-        riverFloodLevel: sim.riverFloodLevel,
-        propertyElevationMeters: sim.userElevationMeters ?? sim.terrainElevationMeters,
-        baselineElevationMeters: sim.baselineElevationMeters,
-        structureType: sim.structureType,
-        hasFloodBarriers: _previewBarriers,
-        hasRaisedFoundation: _previewFoundation,
-      ),
-    );
+  /// "What if I added barriers / a raised foundation?" — every other factor
+  /// is fixed at what was scored, so start from the saved factor breakdown's
+  /// hazard subtotal and re-apply just the two mitigation deltas. No re-run
+  /// of the assessment pipeline (and no dependency on every raw input).
+  static const _mitigationFactorNames = {'Flood barriers', 'Raised foundation'};
+
+  ({double score, String level}) get _previewResult {
+    if (_factors.isEmpty) {
+      return (score: _sim.riskScore, level: _sim.riskLevel);
+    }
+    final hazardSubtotal = _factors
+        .where((f) => !_mitigationFactorNames.contains(f.factorName))
+        .fold<double>(0, (sum, f) => sum + f.scoreContribution);
+    final raw = hazardSubtotal +
+        (_previewBarriers ? -10 : 0) +
+        (_previewFoundation ? -10 : 0);
+    final score = raw.clamp(0, 100).toDouble();
+    final level = score >= 67 ? 'High' : (score >= 34 ? 'Medium' : 'Low');
+    return (score: score, level: level);
   }
 
   Color _levelColor(String level) {
@@ -546,7 +546,7 @@ class _PreventiveImprovementsCard extends StatelessWidget {
   final bool hasRaisedFoundation;
   final ValueChanged<bool> onBarriersChanged;
   final ValueChanged<bool> onFoundationChanged;
-  final RiskAssessmentResult preview;
+  final ({double score, String level}) preview;
   final double currentScore;
 
   Color _levelColor(String level) {

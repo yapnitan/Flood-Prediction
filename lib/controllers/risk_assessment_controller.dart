@@ -156,9 +156,10 @@ class RiskAssessmentController {
   }
 
   /// Gathers every input the score needs — historical floods, recent
-  /// community reports, terrain, baseline terrain, weather — then scores it
-  /// and builds the (unsaved) [FloodSimulation]. Shared by [runAssessment]
-  /// and [updateAssessment]; pass [id] when updating an existing row.
+  /// community reports, the nearest InfoBanjir rain + river gauges, terrain,
+  /// baseline terrain, weather — then scores it and builds the (unsaved)
+  /// [FloodSimulation]. Shared by [runAssessment] and [updateAssessment];
+  /// pass [id] when updating an existing row.
   Future<({FloodSimulation simulation, RiskAssessmentResult result})> _gatherAndScore({
     String? id,
     required String accountId,
@@ -175,7 +176,7 @@ class RiskAssessmentController {
     final baselineCoord =
         MalaysiaGeocoder.centroidFor(state: state, district: district);
 
-    // All six lookups are independent (the baseline coord is a local table
+    // All lookups are independent (the baseline coord is a local table
     // lookup), so fire them together — sequential awaits here made a single
     // assessment take as long as the sum of every API round-trip.
     final (
@@ -185,6 +186,8 @@ class RiskAssessmentController {
       terrain,
       baselineTerrain,
       weather,
+      rainStation,
+      riverStation,
     ) = await (
       historicalFloodController.getNearby(
         latitude: latitude,
@@ -215,16 +218,29 @@ class RiskAssessmentController {
         latitude: latitude,
         longitude: longitude,
       ),
+      environmentController.getNearestRainfallStation(
+        latitude: latitude,
+        longitude: longitude,
+      ),
+      environmentController.getNearestRiverLevelStation(
+        latitude: latitude,
+        longitude: longitude,
+      ),
     ).wait;
 
-    final riverFloodLevel = riverFlood?.level ?? RiverFloodLevel.unknown;
     final propertyElevation = userElevationMeters ?? terrain?.elevationMeters;
+    final rainfallMm = rainStation?.rainfall1hMm ?? weather?.rainfallMm;
 
     final result = riskAssessmentService.assess(
       RiskAssessmentInput(
         nearbyFloodCount: nearbyFloods.length,
-        recentNearbyReportCount: recentReports.length,
-        riverFloodLevel: riverFloodLevel,
+        recentReportWaterLevels:
+            recentReports.map((r) => r.waterLevel).toList(),
+        rainfallMm: rainfallMm,
+        rainfallIntensityLabel: rainStation?.rainfallIntensity,
+        riverGaugeStatus: riverStation?.waterLevelStatus,
+        riverGaugeRising: riverStation?.isRising ?? false,
+        riverFloodLevel: riverFlood?.level ?? RiverFloodLevel.unknown,
         propertyElevationMeters: propertyElevation,
         baselineElevationMeters: baselineTerrain?.elevationMeters,
         structureType: structureType,
@@ -232,6 +248,23 @@ class RiskAssessmentController {
         hasRaisedFoundation: hasRaisedFoundation,
       ),
     );
+
+    // Store a river-level bucket for the detail screen's "live conditions":
+    // the gauge status when there is one, else the GloFAS forecast bucket.
+    final storedRiverLevel = _riverLevelForStorage(
+      riverStation?.waterLevelStatus,
+      rising: riverStation?.isRising ?? false,
+      glofasFallback: riverFlood?.level ?? RiverFloodLevel.unknown,
+    );
+
+    final liveConditions = <String>[
+      if (weather != null)
+        '${weather.description}, ${weather.temperatureCelsius.toStringAsFixed(1)}°C',
+      if (rainfallMm != null)
+        '${rainfallMm.toStringAsFixed(1)}mm rain in the last hour',
+      if (riverStation?.waterLevelStatus != null)
+        'river gauge: ${riverStation!.waterLevelStatus}',
+    ];
 
     final simulation = FloodSimulation(
       id: id,
@@ -249,15 +282,33 @@ class RiskAssessmentController {
       hasRaisedFoundation: hasRaisedFoundation,
       nearbyFloodCount: nearbyFloods.length,
       recentReportCount: recentReports.length,
-      riverFloodLevel: riverFloodLevel,
-      currentWeatherSummary: weather != null
-          ? '${weather.description}, ${weather.temperatureCelsius.toStringAsFixed(1)}°C, ${weather.rainfallMm.toStringAsFixed(1)}mm rain'
-          : null,
+      riverFloodLevel: storedRiverLevel,
+      currentWeatherSummary:
+          liveConditions.isEmpty ? null : liveConditions.join(' · '),
       riskScore: result.score,
       riskLevel: result.level,
     );
 
     return (simulation: simulation, result: result);
+  }
+
+  /// Buckets an InfoBanjir gauge status (or the GloFAS fallback) into the
+  /// [RiverFloodLevel] stored on the simulation for display.
+  RiverFloodLevel _riverLevelForStorage(
+    String? gaugeStatus, {
+    required bool rising,
+    required RiverFloodLevel glofasFallback,
+  }) {
+    if (gaugeStatus == null) return glofasFallback;
+    switch (gaugeStatus.toLowerCase()) {
+      case 'danger':
+      case 'warning':
+        return RiverFloodLevel.high;
+      case 'alert':
+        return RiverFloodLevel.elevated;
+      default:
+        return rising ? RiverFloodLevel.elevated : RiverFloodLevel.normal;
+    }
   }
 
   /// Re-runs the full assessment pipeline for an already-saved simulation,

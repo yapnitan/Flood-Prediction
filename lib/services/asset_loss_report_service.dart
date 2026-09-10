@@ -13,6 +13,15 @@ class AssetLossReportService {
 
   final SupabaseClient _supabase;
 
+  /// Two-phase so each report's photos land in their *own* folder, keyed by
+  /// the report's UUID: insert the row, then upload to
+  /// `{userId}/{reportId}/photo_N.jpg`, then set `photo_paths`.
+  ///
+  /// The old scheme keyed the folder on `DateTime.now().microsecondsSinceEpoch`,
+  /// which collided when several items in one report were submitted back-to-back
+  /// in a loop — so one item's photos leaked onto another. It also didn't match
+  /// the `{ownerId}/{reportId}/...` path the assigned-helper storage policy
+  /// (0025) checks, so helpers couldn't see any evidence photos.
   Future<bool> submit(AssetLossReport report, List<XFile> photos) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) {
@@ -20,41 +29,73 @@ class AssetLossReportService {
       return false;
     }
 
+    String reportId;
     try {
-      final photoPaths = await _uploadPhotos(userId, photos);
-      await _supabase.from(_table).insert(
-        AssetLossReport(
-          userId: userId,
-          propertyId: report.propertyId,
-          floodIncidentId: report.floodIncidentId,
-          assetCategory: report.assetCategory,
-          assetName: report.assetName,
-          condition: report.condition,
-          quantity: report.quantity,
-          estimatedValuePerItem: report.estimatedValuePerItem,
-          description: report.description,
-          photoPaths: photoPaths,
-        ).toJson(),
-      );
-      return true;
+      final row = await _supabase
+          .from(_table)
+          .insert(
+            AssetLossReport(
+              userId: userId,
+              propertyId: report.propertyId,
+              floodIncidentId: report.floodIncidentId,
+              assetCategory: report.assetCategory,
+              assetName: report.assetName,
+              condition: report.condition,
+              quantity: report.quantity,
+              estimatedValuePerItem: report.estimatedValuePerItem,
+              description: report.description,
+              photoPaths: const [],
+            ).toJson(),
+          )
+          .select('id')
+          .single();
+      reportId = row['id'] as String;
     } catch (error) {
-      debugPrint('AssetLossReportService.submit error: $error');
+      debugPrint('AssetLossReportService.submit insert error: $error');
       return false;
     }
+
+    if (photos.isEmpty) return true;
+
+    try {
+      final paths = await _uploadPhotos(userId, reportId, photos);
+      if (paths.isNotEmpty) {
+        await _supabase
+            .from(_table)
+            .update({'photo_paths': paths}).eq('id', reportId);
+      }
+    } catch (error) {
+      // The report itself is saved — don't fail the whole submission (and
+      // don't have the caller re-submit, which would duplicate the row).
+      debugPrint(
+        'AssetLossReportService.submit: report $reportId saved without photos: $error',
+      );
+    }
+    return true;
   }
 
-  Future<List<String>> _uploadPhotos(String userId, List<XFile> photos) async {
-    final batch = DateTime.now().microsecondsSinceEpoch.toString();
+  Future<List<String>> _uploadPhotos(
+    String userId,
+    String reportId,
+    List<XFile> photos,
+  ) async {
     final paths = <String>[];
     for (var index = 0; index < photos.length; index++) {
-      final bytes = await photos[index].readAsBytes();
-      final path = '$userId/$batch/photo_$index.jpg';
-      await _supabase.storage.from(_photoBucket).uploadBinary(
-        path,
-        bytes,
-        fileOptions: const FileOptions(contentType: 'image/jpeg'),
-      );
-      paths.add(path);
+      try {
+        final bytes = await photos[index].readAsBytes();
+        final path = '$userId/$reportId/photo_$index.jpg';
+        await _supabase.storage.from(_photoBucket).uploadBinary(
+              path,
+              bytes,
+              fileOptions: const FileOptions(
+                contentType: 'image/jpeg',
+                upsert: true,
+              ),
+            );
+        paths.add(path);
+      } catch (error) {
+        debugPrint('AssetLossReportService._uploadPhotos: photo $index failed: $error');
+      }
     }
     return paths;
   }
