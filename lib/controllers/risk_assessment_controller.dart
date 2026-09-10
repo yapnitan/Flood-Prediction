@@ -18,10 +18,6 @@ class SimulationOutcome {
   final List<SimulationFactor> factors;
   final List<String> recommendations;
   final String? error;
-
-  /// Set by [RiskAssessmentController.refreshSimulation] when the device is
-  /// offline: the re-score was skipped (not failed), so callers should keep
-  /// showing the previously saved score rather than surfacing an error.
   final bool offline;
 
   SimulationOutcome({
@@ -48,13 +44,9 @@ class RiskAssessmentController {
     FloodReportService? floodReportService,
   ]) : floodReportService = floodReportService ?? FloodReportService();
 
-  /// Community flood reports count toward risk only while this recent and
-  /// this close — matches what the simulation stores and shows.
   static const _recentReportWindow = Duration(days: 7);
   static const _recentReportRadiusKm = 10.0;
 
-  /// Gathers historical flood, terrain and weather data for the given
-  /// property, scores it, saves the result, and returns the outcome.
   Future<SimulationOutcome> runAssessment({
     int? propertyId,
     required String propertyName,
@@ -104,9 +96,6 @@ class RiskAssessmentController {
     );
   }
 
-  /// Same pipeline as [runAssessment] (re-gathers historical/terrain/weather
-  /// data, since the property's location or protections may have changed),
-  /// but overwrites [simulationId] instead of inserting a new row.
   Future<SimulationOutcome> updateAssessment({
     required String simulationId,
     int? propertyId,
@@ -159,11 +148,6 @@ class RiskAssessmentController {
     );
   }
 
-  /// Gathers every input the score needs — historical floods, recent
-  /// community reports, the nearest InfoBanjir rain + river gauges, terrain,
-  /// baseline terrain, weather — then scores it and builds the (unsaved)
-  /// [FloodSimulation]. Shared by [runAssessment] and [updateAssessment];
-  /// pass [id] when updating an existing row.
   Future<({FloodSimulation simulation, RiskAssessmentResult result})> _gatherAndScore({
     String? id,
     required String accountId,
@@ -181,9 +165,6 @@ class RiskAssessmentController {
     final baselineCoord =
         MalaysiaGeocoder.centroidFor(state: state, district: district);
 
-    // All lookups are independent (the baseline coord is a local table
-    // lookup), so fire them together — sequential awaits here made a single
-    // assessment take as long as the sum of every API round-trip.
     final (
       nearbyFloods,
       recentReports,
@@ -254,8 +235,6 @@ class RiskAssessmentController {
       ),
     );
 
-    // Store a river-level bucket for the detail screen's "live conditions":
-    // the gauge status when there is one, else the GloFAS forecast bucket.
     final storedRiverLevel = _riverLevelForStorage(
       riverStation?.waterLevelStatus,
       rising: riverStation?.isRising ?? false,
@@ -298,8 +277,6 @@ class RiskAssessmentController {
     return (simulation: simulation, result: result);
   }
 
-  /// Buckets an InfoBanjir gauge status (or the GloFAS fallback) into the
-  /// [RiverFloodLevel] stored on the simulation for display.
   RiverFloodLevel _riverLevelForStorage(
     String? gaugeStatus, {
     required bool rising,
@@ -317,18 +294,6 @@ class RiskAssessmentController {
     }
   }
 
-  /// Re-runs the full assessment pipeline for an already-saved simulation,
-  /// reusing its stored property inputs (location, structure, protections,
-  /// elevation override) but re-gathering every time-varying signal —
-  /// historical floods, recent community reports, river forecast, weather —
-  /// so its risk score reflects current conditions. The new score and
-  /// factor breakdown are persisted in place, exactly as [updateAssessment]
-  /// would for an edit with unchanged inputs.
-  ///
-  /// Skipped when offline: the pipeline depends on live terrain/weather/
-  /// flood APIs, and scoring against failed lookups would wrongly deflate
-  /// the saved score. Callers get [SimulationOutcome.offline] and should
-  /// keep displaying the stored values.
   Future<SimulationOutcome> refreshSimulation(FloodSimulation simulation) async {
     final id = simulation.id;
     if (id == null) {

@@ -9,7 +9,6 @@ class AssetLossReportController {
 
   AssetLossReportController(this.service);
 
-  /// For User
 
   Future<bool> submit(AssetLossReport report, List<XFile> photos) {
     return service.submit(report, photos);
@@ -25,7 +24,6 @@ class AssetLossReportController {
     return service.getReportById(reportId);
   }
 
-  /// Resident edits their own still-pending report.
   Future<bool> updateReport(
     String id,
     AssetLossReport report,
@@ -35,7 +33,6 @@ class AssetLossReportController {
     return service.updateReport(id, report, existingPhotoPaths, newPhotos);
   }
 
-  /// Resident deletes their own still-pending report (and its photos).
   Future<bool> deleteReport(String id, {List<String> photoPaths = const []}) =>
       service.deleteReport(id, photoPaths: photoPaths);
 
@@ -43,8 +40,6 @@ class AssetLossReportController {
 
   Future<List<String>> getSignedPhotoUrls(List<String> paths) =>
       service.getSignedPhotoUrls(paths);
-
-  /// For Admin
 
   Future<List<Map<String, dynamic>>> getAdminOverview() => service.getAdminOverview();
 
@@ -61,8 +56,6 @@ class AssetLossReportController {
   }
 
   Future<void> reject(String reportId) => service.adminReject(reportId);
-
-  /// For Helper
 
   Future<List<Map<String, dynamic>>> getMyDistrictReports() => service.getHelperDistrictReports();
 

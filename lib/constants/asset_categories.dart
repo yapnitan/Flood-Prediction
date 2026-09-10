@@ -1,7 +1,4 @@
-/// The 11 asset categories an Asset Loss Report can be filed under, plus a
-/// handful of example items per category offered as quick-pick suggestions
-/// — the specific asset name itself stays free text (not hardcoded into the
-/// database), so "Other"/anything not listed can still be typed in.
+
 const Map<String, List<String>> assetCategoryExamples = {
   'Building': [
     'Roof', 'Ceiling', 'Walls', 'Flooring', 'Doors', 'Windows', 'Gates',
@@ -51,7 +48,7 @@ const List<String> assetCategories = [
   'Business Assets', 'Other',
 ];
 
-/// DB-stored value -> display label for asset condition.
+
 const Map<String, String> assetConditionLabels = {
   'damaged': 'Damaged',
   'severely_damaged': 'Severely Damaged',

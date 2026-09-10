@@ -17,8 +17,7 @@ class UserManagementController {
   Future<bool> setActive(String id, bool isActive) {
     return userManagementService.setActive(id, isActive);
   }
-
-  /// Approve ('active') or reject ('rejected') a pending sign-up.
+  
   Future<bool> changeStatus(String id, String status) {
     return userManagementService.updateStatus(id, status);
   }

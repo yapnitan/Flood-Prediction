@@ -1,25 +1,14 @@
 import 'package:flutter/material.dart';
 
-/// App-wide color palette and [ThemeData]. Centralizes the colors that were
-/// previously repeated as `Colors.blue`/`Colors.red`/etc. literals across
-/// individual views — new screens should reference [AppTheme] instead of
-/// hardcoding a `Colors.*` value. Existing one-off literals that happen to
-/// already match these (e.g. `StatusBadge`/`PriorityBadge`'s own semantic
-/// color maps) are left as-is; this isn't a full-app color-literal sweep.
 class AppTheme {
   const AppTheme._();
 
-  /// Brand primary — used for the app bar accent, primary buttons, and
-  /// links across every role's dashboard.
   static const Color primary = Colors.blue;
 
-  /// Role accents, matching what user_management_view.dart already uses to
-  /// color-code accounts by role.
   static const Color adminAccent = Colors.purple;
   static const Color helperAccent = Colors.teal;
   static const Color userAccent = Colors.blue;
 
-  /// Status/semantic colors shared by StatusBadge/PriorityBadge's palettes.
   static const Color success = Colors.green;
   static const Color warning = Colors.orange;
   static const Color danger = Colors.red;

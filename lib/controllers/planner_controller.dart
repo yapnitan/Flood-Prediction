@@ -13,7 +13,6 @@ class PlannerController {
 
   String? get _accountId => Supabase.instance.client.auth.currentUser?.id;
 
-  // ---- Checklists ----
 
   Future<List<EmergencyChecklist>> getChecklists() async {
     final accountId = _accountId;
@@ -39,7 +38,6 @@ class PlannerController {
     return plannerService.deleteChecklist(id, accountId);
   }
 
-  // ---- Checklist items ----
 
   Future<List<ChecklistItem>> getItems(String checklistId) => plannerService.getItems(checklistId);
 
@@ -53,8 +51,6 @@ class PlannerController {
 
   Future<bool> deleteItem(String id, String checklistId) => plannerService.deleteItem(id, checklistId);
 
-  /// Preparation progress across every checklist this account owns —
-  /// checked items / total items, 0 when there are none yet.
   Future<double> getPreparationProgress() async {
     final accountId = _accountId;
     if (accountId == null) return 0;
@@ -63,8 +59,6 @@ class PlannerController {
     final checked = items.where((i) => i.isChecked).length;
     return checked / items.length;
   }
-
-  // ---- Inventory ----
 
   Future<List<InventoryItem>> getInventory() async {
     final accountId = _accountId;
@@ -99,7 +93,6 @@ class PlannerController {
     return plannerService.deleteInventoryItem(id, accountId);
   }
 
-  // ---- Emergency contacts ----
 
   Future<List<EmergencyContact>> getContacts() async {
     final accountId = _accountId;

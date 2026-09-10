@@ -1,6 +1,4 @@
-/// A well-known point of interest offered as a quick-pick suggestion on
-/// location-picking steps (flood reports, repair requests), alongside
-/// "Use current location" and free-text search.
+
 class ReportLocation {
   final String name;
   final double latitude;

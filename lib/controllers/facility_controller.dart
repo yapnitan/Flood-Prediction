@@ -7,7 +7,6 @@ class FacilityController {
 
   FacilityController(this.facilityService);
 
-  /// For Admin, full list to manage active and inactive
   Future<List<Facility>> getAllFacilities() {
     return facilityService.getAllFacilities();
   }

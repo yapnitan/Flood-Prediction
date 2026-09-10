@@ -41,7 +41,6 @@ class EnvironmentController {
     );
   }
 
-  /// Live river-flood forecast (GloFAS discharge) for the coordinate.
   Future<RiverFloodData?> getRiverFlood({
     required double latitude,
     required double longitude,
@@ -52,7 +51,6 @@ class EnvironmentController {
     );
   }
 
-  /// Nearest JPS/DID InfoBanjir rain gauge with a fresh reading, or null.
   Future<InfoBanjirStation?> getNearestRainfallStation({
     required double latitude,
     required double longitude,
@@ -63,8 +61,6 @@ class EnvironmentController {
     );
   }
 
-  /// Nearest JPS/DID InfoBanjir river gauge with a fresh water-level
-  /// reading, or null.
   Future<InfoBanjirStation?> getNearestRiverLevelStation({
     required double latitude,
     required double longitude,
@@ -75,8 +71,6 @@ class EnvironmentController {
     );
   }
 
-  /// Terrain and weather for the same coordinate, fetched together since
-  /// the risk simulator needs both to assess a selected property.
   Future<({TerrainData? terrain, WeatherData? weather})> getEnvironmentalData({
     required double latitude,
     required double longitude,
