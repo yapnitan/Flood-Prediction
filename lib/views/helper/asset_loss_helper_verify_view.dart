@@ -43,8 +43,9 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
   final List<XFile> _photos = [];
   bool _isSubmitting = false;
 
-  String get _status =>
-      widget.data['status'] as String? ?? 'pending_review';
+  static const _maxPhotos = 3;
+
+  String get _status => widget.data['status'] as String? ?? 'pending_review';
 
   /// A helper may only verify a report that is still pending review and has
   /// not been verified by anyone yet — matches migration 0036/0038's RLS.
@@ -61,7 +62,9 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
       text: '${widget.data['quantity']}',
     );
     _valueController = TextEditingController(
-      text: formatAmount((widget.data['estimated_value_per_item'] as num?) ?? 0),
+      text: formatAmount(
+        (widget.data['estimated_value_per_item'] as num?) ?? 0,
+      ),
     );
     _condition = widget.data['condition'] as String?;
   }
@@ -75,10 +78,28 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
   }
 
   Future<void> _pickPhotos(ImageSource source) async {
+    final remaining = _maxPhotos - _photos.length;
+    if (remaining <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('You can attach at most $_maxPhotos photos.')),
+      );
+      return;
+    }
+
     if (source == ImageSource.gallery) {
       final selected = await _imagePicker.pickMultiImage(imageQuality: 85);
       if (!mounted || selected.isEmpty) return;
-      setState(() => _photos.addAll(selected));
+      final toAdd = selected.take(remaining).toList();
+      setState(() => _photos.addAll(toAdd));
+      if (toAdd.length < selected.length) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Only added ${toAdd.length} photo(s) — the limit is $_maxPhotos photos.',
+            ),
+          ),
+        );
+      }
       return;
     }
     final photo = await _imagePicker.pickImage(
@@ -90,6 +111,12 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
   }
 
   void _showPhotoSourcePicker() {
+    if (_photos.length >= _maxPhotos) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('You can attach at most $_maxPhotos photos.')),
+      );
+      return;
+    }
     showModalBottomSheet<void>(
       context: context,
       builder: (context) => SafeArea(
@@ -317,8 +344,8 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
                         const SizedBox(height: 8),
                         ReviewCard(
                           title: 'Result',
-                          value: verificationResultLabels[
-                                  data['verification_result']] ??
+                          value:
+                              verificationResultLabels[data['verification_result']] ??
                               '${data['verification_result']}',
                         ),
                         if (data['verified_quantity'] != null)
@@ -336,8 +363,8 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
                         if (data['verified_condition'] != null)
                           ReviewCard(
                             title: 'Observed condition',
-                            value: assetConditionLabels[
-                                    data['verified_condition']] ??
+                            value:
+                                assetConditionLabels[data['verified_condition']] ??
                                 '${data['verified_condition']}',
                           ),
                         if ((data['verification_notes'] as String?)
@@ -449,6 +476,14 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
                           minimumSize: const Size.fromHeight(48),
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Up to $_maxPhotos photos.',
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
+                      ),
                       if (_photos.isNotEmpty) ...[
                         const SizedBox(height: 12),
                         GridView.builder(
@@ -556,10 +591,8 @@ class _EvidencePhotoGrid extends StatelessWidget {
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   fullscreenDialog: true,
-                  builder: (_) => PhotoGalleryViewer(
-                    urls: urls,
-                    initialIndex: index,
-                  ),
+                  builder: (_) =>
+                      PhotoGalleryViewer(urls: urls, initialIndex: index),
                 ),
               ),
               child: Image.network(

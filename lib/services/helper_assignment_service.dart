@@ -5,7 +5,7 @@ import '../models/helper_district_assignment.dart';
 
 class HelperAssignmentService {
   HelperAssignmentService({SupabaseClient? client})
-      : _supabase = client ?? Supabase.instance.client;
+    : _supabase = client ?? Supabase.instance.client;
 
   static const _table = 'helper_district_assignment';
 
@@ -21,14 +21,18 @@ class HelperAssignmentService {
     return List<Map<String, dynamic>>.from(data);
   }
 
-  Future<List<HelperDistrictAssignment>> getMyAssignments(String helperId) async {
+  Future<List<HelperDistrictAssignment>> getMyAssignments(
+    String helperId,
+  ) async {
     final data = await _supabase
         .from(_table)
         .select()
         .eq('helper_id', helperId)
         .eq('status', 'active')
         .order('assigned_at', ascending: false);
-    return (data as List).map((e) => HelperDistrictAssignment.fromJson(e)).toList();
+    return (data as List)
+        .map((e) => HelperDistrictAssignment.fromJson(e))
+        .toList();
   }
 
   /// Returns a user-facing error message on failure, or null on success.
@@ -57,7 +61,10 @@ class HelperAssignmentService {
     try {
       await _supabase
           .from(_table)
-          .update({'status': status, 'updated_at': DateTime.now().toIso8601String()})
+          .update({
+            'status': status,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
           .eq('id', id);
       return null;
     } on PostgrestException catch (e) {
@@ -72,22 +79,43 @@ class HelperAssignmentService {
     }
   }
 
-  /// Deactivates [existingAssignmentId] (if any) and assigns [helperId] to a
-  /// new place in one call — the admin-facing "change place" action (a
-  /// helper may only have one active place).
+  /// The admin-facing "change place" action: updates the helper's existing
+  /// assignment row in place (state + district), rather than deactivating it
+  /// and inserting a new one — so a helper keeps exactly one row and no
+  /// stale inactive history piles up. Falls back to a fresh insert only if
+  /// there's no existing row to update.
   Future<String?> reassign({
     required String? existingAssignmentId,
     required String helperId,
     required String state,
     required String district,
   }) async {
-    if (existingAssignmentId != null) {
-      await setStatus(existingAssignmentId, 'inactive');
+    if (existingAssignmentId == null) {
+      return assign(
+        HelperDistrictAssignment(
+          helperId: helperId,
+          state: state,
+          district: district,
+        ),
+      );
     }
-    return assign(HelperDistrictAssignment(
-      helperId: helperId,
-      state: state,
-      district: district,
-    ));
+    try {
+      await _supabase
+          .from(_table)
+          .update({
+            'state': state,
+            'district': district,
+            'status': 'active',
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', existingAssignmentId);
+      return null;
+    } on PostgrestException catch (e) {
+      debugPrint('HelperAssignmentService.reassign error: $e');
+      return 'Could not change the place. Please try again.';
+    } catch (error) {
+      debugPrint('HelperAssignmentService.reassign error: $error');
+      return 'Could not change the place. Please try again.';
+    }
   }
 }
