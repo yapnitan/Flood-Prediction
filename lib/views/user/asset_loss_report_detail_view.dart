@@ -3,6 +3,7 @@ import '../../constants/asset_categories.dart';
 import '../../controllers/asset_loss_report_controller.dart';
 import '../../models/asset_loss_report.dart';
 import '../../services/asset_loss_report_service.dart';
+import '../../utils/currency_input.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/network_photo_thumbnail.dart';
 import '../../widgets/review_card.dart';
@@ -72,11 +73,11 @@ class _AssetLossReportDetailViewState extends State<AssetLossReportDetailView> {
                       ReviewCard(title: 'Quantity', value: '${report.quantity}'),
                       ReviewCard(
                         title: 'Estimated value per item',
-                        value: 'RM ${report.estimatedValuePerItem.toStringAsFixed(2)}',
+                        value: formatRinggit(report.estimatedValuePerItem),
                       ),
                       ReviewCard(
                         title: 'Potential Asset Loss',
-                        value: 'RM ${(report.estimatedTotalLoss ?? 0).toStringAsFixed(2)}',
+                        value: formatRinggit(report.estimatedTotalLoss ?? 0),
                       ),
                       if (report.description != null && report.description!.isNotEmpty)
                         ReviewCard(title: 'Description', value: report.description!),
@@ -97,7 +98,7 @@ class _AssetLossReportDetailViewState extends State<AssetLossReportDetailView> {
                         if (report.verifiedTotalLoss != null)
                           ReviewCard(
                             title: 'Verified loss',
-                            value: 'RM ${report.verifiedTotalLoss!.toStringAsFixed(2)}',
+                            value: formatRinggit(report.verifiedTotalLoss!),
                           ),
                         if (report.verificationNotes != null && report.verificationNotes!.isNotEmpty)
                           ReviewCard(title: 'Notes', value: report.verificationNotes!),
@@ -108,7 +109,7 @@ class _AssetLossReportDetailViewState extends State<AssetLossReportDetailView> {
                         const SizedBox(height: 12),
                         ReviewCard(
                           title: 'Approved loss',
-                          value: 'RM ${report.approvedTotalLoss!.toStringAsFixed(2)}',
+                          value: formatRinggit(report.approvedTotalLoss!),
                         ),
                       ],
                     ],

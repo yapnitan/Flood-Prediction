@@ -54,8 +54,11 @@ class _PasswordFieldState extends State<PasswordField> {
         errorMaxLines: 2,
         prefixIcon: Icon(widget.prefixIcon, color: Colors.blue),
         suffixIcon: IconButton(
-          icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+          // Icon reflects the current state: crossed-out eye while the
+          // password is hidden, open eye while it's visible.
+          icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
           color: Colors.grey,
+          tooltip: _obscure ? 'Show password' : 'Hide password',
           onPressed: () => setState(() => _obscure = !_obscure),
         ),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),

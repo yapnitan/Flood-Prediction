@@ -109,7 +109,9 @@ class FloodReportService {
   ) async {
     try {
       final newPaths = newPhotos.isEmpty ? <String>[] : await _uploadPhotos(newPhotos);
-      await _supabase.from(_table).update({
+      // `.select()` so we can tell an RLS no-op (0 rows) from a real update —
+      // without it the call succeeds silently even when nothing changed.
+      final rows = await _supabase.from(_table).update({
         'location_name': report.locationName,
         'latitude': report.latitude,
         'longitude': report.longitude,
@@ -121,7 +123,15 @@ class FloodReportService {
         'description': report.description,
         'contact_number': report.contactNumber,
         'photo_paths': [...existingPhotoPaths, ...newPaths],
-      }).eq('id', id);
+      }).eq('id', id).select();
+      if ((rows as List).isEmpty) {
+        debugPrint(
+          'FloodReportService.updateReport: 0 rows updated for $id — the RLS '
+          'update policy is missing (apply migration 0018) or the report is '
+          'no longer "submitted".',
+        );
+        return false;
+      }
       return true;
     } catch (error) {
       debugPrint('FloodReportService.updateReport error: $error');
@@ -131,7 +141,14 @@ class FloodReportService {
 
   Future<bool> deleteReport(String id) async {
     try {
-      await _supabase.from(_table).delete().eq('id', id);
+      final rows = await _supabase.from(_table).delete().eq('id', id).select();
+      if ((rows as List).isEmpty) {
+        debugPrint(
+          'FloodReportService.deleteReport: 0 rows deleted for $id — RLS '
+          'delete policy missing (migration 0018) or report not "submitted".',
+        );
+        return false;
+      }
       return true;
     } catch (error) {
       debugPrint('FloodReportService.deleteReport error: $error');
@@ -144,10 +161,18 @@ class FloodReportService {
   /// requests); an unverified report simply stays 'submitted'.
   Future<bool> setVerified(String id, bool verified) async {
     try {
-      await _supabase
+      final rows = await _supabase
           .from(_table)
           .update({'status': verified ? 'verified' : 'submitted'})
-          .eq('id', id);
+          .eq('id', id)
+          .select();
+      if ((rows as List).isEmpty) {
+        debugPrint(
+          'FloodReportService.setVerified: 0 rows for $id — the admin update '
+          'policy is missing (apply migration 0018).',
+        );
+        return false;
+      }
       return true;
     } catch (error) {
       debugPrint('FloodReportService.setVerified error: $error');

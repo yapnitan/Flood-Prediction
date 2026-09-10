@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../constants/asset_categories.dart';
 import '../../controllers/asset_loss_report_controller.dart';
 import '../../services/asset_loss_report_service.dart';
+import '../../utils/currency_input.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/adaptive_search_filter_header.dart';
 import '../../widgets/empty_state.dart';
@@ -447,7 +448,7 @@ class _ReportSummaryCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Potential loss: RM ${estimatedTotal.toStringAsFixed(2)}',
+              'Potential loss: ${formatRinggit(estimatedTotal)}',
               style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 color: Colors.blue,

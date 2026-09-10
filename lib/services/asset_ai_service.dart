@@ -7,15 +7,15 @@ import 'package:image_picker/image_picker.dart';
 
 import '../constants/asset_categories.dart';
 
-/// Claude's best-effort read of an asset-loss evidence photo. Every field is
-/// a suggestion the resident can override on the form.
+/// Gemini's best-effort read of an asset-loss evidence photo. Every field is
+/// a suggestion the resident can override on the form. The loss amount is
+/// deliberately NOT estimated here — the resident always enters that.
 class AssetAiSuggestion {
   const AssetAiSuggestion({
     this.category,
     this.assetName,
     this.condition,
     this.quantity,
-    this.estimatedValuePerItem,
     this.description,
     this.note,
   });
@@ -27,7 +27,6 @@ class AssetAiSuggestion {
   /// back from whatever label the model returned.
   final String? condition;
   final int? quantity;
-  final double? estimatedValuePerItem;
   final String? description;
 
   /// Model's note about anything uncertain — shown to the user, not stored.
@@ -35,30 +34,32 @@ class AssetAiSuggestion {
 }
 
 /// Vision-assisted prefill for the "Report Asset Loss" wizard. Sends the
-/// evidence photo to Claude (Anthropic Messages API over raw HTTP — there is
-/// no official Dart SDK) and asks it to identify the item, judge its
-/// flood-damage condition, and estimate a replacement value in RM.
+/// evidence photo to Google's Gemini API (`generateContent` over raw HTTP —
+/// there is no official Dart SDK) and asks it to identify the item, count how
+/// many are shown, judge the flood-damage condition, and describe it. The
+/// resident then enters the loss amount and can edit every AI-filled field.
 ///
-/// The API key lives in `.env` as `ANTHROPIC_API_KEY` (gitignored). It ships
-/// in the app binary — acceptable for this coursework build; a production
-/// app would proxy the call through a server so the key stays secret.
+/// The API key lives in `.env` as `GEMINI_API_KEY` (gitignored). Get one for
+/// free at https://aistudio.google.com/apikey. It ships in the app binary —
+/// acceptable for this coursework build; a production app would proxy the
+/// call through a server so the key stays secret.
 class AssetAiService {
   AssetAiService({http.Client? client}) : _http = client ?? http.Client();
 
   final http.Client _http;
 
-  static const _endpoint = 'https://api.anthropic.com/v1/messages';
+  /// Vision-capable and cheap; swap to `gemini-3.6-pro` for a harder read.
+  /// (Older 2.x models are no longer offered to new API keys.)
+  static const _model = 'gemini-3.6-flash';
 
-  /// Swap to `claude-sonnet-5` or `claude-haiku-4-5` to cut cost several-fold
-  /// — identifying an item and estimating its value from a photo runs fine
-  /// on the smaller models.
-  static const _model = 'claude-opus-5';
+  static const _endpoint =
+      'https://generativelanguage.googleapis.com/v1beta/models/$_model:generateContent';
 
   static const _maxPhotos = 3;
 
   String? get _apiKey {
     try {
-      final key = dotenv.maybeGet('ANTHROPIC_API_KEY')?.trim();
+      final key = dotenv.maybeGet('GEMINI_API_KEY')?.trim();
       return (key == null || key.isEmpty) ? null : key;
     } catch (_) {
       // dotenv not initialised (e.g. widget tests) — treat as unconfigured.
@@ -76,41 +77,35 @@ class AssetAiService {
     if (key == null || photos.isEmpty) return null;
 
     try {
-      final imageBlocks = <Map<String, dynamic>>[];
+      final parts = <Map<String, dynamic>>[];
       for (final photo in photos.take(_maxPhotos)) {
         final bytes = await photo.readAsBytes();
-        imageBlocks.add({
-          'type': 'image',
-          'source': {
-            'type': 'base64',
-            'media_type': _mediaType(photo),
+        parts.add({
+          'inline_data': {
+            'mime_type': _mediaType(photo),
             'data': base64Encode(bytes),
           },
         });
       }
+      parts.add({
+        'text': 'Identify this flood-damaged item and fill in the '
+            'asset-loss report. Do not estimate a monetary value.',
+      });
 
       final requestBody = jsonEncode({
-        'model': _model,
-        'max_tokens': 1024,
-        // Forced tool use requires thinking off (and guarantees a structured
-        // tool_use block back, which is all this call reads).
-        'thinking': {'type': 'disabled'},
-        'tools': [_tool],
-        'tool_choice': {'type': 'tool', 'name': 'report_asset_loss'},
-        'system': _systemPrompt,
-        'messages': [
-          {
-            'role': 'user',
-            'content': [
-              ...imageBlocks,
-              {
-                'type': 'text',
-                'text': 'Identify this flood-damaged item and fill in the '
-                    'asset-loss report.',
-              },
-            ],
-          },
+        'system_instruction': {
+          'parts': [
+            {'text': _systemPrompt},
+          ],
+        },
+        'contents': [
+          {'role': 'user', 'parts': parts},
         ],
+        'generationConfig': {
+          'temperature': 0.2,
+          'responseMimeType': 'application/json',
+          'responseSchema': _responseSchema,
+        },
       });
 
       final response = await _http
@@ -118,8 +113,7 @@ class AssetAiService {
             Uri.parse(_endpoint),
             headers: {
               'content-type': 'application/json',
-              'x-api-key': key,
-              'anthropic-version': '2023-06-01',
+              'x-goog-api-key': key,
             },
             body: requestBody,
           )
@@ -131,17 +125,28 @@ class AssetAiService {
       }
 
       final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-      final content = decoded['content'] as List<dynamic>? ?? const [];
-      Map<String, dynamic>? toolInput;
-      for (final block in content) {
-        if (block is Map<String, dynamic> && block['type'] == 'tool_use') {
-          toolInput = block['input'] as Map<String, dynamic>?;
-          break;
-        }
+      final candidates = decoded['candidates'] as List<dynamic>? ?? const [];
+      if (candidates.isEmpty) {
+        debugPrint('AssetAiService: no candidates — ${response.body}');
+        return null;
       }
-      if (toolInput == null) return null;
 
-      return _parse(toolInput);
+      final content = (candidates.first as Map<String, dynamic>)['content']
+          as Map<String, dynamic>?;
+      final contentParts = content?['parts'] as List<dynamic>? ?? const [];
+      final text = contentParts
+          .whereType<Map<String, dynamic>>()
+          // Skip the model's internal "thought" parts — only the answer text.
+          .where((p) => p['thought'] != true)
+          .map((p) => p['text'] as String?)
+          .whereType<String>()
+          .join()
+          .trim();
+      if (text.isEmpty) return null;
+
+      final parsed = jsonDecode(text);
+      if (parsed is! Map<String, dynamic>) return null;
+      return _parse(parsed);
     } catch (error) {
       debugPrint('AssetAiService.analysePhotos error: $error');
       return null;
@@ -150,7 +155,6 @@ class AssetAiService {
 
   AssetAiSuggestion _parse(Map<String, dynamic> input) {
     final rawQty = input['quantity'];
-    final rawValue = input['estimated_value_per_item'];
     final note = (input['confidence_note'] as String?)?.trim();
 
     return AssetAiSuggestion(
@@ -158,8 +162,6 @@ class AssetAiService {
       assetName: (input['asset_name'] as String?)?.trim(),
       condition: _matchCondition(input['condition'] as String?),
       quantity: rawQty is num ? rawQty.toInt() : int.tryParse('$rawQty'),
-      estimatedValuePerItem:
-          rawValue is num ? rawValue.toDouble() : double.tryParse('$rawValue'),
       description: (input['description'] as String?)?.trim(),
       note: (note == null || note.isEmpty) ? null : note,
     );
@@ -189,74 +191,68 @@ class AssetAiService {
     final name = photo.name.toLowerCase();
     if (name.endsWith('.png')) return 'image/png';
     if (name.endsWith('.webp')) return 'image/webp';
-    if (name.endsWith('.gif')) return 'image/gif';
+    if (name.endsWith('.heic')) return 'image/heic';
     return 'image/jpeg';
   }
 
-  static final Map<String, dynamic> _tool = {
-    'name': 'report_asset_loss',
-    'description': 'Record the household asset shown in the flood-damage '
-        'photo(s), with a best-effort replacement-value estimate in '
-        'Malaysian Ringgit.',
-    'input_schema': {
-      'type': 'object',
-      'additionalProperties': false,
-      'properties': {
-        'asset_category': {
-          'type': 'string',
-          'enum': assetCategories,
-          'description': 'The closest category for this item.',
-        },
-        'asset_name': {
-          'type': 'string',
-          'description': 'Short name of the item, e.g. "Refrigerator", "Sofa".',
-        },
-        'condition': {
-          'type': 'string',
-          'enum': [...assetConditionLabels.values],
-          'description': 'Flood-damage severity visible in the photo.',
-        },
-        'quantity': {
-          'type': 'integer',
-          'minimum': 1,
-          'description': 'How many of this item are visibly damaged '
-              '(default 1 if only one is shown).',
-        },
-        'estimated_value_per_item': {
-          'type': 'number',
-          'minimum': 0,
-          'description': 'Approximate cost in RM to replace ONE unit with an '
-              'equivalent new item bought in Malaysia.',
-        },
-        'description': {
-          'type': 'string',
-          'description': 'One or two sentences describing the item and the '
-              'damage seen in the photo.',
-        },
-        'confidence_note': {
-          'type': 'string',
-          'description': 'Short note on anything uncertain (blurry photo, '
-              'value is a rough guess, etc.). Empty string if confident.',
-        },
+  /// Gemini structured-output schema (a subset of OpenAPI 3.0). No monetary
+  /// value field — the resident enters the loss amount themselves.
+  static final Map<String, dynamic> _responseSchema = {
+    'type': 'object',
+    'properties': {
+      'asset_category': {
+        'type': 'string',
+        'enum': assetCategories,
+        'description': 'The closest category for this item.',
       },
-      'required': [
-        'asset_category',
-        'asset_name',
-        'condition',
-        'quantity',
-        'estimated_value_per_item',
-        'description',
-      ],
+      'asset_name': {
+        'type': 'string',
+        'description': 'Short name of the item, e.g. "Refrigerator", "Sofa".',
+      },
+      'condition': {
+        'type': 'string',
+        'enum': [...assetConditionLabels.values],
+        'description': 'Flood-damage severity visible in the photo.',
+      },
+      'quantity': {
+        'type': 'integer',
+        'description': 'How many of this item are visibly damaged '
+            '(1 if only one is shown).',
+      },
+      'description': {
+        'type': 'string',
+        'description': 'One or two sentences describing the item and the '
+            'damage seen in the photo.',
+      },
+      'confidence_note': {
+        'type': 'string',
+        'description': 'Short note on anything uncertain (blurry photo, '
+            'unsure of the item, etc.). Empty string if confident.',
+      },
     },
+    'required': [
+      'asset_category',
+      'asset_name',
+      'condition',
+      'quantity',
+      'description',
+    ],
+    'propertyOrdering': [
+      'asset_category',
+      'asset_name',
+      'condition',
+      'quantity',
+      'description',
+      'confidence_note',
+    ],
   };
 
   static const _systemPrompt =
       'You help Malaysian flood victims file asset-loss claims. From the '
       'evidence photo(s) of a flood-damaged household item, identify the '
-      'item, judge how badly the flood damaged it, and estimate a fair '
-      'replacement cost in Malaysian Ringgit (RM) for a new equivalent '
-      'bought locally. Base every field on what the photo shows plus general '
-      'knowledge of Malaysian retail prices. If the photo is unclear, still '
-      'give your best estimate and say so in confidence_note. Always call the '
-      'report_asset_loss tool.';
+      'item, count how many damaged units are shown, and judge how badly the '
+      'flood damaged it. Base every field on what the photo shows. Do NOT '
+      'estimate any monetary value — the resident enters that. If the photo '
+      'is unclear, still give your best guess and say so in confidence_note. '
+      'Respond only with the JSON object described by the schema.';
 }

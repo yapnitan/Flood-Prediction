@@ -13,6 +13,7 @@ class Property {
     this.floors,
     this.estimatedValue,
     this.riskLevel,
+    this.archivedAt,
     this.createdAt,
   });
 
@@ -33,6 +34,11 @@ class Property {
   final int? floors;
   final double? estimatedValue;
   final String? riskLevel;
+
+  /// Set when the user "deleted" this address but it's still referenced by
+  /// asset-loss reports — the row is kept, just hidden from their list.
+  final DateTime? archivedAt;
+  bool get isArchived => archivedAt != null;
   final DateTime? createdAt;
 
   factory Property.fromJson(Map<String, dynamic> json) => Property(
@@ -49,6 +55,8 @@ class Property {
     floors: json['floors'] as int?,
     estimatedValue: (json['estimated_value'] as num?)?.toDouble(),
     riskLevel: json['risk_level'] as String?,
+    archivedAt: json['archived_at'] != null
+        ? DateTime.parse(json['archived_at'] as String) : null,
     createdAt: json['created_at'] != null
         ? DateTime.parse(json['created_at'] as String) : null,
   );

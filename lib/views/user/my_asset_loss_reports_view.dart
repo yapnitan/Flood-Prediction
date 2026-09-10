@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/asset_loss_report_controller.dart';
 import '../../models/asset_loss_report.dart';
 import '../../services/asset_loss_report_service.dart';
+import '../../utils/currency_input.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/status_badge.dart';
@@ -126,13 +127,13 @@ class _ReportCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Potential loss: RM ${(report.estimatedTotalLoss ?? 0).toStringAsFixed(2)}',
+              'Potential loss: ${formatRinggit(report.estimatedTotalLoss ?? 0)}',
               style: const TextStyle(color: Colors.grey, fontSize: 13),
             ),
             if (report.isVerified && report.approvedTotalLoss != null) ...[
               const SizedBox(height: 4),
               Text(
-                'Approved: RM ${report.approvedTotalLoss!.toStringAsFixed(2)}',
+                'Approved: ${formatRinggit(report.approvedTotalLoss!)}',
                 style: const TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.w600),
               ),
             ],

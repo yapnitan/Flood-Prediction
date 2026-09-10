@@ -6,10 +6,14 @@ import '../../models/historical_flood.dart';
 import '../../models/river_flood_data.dart';
 import '../../models/simulation_factor.dart';
 import '../../controllers/historical_flood_controller.dart';
+import '../../controllers/environment_controller.dart';
+import '../../controllers/risk_assessment_controller.dart';
 import '../../services/flood_report_service.dart';
 import '../../services/flood_simulation_service.dart';
 import '../../services/historical_flood_service.dart';
 import '../../services/risk_assessment_service.dart';
+import '../../services/terrain_service.dart';
+import '../../services/weather_service.dart';
 import '../../routes/app_routes.dart';
 import '../../routes/route_arguments.dart';
 import '../../utils/responsive.dart';
@@ -38,13 +42,28 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
   final _floodSimulationService = FloodSimulationService();
   final _historicalFloodController = HistoricalFloodController(HistoricalFloodService());
   final _floodReportService = FloodReportService();
-  final _riskAssessmentService = RiskAssessmentService();
+  final _riskController = RiskAssessmentController(
+    HistoricalFloodController(HistoricalFloodService()),
+    EnvironmentController(TerrainService(), WeatherService()),
+    RiskAssessmentService(),
+    FloodSimulationService(),
+  );
 
+  /// The simulation being shown. Starts as [widget.simulation]; replaced
+  /// with the re-scored result whenever the risk is recomputed against
+  /// current data (on open and on pull-to-refresh).
+  late FloodSimulation _sim;
   List<SimulationFactor> _factors = [];
+  List<String> _recommendations = const [];
   List<HistoricalFlood> _nearbyFloods = [];
   List<FloodReport> _recentReports = [];
   Map<int, int> _floodsPerYear = {};
   bool _isLoading = true;
+
+  /// When the last successful re-score happened, and whether the most
+  /// recent attempt failed — drives the small status line under the score.
+  DateTime? _refreshedAt;
+  bool _refreshFailed = false;
 
   /// "Simulate preventive improvements" — starts from the simulation's
   /// actual saved protections, but toggling here only recomputes a local
@@ -56,47 +75,80 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
   @override
   void initState() {
     super.initState();
+    _sim = widget.simulation;
+    _recommendations = widget.recommendations ?? const [];
     _load();
   }
 
   Future<void> _load() async {
-    final sim = widget.simulation;
+    if (widget.factors != null) {
+      // Opened straight from running an assessment — inputs are already
+      // fresh, no need to re-score.
+      _factors = widget.factors!;
+    } else {
+      await _refreshScore();
+    }
+    await _loadContext();
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+  }
 
-    final factorsFuture = widget.factors != null
-        ? Future.value(widget.factors!)
-        : (sim.id != null
-            ? _floodSimulationService.getFactors(sim.id!)
-            : Future.value(<SimulationFactor>[]));
+  /// Re-runs the assessment against current data and persists the new
+  /// score. On failure or when offline, the stored score is kept and the
+  /// factor breakdown is loaded from Supabase instead.
+  Future<void> _refreshScore() async {
+    final outcome = await _riskController.refreshSimulation(_sim);
+    if (!mounted) return;
 
-    final nearbyFuture = _historicalFloodController.getNearby(
-      latitude: sim.latitude,
-      longitude: sim.longitude,
-      radiusKm: 20,
-    );
+    final refreshed = outcome.simulation;
+    if (outcome.error == null && !outcome.offline && refreshed != null) {
+      setState(() {
+        _sim = refreshed;
+        _factors = outcome.factors;
+        _recommendations = outcome.recommendations;
+        _refreshedAt = DateTime.now();
+        _refreshFailed = false;
+      });
+      return;
+    }
 
-    final districtFuture = _historicalFloodController.search(
-      state: sim.state,
-      district: sim.district,
-      pageSize: 200,
-    );
+    final storedFactors = _sim.id != null
+        ? await _floodSimulationService.getFactors(_sim.id!)
+        : <SimulationFactor>[];
+    if (!mounted) return;
+    setState(() {
+      if (_factors.isEmpty) _factors = storedFactors;
+      _refreshFailed = !outcome.offline;
+    });
+  }
 
-    // Same window the score counted them over (see RiskAssessmentController).
-    final recentReportsFuture = _floodReportService.getNearby(
-      latitude: sim.latitude,
-      longitude: sim.longitude,
-      radiusKm: 10,
-      maxAge: const Duration(days: 7),
-    );
-
+  /// Loads the supporting context shown below the score — nearby historical
+  /// floods, the district trend, and recent community reports. Uses the
+  /// same 10km / 7-day window the score counts reports over (see
+  /// [RiskAssessmentController]).
+  Future<void> _loadContext() async {
+    final sim = _sim;
     final results = await Future.wait([
-      factorsFuture,
-      nearbyFuture,
-      districtFuture,
-      recentReportsFuture,
+      _historicalFloodController.getNearby(
+        latitude: sim.latitude,
+        longitude: sim.longitude,
+        radiusKm: 20,
+      ),
+      _historicalFloodController.search(
+        state: sim.state,
+        district: sim.district,
+        pageSize: 200,
+      ),
+      _floodReportService.getNearby(
+        latitude: sim.latitude,
+        longitude: sim.longitude,
+        radiusKm: 10,
+        maxAge: const Duration(days: 7),
+      ),
     ]);
     if (!mounted) return;
 
-    final districtFloods = results[2] as List<HistoricalFlood>;
+    final districtFloods = results[1] as List<HistoricalFlood>;
     final perYear = <int, int>{};
     for (final flood in districtFloods) {
       final year = flood.floodDate.year;
@@ -104,32 +156,36 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
     }
 
     setState(() {
-      _factors = results[0] as List<SimulationFactor>;
-      _nearbyFloods = results[1] as List<HistoricalFlood>;
-      _recentReports = results[3] as List<FloodReport>;
+      _nearbyFloods = results[0] as List<HistoricalFlood>;
+      _recentReports = results[2] as List<FloodReport>;
       _floodsPerYear = perYear;
-      _isLoading = false;
     });
   }
 
-  /// Recomputed purely client-side from the toggle state — the property's
-  /// elevation/history/structure stay fixed at what was saved, only the
-  /// mitigation flags vary, so this is a real "what if I added barriers"
-  /// preview, not a re-run of the full assessment pipeline.
-  RiskAssessmentResult get _previewResult {
-    final sim = widget.simulation;
-    return _riskAssessmentService.assess(
-      RiskAssessmentInput(
-        nearbyFloodCount: sim.nearbyFloodCount,
-        recentNearbyReportCount: sim.recentReportCount,
-        riverFloodLevel: sim.riverFloodLevel,
-        propertyElevationMeters: sim.userElevationMeters ?? sim.terrainElevationMeters,
-        baselineElevationMeters: sim.baselineElevationMeters,
-        structureType: sim.structureType,
-        hasFloodBarriers: _previewBarriers,
-        hasRaisedFoundation: _previewFoundation,
-      ),
-    );
+  Future<void> _pullToRefresh() async {
+    await _refreshScore();
+    await _loadContext();
+  }
+
+  /// "What if I added barriers / a raised foundation?" — every other factor
+  /// is fixed at what was scored, so start from the saved factor breakdown's
+  /// hazard subtotal and re-apply just the two mitigation deltas. No re-run
+  /// of the assessment pipeline (and no dependency on every raw input).
+  static const _mitigationFactorNames = {'Flood barriers', 'Raised foundation'};
+
+  ({double score, String level}) get _previewResult {
+    if (_factors.isEmpty) {
+      return (score: _sim.riskScore, level: _sim.riskLevel);
+    }
+    final hazardSubtotal = _factors
+        .where((f) => !_mitigationFactorNames.contains(f.factorName))
+        .fold<double>(0, (sum, f) => sum + f.scoreContribution);
+    final raw = hazardSubtotal +
+        (_previewBarriers ? -10 : 0) +
+        (_previewFoundation ? -10 : 0);
+    final score = raw.clamp(0, 100).toDouble();
+    final level = score >= 67 ? 'High' : (score >= 34 ? 'Medium' : 'Low');
+    return (score: score, level: level);
   }
 
   Color _levelColor(String level) {
@@ -145,7 +201,7 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
 
   @override
   Widget build(BuildContext context) {
-    final sim = widget.simulation;
+    final sim = _sim;
     final levelColor = _levelColor(sim.riskLevel);
 
     return Scaffold(
@@ -167,7 +223,10 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
-              child: SingleChildScrollView(
+              child: RefreshIndicator(
+                onRefresh: _pullToRefresh,
+                child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: EdgeInsets.all(
                   context.responsive(mobile: 20, tablet: 32, desktop: 40),
                 ),
@@ -183,6 +242,10 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
                           score: sim.riskScore,
                           level: sim.riskLevel,
                           color: levelColor,
+                        ),
+                        _RefreshStatus(
+                          refreshedAt: _refreshedAt,
+                          failed: _refreshFailed,
                         ),
                         const SizedBox(height: 16),
 
@@ -210,7 +273,7 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
                             sim.riverFloodLevel.description != null) ...[
                           const SizedBox(height: 12),
                           _SectionCard(
-                            title: 'Live conditions at assessment time',
+                            title: 'Live conditions',
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -303,14 +366,13 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
                           ),
                         ],
 
-                        if (widget.recommendations != null &&
-                            widget.recommendations!.isNotEmpty) ...[
+                        if (_recommendations.isNotEmpty) ...[
                           const SizedBox(height: 12),
                           _SectionCard(
                             title: 'Risk reduction recommendations',
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: widget.recommendations!
+                              children: _recommendations
                                   .map(
                                     (r) => Padding(
                                       padding: const EdgeInsets.only(
@@ -341,8 +403,48 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
                     ),
                   ),
                 ),
+                ),
               ),
             ),
+    );
+  }
+}
+
+/// Small line under the score card explaining how current the score is.
+class _RefreshStatus extends StatelessWidget {
+  const _RefreshStatus({required this.refreshedAt, required this.failed});
+
+  final DateTime? refreshedAt;
+  final bool failed;
+
+  @override
+  Widget build(BuildContext context) {
+    String text;
+    IconData icon;
+    Color color;
+    if (failed) {
+      text = "Couldn't update — showing the last saved score. Pull down to retry.";
+      icon = Icons.sync_problem_outlined;
+      color = Colors.orange[800]!;
+    } else if (refreshedAt != null) {
+      text = 'Updated with the latest flood data just now';
+      icon = Icons.sync_outlined;
+      color = Colors.grey[600]!;
+    } else {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(text, style: TextStyle(fontSize: 11, color: color)),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -444,7 +546,7 @@ class _PreventiveImprovementsCard extends StatelessWidget {
   final bool hasRaisedFoundation;
   final ValueChanged<bool> onBarriersChanged;
   final ValueChanged<bool> onFoundationChanged;
-  final RiskAssessmentResult preview;
+  final ({double score, String level}) preview;
   final double currentScore;
 
   Color _levelColor(String level) {

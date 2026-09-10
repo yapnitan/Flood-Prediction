@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../constants/asset_categories.dart';
 import '../../controllers/asset_loss_report_controller.dart';
+import '../../utils/currency_input.dart';
 import '../../utils/maps_launcher.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/mini_map.dart';
@@ -50,7 +51,7 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
       text: '${widget.data['quantity']}',
     );
     _valueController = TextEditingController(
-      text: '${widget.data['estimated_value_per_item']}',
+      text: formatAmount((widget.data['estimated_value_per_item'] as num?) ?? 0),
     );
     _condition = widget.data['condition'] as String?;
   }
@@ -110,7 +111,7 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
     if (_isSubmitting) return;
 
     final quantity = int.tryParse(_quantityController.text.trim());
-    final value = double.tryParse(_valueController.text.trim());
+    final value = CurrencyInputFormatter.parse(_valueController.text);
     if (quantity == null || quantity <= 0 || value == null || value < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -258,12 +259,13 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
                     ),
                     ReviewCard(
                       title: 'Reported value per item',
-                      value:
-                          'RM ${(data['estimated_value_per_item'] as num).toStringAsFixed(2)}',
+                      value: formatRinggit(
+                        (data['estimated_value_per_item'] as num?) ?? 0,
+                      ),
                     ),
                     ReviewCard(
                       title: 'Potential Asset Loss',
-                      value: 'RM ${estimatedTotal.toStringAsFixed(2)}',
+                      value: formatRinggit(estimatedTotal),
                     ),
                     if ((data['description'] as String?)?.trim().isNotEmpty ??
                         false)
@@ -345,6 +347,7 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
                                   const TextInputType.numberWithOptions(
                                     decimal: true,
                                   ),
+                              inputFormatters: const [CurrencyInputFormatter()],
                               decoration: const InputDecoration(
                                 labelText: 'Verified value/item',
                                 prefixText: 'RM ',

@@ -35,10 +35,20 @@ class _SimulationListViewState extends State<SimulationListView> {
     _refresh();
   }
 
+  /// Just reads the saved assessments — the list always shows each one's
+  /// last stored score. Re-scoring against current data only happens when
+  /// the user opens a simulation (see [SimulationDetailView]); returning
+  /// from there calls [_refresh] again, so an updated score shows up then.
   void _refresh() {
     setState(() {
       _simulationsFuture = _riskAssessmentController.listSimulations();
     });
+  }
+
+  Future<void> _handlePullToRefresh() async {
+    final simulations = await _riskAssessmentController.listSimulations();
+    if (!mounted) return;
+    setState(() => _simulationsFuture = Future.value(simulations));
   }
 
   Future<void> _delete(String id) async {
@@ -88,25 +98,33 @@ class _SimulationListViewState extends State<SimulationListView> {
 
           final simulations = snapshot.data ?? [];
           if (simulations.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text(
-                  'No assessments yet — tap + to run one.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey),
-                ),
+            return RefreshIndicator(
+              onRefresh: _handlePullToRefresh,
+              child: ListView(
+                children: const [
+                  Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Text(
+                      'No assessments yet — tap + to run one.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                ],
               ),
             );
           }
 
-          return Center(
+          return RefreshIndicator(
+            onRefresh: _handlePullToRefresh,
+            child: Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
               ),
               child: ListView.builder(
             padding: const EdgeInsets.all(16),
+            physics: const AlwaysScrollableScrollPhysics(),
             itemCount: simulations.length,
             itemBuilder: (context, index) {
               final sim = simulations[index];
@@ -161,6 +179,7 @@ class _SimulationListViewState extends State<SimulationListView> {
               );
             },
               ),
+            ),
             ),
           );
         },

@@ -4,14 +4,28 @@ import '../models/simulation_factor.dart';
 class RiskAssessmentInput {
   final int nearbyFloodCount;
 
-  /// Community flood reports submitted nearby in the last 7 days — a live
-  /// signal that flooding is happening now, distinct from the historical
-  /// [nearbyFloodCount].
-  final int recentNearbyReportCount;
+  /// Water levels ("Low" / "Medium" / "High") of community flood reports
+  /// submitted nearby in the last 7 days — a live signal that flooding is
+  /// happening now, distinct from the historical [nearbyFloodCount]. Scored
+  /// by severity, the same way the Home tab does.
+  final List<String> recentReportWaterLevels;
 
-  /// How the nearby river's forecast flow compares to its recent average
-  /// (GloFAS via Open-Meteo Flood API) — another live signal.
+  /// Rainfall over the last hour (mm) — from the nearest JPS/DID InfoBanjir
+  /// rain gauge, or the Open-Meteo forecast model as a fallback.
+  final double? rainfallMm;
+
+  /// InfoBanjir's own intensity label for that gauge, if it's from a gauge.
+  final String? rainfallIntensityLabel;
+
+  /// Nearest InfoBanjir river gauge status ("Normal" / "Alert" / "Warning" /
+  /// "Danger"), if one is in range — takes priority over [riverFloodLevel].
+  final String? riverGaugeStatus;
+  final bool riverGaugeRising;
+
+  /// GloFAS forecast level (Open-Meteo Flood API) — the fallback when no
+  /// InfoBanjir river gauge is in range.
   final RiverFloodLevel riverFloodLevel;
+
   final double? propertyElevationMeters;
   final double? baselineElevationMeters;
   final String structureType;
@@ -20,7 +34,11 @@ class RiskAssessmentInput {
 
   RiskAssessmentInput({
     required this.nearbyFloodCount,
-    this.recentNearbyReportCount = 0,
+    this.recentReportWaterLevels = const [],
+    this.rainfallMm,
+    this.rainfallIntensityLabel,
+    this.riverGaugeStatus,
+    this.riverGaugeRising = false,
     this.riverFloodLevel = RiverFloodLevel.unknown,
     required this.propertyElevationMeters,
     required this.baselineElevationMeters,
@@ -45,24 +63,21 @@ class RiskAssessmentResult {
 }
 
 /// Pure risk-scoring engine — no Supabase/network I/O, just arithmetic over
-/// already-gathered inputs. [RiskAssessmentController] is responsible for
-/// fetching those inputs (historical records, terrain, weather) first.
+/// already-gathered inputs. [RiskAssessmentController] fetches those inputs
+/// (historical records, community reports, InfoBanjir gauges, terrain) first.
 ///
-/// Score (0-100, higher = riskier) combines:
-///   - Historical flood frequency nearby (hazard, from the JPS/DID dataset)
-///   - Recent community flood reports nearby (hazard, live signal — someone
-///     has actually reported flooding here in the last week)
-///   - Live river-flood forecast (hazard, live signal — the nearby river is
-///     forecast to rise sharply; GloFAS via Open-Meteo Flood API)
-///   - Property elevation relative to its district's baseline elevation
-///     (hazard) — an absolute elevation number means little on its own, so
-///     this compares against the local baseline instead.
-///   - Structure type (vulnerability)
-///   - Flood barriers / raised foundation (mitigation, subtracts points)
-///
-/// Current weather is deliberately NOT an input: it's an instantaneous
-/// snapshot, not part of a property's persistent risk profile, so the UI
-/// shows it separately as an informational "current conditions" badge.
+/// The six hazard/vulnerability factor caps add up to exactly 100:
+///   - Historical flood frequency nearby — +5 each, capped 25 (JPS/DID)
+///   - Recent community flood reports — Low 10 / Medium 15 / High 20 each,
+///     capped 20 (same weighting as the Home tab)
+///   - Rainfall over the last hour — Light 4 / Moderate 7 / Heavy 10, on
+///     JPS's own intensity bands (InfoBanjir gauge, Open-Meteo fallback)
+///   - Nearby river level — InfoBanjir gauge status (Danger 15 / Warning 11 /
+///     Alert 6 / rising 2), or the GloFAS forecast (elevated 6 / high 11)
+///   - Property elevation relative to its district's baseline — capped 20
+///   - Structure type (vulnerability) — 3 to 10
+/// Flood barriers and a raised foundation each subtract 10 (mitigation), so
+/// the final score is `(hazards + vulnerability - mitigation)` clamped 0-100.
 class RiskAssessmentService {
   static const Map<String, double> structureVulnerability = {
     'Single-storey house': 10,
@@ -72,14 +87,20 @@ class RiskAssessmentService {
     'Other': 6,
   };
 
+  static const Map<String, double> _reportSeverityPoints = {
+    'Low': 10,
+    'Medium': 15,
+    'High': 20,
+  };
+
   static List<String> get structureTypeOptions =>
       structureVulnerability.keys.toList();
 
   RiskAssessmentResult assess(RiskAssessmentInput input) {
     final factors = <SimulationFactor>[];
 
-    // Hazard: historical flood frequency nearby (0-50 points, +5 each, capped).
-    final historyPoints = (input.nearbyFloodCount * 5).clamp(0, 50).toDouble();
+    // Hazard: historical flood frequency nearby (0-25 points, +5 each).
+    final historyPoints = (input.nearbyFloodCount * 5).clamp(0, 25).toDouble();
     factors.add(
       SimulationFactor(
         factorName: 'Historical flood frequency',
@@ -90,57 +111,131 @@ class RiskAssessmentService {
       ),
     );
 
-    // Hazard: recent nearby community flood reports (0-30 points, +12 each,
-    // capped). Weighted heavier per-report than historical records because
-    // these are live — a neighbour has reported flooding here this week.
-    final recentReportPoints =
-        (input.recentNearbyReportCount * 12).clamp(0, 30).toDouble();
+    // Hazard: recent nearby community flood reports (0-20 points), scored by
+    // severity the same way the Home tab does.
+    final reportPoints = input.recentReportWaterLevels
+        .fold<double>(
+          0,
+          (sum, level) => sum + (_reportSeverityPoints[level] ?? 10),
+        )
+        .clamp(0, 20)
+        .toDouble();
     factors.add(
       SimulationFactor(
         factorName: 'Recent community flood reports',
-        factorValue: input.recentNearbyReportCount == 0
+        factorValue: input.recentReportWaterLevels.isEmpty
             ? 'No community flood reports nearby in the last 7 days'
-            : '${input.recentNearbyReportCount} community flood report(s) nearby in the last 7 days',
-        scoreContribution: recentReportPoints,
+            : '${input.recentReportWaterLevels.length} community flood report(s) '
+                  'nearby in the last 7 days',
+        scoreContribution: reportPoints,
       ),
     );
 
-    // Hazard: live river-flood forecast (0 / 6 / 12 points). A forecast
-    // surge on the nearby river is a near-term signal like the community
-    // reports above, so it scores; a normal/low forecast is shown but adds
-    // nothing.
-    double riverPoints = 0;
-    String riverDescription;
-    switch (input.riverFloodLevel) {
-      case RiverFloodLevel.high:
-        riverPoints = 12;
-        riverDescription = 'Nearby river forecast to surge well above its recent average';
-      case RiverFloodLevel.elevated:
-        riverPoints = 6;
-        riverDescription = 'Nearby river forecast to rise above its recent average';
-      case RiverFloodLevel.low:
-        riverDescription = 'Nearby river flow forecast below its recent average';
-      case RiverFloodLevel.normal:
-        riverDescription = 'Nearby river flow forecast near its recent average';
-      case RiverFloodLevel.unknown:
-        riverDescription = 'No modelled river near this location';
+    // Hazard: rainfall over the last hour (0-10 points), on JPS's own bands.
+    final rainfallMm = input.rainfallMm;
+    final rainLabel = input.rainfallIntensityLabel?.trim().toLowerCase();
+    final mmText = rainfallMm == null
+        ? ''
+        : ' (${rainfallMm.toStringAsFixed(1)}mm in the last hour)';
+    double rainfallPoints = 0;
+    String rainfallDescription = 'Rainfall data unavailable';
+    if (rainLabel != null && rainLabel.isNotEmpty && rainLabel != 'error') {
+      switch (rainLabel) {
+        case 'very heavy':
+        case 'heavy':
+          rainfallPoints = 10;
+          rainfallDescription = 'Heavy rain nearby$mmText';
+        case 'moderate':
+          rainfallPoints = 7;
+          rainfallDescription = 'Moderate rain nearby$mmText';
+        case 'light':
+          rainfallPoints = 4;
+          rainfallDescription = 'Light rain nearby$mmText';
+        default:
+          rainfallDescription = 'No rain in the last hour';
+      }
+    } else if (rainfallMm != null) {
+      if (rainfallMm >= 30) {
+        rainfallPoints = 10;
+        rainfallDescription = 'Heavy rain nearby$mmText';
+      } else if (rainfallMm >= 10) {
+        rainfallPoints = 7;
+        rainfallDescription = 'Moderate rain nearby$mmText';
+      } else if (rainfallMm >= 2) {
+        rainfallPoints = 4;
+        rainfallDescription = 'Light rain nearby$mmText';
+      } else {
+        rainfallDescription = rainfallMm > 0
+            ? 'Trace rainfall$mmText'
+            : 'No rain in the last hour';
+      }
     }
     factors.add(
       SimulationFactor(
-        factorName: 'Live river flood forecast',
+        factorName: 'Current rainfall',
+        factorValue: rainfallDescription,
+        scoreContribution: rainfallPoints,
+      ),
+    );
+
+    // Hazard: nearby river level (0-15 points). InfoBanjir gauge status
+    // first, GloFAS forecast as the fallback.
+    double riverPoints = 0;
+    String riverDescription;
+    final gaugeStatus = input.riverGaugeStatus;
+    if (gaugeStatus != null) {
+      switch (gaugeStatus.toLowerCase()) {
+        case 'danger':
+          riverPoints = 15;
+          riverDescription = 'Nearby river gauge at DANGER level';
+        case 'warning':
+          riverPoints = 11;
+          riverDescription = 'Nearby river gauge at WARNING level';
+        case 'alert':
+          riverPoints = 6;
+          riverDescription = 'Nearby river gauge at ALERT level';
+        default:
+          riverPoints = input.riverGaugeRising ? 2 : 0;
+          riverDescription = input.riverGaugeRising
+              ? 'Nearby river gauge normal, but rising'
+              : 'Nearby river gauge at a normal level';
+      }
+    } else {
+      switch (input.riverFloodLevel) {
+        case RiverFloodLevel.high:
+          riverPoints = 11;
+          riverDescription =
+              'Nearby river forecast to surge well above its recent average';
+        case RiverFloodLevel.elevated:
+          riverPoints = 6;
+          riverDescription =
+              'Nearby river forecast to rise above its recent average';
+        case RiverFloodLevel.low:
+          riverDescription =
+              'Nearby river flow forecast below its recent average';
+        case RiverFloodLevel.normal:
+          riverDescription =
+              'Nearby river flow forecast near its recent average';
+        case RiverFloodLevel.unknown:
+          riverDescription = 'No river gauge or modelled river near this location';
+      }
+    }
+    factors.add(
+      SimulationFactor(
+        factorName: 'Nearby river level',
         factorValue: riverDescription,
         scoreContribution: riverPoints,
       ),
     );
 
-    // Hazard: elevation relative to the district baseline (0-30 points).
+    // Hazard: elevation relative to the district baseline (0-20 points).
     double elevationPoints = 0;
     String elevationDescription = 'Elevation data unavailable';
     if (input.propertyElevationMeters != null &&
         input.baselineElevationMeters != null) {
       final deficit =
           input.baselineElevationMeters! - input.propertyElevationMeters!;
-      elevationPoints = (deficit * 3).clamp(0, 30).toDouble();
+      elevationPoints = (deficit * 4).clamp(0, 20).toDouble();
       elevationDescription = deficit > 0
           ? 'Property sits ${deficit.toStringAsFixed(1)}m below the surrounding area\'s typical elevation'
           : 'Property sits at or above the surrounding area\'s typical elevation';
@@ -153,7 +248,7 @@ class RiskAssessmentService {
       ),
     );
 
-    // Vulnerability: structure type (0-10 points).
+    // Vulnerability: structure type (3-10 points).
     final structurePoints = structureVulnerability[input.structureType] ?? 6;
     factors.add(
       SimulationFactor(
@@ -189,6 +284,8 @@ class RiskAssessmentService {
 
     final level = score >= 67 ? 'High' : (score >= 34 ? 'Medium' : 'Low');
 
+    final riverElevatedOrWorse = riverPoints >= 6;
+
     final recommendations = <String>[];
     if (!input.hasFloodBarriers) {
       recommendations.add(
@@ -200,17 +297,22 @@ class RiskAssessmentService {
         'Consider raising the foundation or elevating critical utilities above the flood-prone level.',
       );
     }
-    if (input.recentNearbyReportCount > 0) {
+    if (input.recentReportWaterLevels.isNotEmpty) {
       recommendations.add(
         'Neighbours have reported flooding near here in the last week — treat this as an '
         'active-risk area, keep an evacuation plan ready, and follow local updates.',
       );
     }
-    if (input.riverFloodLevel == RiverFloodLevel.elevated ||
-        input.riverFloodLevel == RiverFloodLevel.high) {
+    if (riverElevatedOrWorse) {
       recommendations.add(
-        'River levels near this property are forecast to rise over the coming days — '
-        'monitor official flood warnings and move valuables and vehicles to higher ground now.',
+        'River levels near this property are elevated — monitor official flood '
+        'warnings and move valuables and vehicles to higher ground now.',
+      );
+    }
+    if (rainfallPoints >= 7) {
+      recommendations.add(
+        'Moderate-to-heavy rain is falling nearby right now — stay alert for '
+        'flash flooding and avoid low-lying roads.',
       );
     }
     if (input.nearbyFloodCount > 0) {
@@ -218,7 +320,7 @@ class RiskAssessmentService {
         'This area has a history of flooding — prepare an evacuation plan and emergency kit.',
       );
     }
-    if (elevationPoints >= 15) {
+    if (elevationPoints >= 10) {
       recommendations.add(
         'Property sits notably below the surrounding area — prioritize drainage improvements.',
       );

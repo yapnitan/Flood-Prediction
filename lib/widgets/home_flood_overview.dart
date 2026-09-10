@@ -13,6 +13,9 @@ import '../controllers/flood_report_controller.dart';
 import '../controllers/historical_flood_controller.dart';
 import '../models/facility.dart';
 import '../models/flood_report.dart';
+import '../models/historical_flood.dart';
+import '../models/infobanjir_station.dart';
+import '../models/river_flood_data.dart';
 import '../services/area_risk_service.dart';
 import '../services/facility_service.dart';
 import '../services/flood_report_service.dart';
@@ -70,7 +73,11 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
 
   AreaRiskResult? _areaRisk;
   double? _rainfallMm;
+  InfoBanjirStation? _rainfallStation;
+  InfoBanjirStation? _riverStation;
   List<FloodReport> _nearbyReports = const [];
+  List<HistoricalFlood> _nearbyHistoricalFloods = const [];
+  RiverFloodData? _riverFlood;
   bool _isLoadingAreaRisk = true;
 
   /// Task 12 "weather warnings" — notifies once when rainfall crosses this
@@ -151,7 +158,11 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     setState(() {
       _areaRisk = assessment.result;
       _rainfallMm = assessment.currentRainfallMm;
+      _rainfallStation = assessment.rainfallStation;
+      _riverStation = assessment.riverStation;
       _nearbyReports = assessment.nearbyReports;
+      _nearbyHistoricalFloods = assessment.nearbyHistoricalFloods;
+      _riverFlood = assessment.riverFlood;
       _isLoadingAreaRisk = false;
     });
 
@@ -232,6 +243,262 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     return nearest;
   }
 
+  /// The nearby reports' water levels averaged into a single category:
+  /// Low/Medium/High are scored 1/2/3, averaged, then rounded back to the
+  /// nearest category. Null when there are no nearby reports.
+  static const _waterLevelRank = {'Low': 1, 'Medium': 2, 'High': 3};
+  static const _waterLevelLabels = ['Low', 'Medium', 'High'];
+
+  String? get _averageWaterLevel {
+    if (_nearbyReports.isEmpty) return null;
+    final scores = _nearbyReports
+        .map((r) => _waterLevelRank[r.waterLevel])
+        .whereType<int>()
+        .toList();
+    if (scores.isEmpty) return _nearbyReports.first.waterLevel;
+    final average = scores.reduce((a, b) => a + b) / scores.length;
+    return _waterLevelLabels[average.round().clamp(1, 3) - 1];
+  }
+
+  static const _factorMaxPoints = <String, double>{
+    'Historical flood frequency (20km)': 25,
+    'Current rainfall': 25,
+    'Community reports nearby (5km, 24h)': 30,
+    'Nearby river level': 20,
+  };
+
+  static const _factorHowScored = <String, String>{
+    'Historical flood frequency (20km)':
+        '+5 points for every JPS/DID recorded flood within 20 km of you, up to 25.',
+    'Current rainfall':
+        "Rain in the last hour, using JPS's own bands: Light +10, Moderate "
+        '(10–30 mm) +18, Heavy (30 mm+) +25.',
+    'Community reports nearby (5km, 24h)':
+        '+10 (Low) / +15 (Medium) / +20 (High) per report within 5 km in the '
+        'last 24 h, up to 30.',
+    'Nearby river level':
+        'Nearest JPS/DID river gauge status: Danger +20, Warning +15, Alert +8, '
+        'normal-but-rising +3. Falls back to the GloFAS forecast (+8 / +15) '
+        'when no gauge is in range.',
+  };
+
+  String _formatDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+  Widget _historicalFactorDetail() {
+    if (_nearbyHistoricalFloods.isEmpty) {
+      return const Text(
+        'No floods on record within 20 km in the JPS/DID dataset.',
+        style: TextStyle(fontSize: 12),
+      );
+    }
+    final sorted = [..._nearbyHistoricalFloods]
+      ..sort((a, b) => b.floodDate.compareTo(a.floodDate));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final f in sorted.take(8))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 5),
+            child: Text(
+              '• ${_formatDate(f.floodDate)} — ${f.floodCause} (${f.district})',
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+        if (sorted.length > 8)
+          Text(
+            '+ ${sorted.length - 8} more',
+            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+          ),
+      ],
+    );
+  }
+
+  Widget _rainfallFactorDetail() {
+    final station = _rainfallStation;
+    if (station == null) {
+      final mm = _rainfallMm;
+      return Text(
+        mm == null
+            ? 'No rainfall data available right now.'
+            : 'No JPS/DID gauge with a fresh reading within 30 km — showing the '
+                  'Open-Meteo forecast model estimate (${mm.toStringAsFixed(1)} mm).',
+        style: const TextStyle(fontSize: 12),
+      );
+    }
+    final loc = _currentLocation;
+    final distanceKm = loc == null
+        ? null
+        : haversineDistanceKm(
+            lat1: loc.latitude,
+            lon1: loc.longitude,
+            lat2: station.latitude,
+            lon2: station.longitude,
+          );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          station.name,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+        ),
+        if (distanceKm != null)
+          Text(
+            '${distanceKm.toStringAsFixed(1)} km away'
+            '${station.district != null ? ' · ${station.district}' : ''}',
+            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+          ),
+        const SizedBox(height: 4),
+        if (station.rainfall1hMm != null)
+          Text('Last 1 hour: ${station.rainfall1hMm!.toStringAsFixed(1)} mm',
+              style: const TextStyle(fontSize: 12)),
+        if (station.rainfall3hMm != null)
+          Text('Last 3 hours: ${station.rainfall3hMm!.toStringAsFixed(1)} mm',
+              style: const TextStyle(fontSize: 12)),
+        if (station.rainfallTodayMm != null)
+          Text("Today's total: ${station.rainfallTodayMm!.toStringAsFixed(1)} mm",
+              style: const TextStyle(fontSize: 12)),
+        if ((station.rainfallIntensity ?? '').isNotEmpty)
+          Text('Intensity: ${station.rainfallIntensity}',
+              style: const TextStyle(fontSize: 12)),
+        if (station.rainfallUpdatedAt != null)
+          Text('Updated ${_formatTimeAgo(station.rainfallUpdatedAt!)}',
+              style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+        const SizedBox(height: 4),
+        Text('Source: JPS/DID Public InfoBanjir gauge',
+            style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+      ],
+    );
+  }
+
+  Widget _reportsFactorDetail(BuildContext sheetContext) {
+    if (_nearbyReports.isEmpty) {
+      return const Text(
+        'No community flood reports within 5 km in the last 24 hours.',
+        style: TextStyle(fontSize: 12),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final r in _nearbyReports.take(6))
+          InkWell(
+            onTap: () {
+              Navigator.pop(sheetContext);
+              _showReportInfo(r);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Icon(Icons.location_on,
+                      size: 14, color: _areaRiskColor(r.waterLevel)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '${r.floodType} · ${r.waterLevel} water level · '
+                      '${_formatTimeAgo(r.createdAt ?? r.observedAt)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+                ],
+              ),
+            ),
+          ),
+        if (_nearbyReports.length > 6)
+          Text('+ ${_nearbyReports.length - 6} more',
+              style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+      ],
+    );
+  }
+
+  Widget _riverFactorDetail() {
+    final gauge = _riverStation;
+    if (gauge != null) {
+      final loc = _currentLocation;
+      final distanceKm = loc == null
+          ? null
+          : haversineDistanceKm(
+              lat1: loc.latitude,
+              lon1: loc.longitude,
+              lat2: gauge.latitude,
+              lon2: gauge.longitude,
+            );
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(gauge.name,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w600, fontSize: 12)),
+          if (distanceKm != null)
+            Text(
+              '${distanceKm.toStringAsFixed(1)} km away'
+              '${gauge.district != null ? ' · ${gauge.district}' : ''}',
+              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            ),
+          const SizedBox(height: 4),
+          if (gauge.waterLevelStatus != null)
+            Text('Status: ${gauge.waterLevelStatus}',
+                style: const TextStyle(fontSize: 12)),
+          if (gauge.waterLevelM != null)
+            Text(
+              'Level: ${gauge.waterLevelM!.toStringAsFixed(2)} m'
+              '${gauge.normalLevelM != null ? ' (normal ${gauge.normalLevelM!.toStringAsFixed(2)} m)' : ''}',
+              style: const TextStyle(fontSize: 12),
+            ),
+          if (gauge.metresAboveNormal != null && gauge.metresAboveNormal! > 0)
+            Text(
+              '${gauge.metresAboveNormal!.toStringAsFixed(2)} m above normal',
+              style: const TextStyle(fontSize: 12),
+            ),
+          if (gauge.waterLevelTrend != null)
+            Text('Trend: ${gauge.waterLevelTrend}',
+                style: const TextStyle(fontSize: 12)),
+          if (gauge.waterLevelUpdatedAt != null)
+            Text('Updated ${_formatTimeAgo(gauge.waterLevelUpdatedAt!)}',
+                style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+          const SizedBox(height: 4),
+          Text('Source: JPS/DID Public InfoBanjir river gauge',
+              style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+        ],
+      );
+    }
+
+    final rf = _riverFlood;
+    if (rf == null || rf.level == RiverFloodLevel.unknown) {
+      return const Text(
+        'No JPS/DID river gauge within 15 km, and no river is modelled here '
+        '(GloFAS covers larger rivers only).',
+        style: TextStyle(fontSize: 12),
+      );
+    }
+    final ratio = rf.riseRatio;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('No nearby river gauge — using the GloFAS forecast model:',
+            style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+        const SizedBox(height: 4),
+        if (rf.recentMean != null)
+          Text('Recent 7-day average flow: ${rf.recentMean!.toStringAsFixed(1)} m³/s',
+              style: const TextStyle(fontSize: 12)),
+        if (rf.forecastMax != null)
+          Text('Forecast peak (next 7 days): ${rf.forecastMax!.toStringAsFixed(1)} m³/s',
+              style: const TextStyle(fontSize: 12)),
+        if (ratio != null)
+          Text('That is ${ratio.toStringAsFixed(1)}× the recent average.',
+              style: const TextStyle(fontSize: 12)),
+        if (rf.forecastPeakDate != null)
+          Text('Peak expected around ${_formatDate(rf.forecastPeakDate!)}',
+              style: const TextStyle(fontSize: 12)),
+        const SizedBox(height: 4),
+        Text('Source: Open-Meteo Flood API (GloFAS)',
+            style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+      ],
+    );
+  }
+
   void _showAreaRiskDetail(AreaRiskResult risk) {
     showModalBottomSheet(
       context: context,
@@ -239,85 +506,217 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
+      builder: (sheetContext) {
+        Widget detailFor(String factorName) {
+          switch (factorName) {
+            case 'Historical flood frequency (20km)':
+              return _historicalFactorDetail();
+            case 'Current rainfall':
+              return _rainfallFactorDetail();
+            case 'Community reports nearby (5km, 24h)':
+              return _reportsFactorDetail(sheetContext);
+            case 'Nearby river level':
+              return _riverFactorDetail();
+            default:
+              return const SizedBox.shrink();
+          }
+        }
+
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            16,
+            20,
+            20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(_areaRiskIcon(risk.level),
+                        color: _areaRiskColor(risk.level)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${risk.level} flood risk right now',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ),
+                    Text(
+                      '${risk.score.toStringAsFixed(0)}/100',
+                      style: TextStyle(
+                          color: Colors.grey[600], fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Tap a factor to see how it is scored and the data behind it.',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+                const SizedBox(height: 8),
+                for (final factor in risk.factors)
+                  _RiskFactorTile(
+                    name: factor.factorName,
+                    points: factor.scoreContribution,
+                    maxPoints: _factorMaxPoints[factor.factorName] ?? 0,
+                    summary: factor.factorValue,
+                    howScored: _factorHowScored[factor.factorName] ?? '',
+                    detail: detailFor(factor.factorName),
+                  ),
+                const SizedBox(height: 8),
+                Text(
+                  'A general area indicator for right now — not a substitute for '
+                  'running a full property risk assessment.',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Opens the nearby community reports behind the Home tab's "Water level"
+  /// / "Nearby reports" tiles — the same 5 km / 24 h list [AreaRiskController]
+  /// scored. One report opens straight into its detail sheet; several show a
+  /// pickable list first.
+  void _showNearbyReports() {
+    final reports = _nearbyReports;
+    if (reports.isEmpty) return;
+    if (reports.length == 1) {
+      _showReportInfo(reports.first);
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          20,
-          20,
-          20 + MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(
-                  _areaRiskIcon(risk.level),
-                  color: _areaRiskColor(risk.level),
-                ),
+                const Icon(Icons.warning_amber_rounded, color: Colors.red),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${risk.level} flood risk right now',
+                    '${reports.length} nearby flood reports',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
                   ),
                 ),
-                Text(
-                  '${risk.score.toStringAsFixed(0)}/100',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.bold,
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Within 5 km, reported in the last 24 hours',
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: reports.length,
+                separatorBuilder: (context, index) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final report = reports[index];
+                  final reportedTime = report.createdAt ?? report.observedAt;
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.location_on,
+                      color: _areaRiskColor(report.waterLevel),
+                    ),
+                    title: Text(
+                      report.locationName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      '${report.floodType} · ${report.waterLevel} water level · '
+                      '${_formatTimeAgo(reportedTime)}',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showReportInfo(report);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Details for the InfoBanjir rain gauge behind the "Rainfall" tile.
+  void _showRainfallStationInfo(InfoBanjirStation station) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.water_drop, color: Colors.blue),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    station.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            for (final factor in risk.factors)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            factor.factorName,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            factor.factorValue,
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      '+${factor.scoreContribution.toStringAsFixed(0)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
+            const SizedBox(height: 10),
+            if (station.district != null) Text('District: ${station.district}'),
+            const SizedBox(height: 8),
+            if (station.rainfall1hMm != null)
+              Text('Last 1 hour: ${station.rainfall1hMm!.toStringAsFixed(1)} mm'),
+            if (station.rainfall3hMm != null)
+              Text('Last 3 hours: ${station.rainfall3hMm!.toStringAsFixed(1)} mm'),
+            if (station.rainfallTodayMm != null)
+              Text("Today's total: ${station.rainfallTodayMm!.toStringAsFixed(1)} mm"),
+            if ((station.rainfallIntensity ?? '').isNotEmpty)
+              Text('Intensity: ${station.rainfallIntensity}'),
+            const SizedBox(height: 8),
+            if (station.rainfallUpdatedAt != null)
+              Text(
+                'Updated ${_formatTimeAgo(station.rainfallUpdatedAt!)}',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
             const SizedBox(height: 4),
             Text(
-              'This combines nearby historical flood records with live rainfall '
-              'and recent community reports near your current location — it\'s '
-              'a general area indicator, not a substitute for running a full '
-              'property risk assessment.',
+              'Live reading from a JPS/DID Public InfoBanjir rain gauge — the '
+              'nearest one to your current location.',
               style: TextStyle(color: Colors.grey[600], fontSize: 12),
             ),
           ],
-          ),
         ),
       ),
     );
@@ -701,6 +1100,29 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                       ),
                     ),
                   ),
+                if (!_isLoadingMap && _currentLocation != null)
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Material(
+                      color: Colors.white,
+                      shape: const CircleBorder(),
+                      elevation: 3,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () =>
+                            _mapController.move(_currentLocation!, 15),
+                        child: const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Icon(
+                            Icons.my_location,
+                            color: Colors.blue,
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -723,6 +1145,14 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                   value: _rainfallMm != null
                       ? '${_rainfallMm!.toStringAsFixed(1)} mm'
                       : 'Unavailable',
+                  caption: _rainfallMm == null
+                      ? null
+                      : (_rainfallStation != null
+                            ? 'gauge, last 1h'
+                            : 'forecast est.'),
+                  onTap: _rainfallStation == null
+                      ? null
+                      : () => _showRainfallStationInfo(_rainfallStation!),
                 ),
               ),
               const SizedBox(width: 12),
@@ -730,12 +1160,14 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                 child: _StatBox(
                   label: "Water level",
                   isLoading: _isLoadingAreaRisk,
-                  value: _nearbyReports.isEmpty
-                      ? 'No reports nearby'
-                      : _nearbyReports.first.waterLevel,
-                  valueColor: _nearbyReports.isEmpty
+                  value: _averageWaterLevel ?? 'No reports nearby',
+                  valueColor: _averageWaterLevel == null
                       ? null
-                      : _areaRiskColor(_nearbyReports.first.waterLevel),
+                      : _areaRiskColor(_averageWaterLevel),
+                  caption: _nearbyReports.length > 1
+                      ? 'avg of ${_nearbyReports.length} reports'
+                      : null,
+                  onTap: _nearbyReports.isEmpty ? null : _showNearbyReports,
                 ),
               ),
               const SizedBox(width: 12),
@@ -745,6 +1177,7 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                   isLoading: _isLoadingAreaRisk,
                   value: '${_nearbyReports.length}',
                   caption: 'within 5km, 24h',
+                  onTap: _nearbyReports.isEmpty ? null : _showNearbyReports,
                 ),
               ),
             ],
@@ -854,6 +1287,101 @@ class _FloodRiskCard extends StatelessWidget {
   }
 }
 
+/// One expandable row in the Flood Risk details sheet: the factor's name and
+/// points out of its max, a progress bar, its one-line value; expands to show
+/// how it's scored plus the underlying data.
+class _RiskFactorTile extends StatelessWidget {
+  const _RiskFactorTile({
+    required this.name,
+    required this.points,
+    required this.maxPoints,
+    required this.summary,
+    required this.howScored,
+    required this.detail,
+  });
+
+  final String name;
+  final double points;
+  final double maxPoints;
+  final String summary;
+  final String howScored;
+  final Widget detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final fraction =
+        maxPoints <= 0 ? 0.0 : (points / maxPoints).clamp(0.0, 1.0);
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(left: 2, bottom: 14),
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                name,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+            ),
+            Text(
+              '${points.toStringAsFixed(0)} / ${maxPoints.toStringAsFixed(0)} pts',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+          ],
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 6, right: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: LinearProgressIndicator(
+                  value: fraction,
+                  minHeight: 5,
+                  backgroundColor: Colors.grey.shade200,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                summary,
+                style: TextStyle(color: Colors.grey[700], fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        children: [
+          if (howScored.isNotEmpty) ...[
+            Text(
+              "How it's scored",
+              style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  color: Colors.grey[800]),
+            ),
+            const SizedBox(height: 2),
+            Text(howScored,
+                style: TextStyle(color: Colors.grey[700], fontSize: 12)),
+            const SizedBox(height: 10),
+          ],
+          Text(
+            'Details',
+            style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                color: Colors.grey[800]),
+          ),
+          const SizedBox(height: 4),
+          detail,
+        ],
+      ),
+    );
+  }
+}
+
 IconData _areaRiskIcon(String? level) {
   switch (level) {
     case 'High':
@@ -895,13 +1423,15 @@ Color _areaRiskColor(String? level) {
 
 /// Small labelled stat tile — rainfall, nearest report's water level,
 /// nearby report count — sharing the same [InfoBox] card style as
-/// [_FloodRiskCard].
+/// [_FloodRiskCard]. Pass [onTap] to make the tile open a detail sheet;
+/// it then shows a chevron affordance next to the value.
 class _StatBox extends StatelessWidget {
   final String label;
   final String value;
   final bool isLoading;
   final Color? valueColor;
   final String? caption;
+  final VoidCallback? onTap;
 
   const _StatBox({
     required this.label,
@@ -909,39 +1439,63 @@ class _StatBox extends StatelessWidget {
     required this.isLoading,
     this.valueColor,
     this.caption,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InfoBox(
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+    final tappable = onTap != null && !isLoading;
+
+    final content = Column(
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
+        const SizedBox(height: 6),
+        if (isLoading)
+          const SizedBox(
+            height: 14,
+            width: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        else
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: valueColor,
+                  ),
+                ),
+              ),
+              if (tappable)
+                Icon(Icons.chevron_right, size: 16, color: Colors.grey[600]),
+            ],
           ),
-          const SizedBox(height: 6),
-          if (isLoading)
-            const SizedBox(
-              height: 14,
-              width: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else
-            Text(
-              value,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontWeight: FontWeight.bold, color: valueColor),
-            ),
-          if (!isLoading && caption != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              caption!,
-              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-            ),
-          ],
+        if (!isLoading && caption != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            caption!,
+            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+          ),
         ],
-      ),
+      ],
+    );
+
+    return InfoBox(
+      child: tappable
+          ? InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(8),
+              child: content,
+            )
+          : content,
     );
   }
 }

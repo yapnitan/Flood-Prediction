@@ -18,7 +18,6 @@ class UserHome extends StatefulWidget {
 
 class _UserHomeState extends State<UserHome> {
   int currentIndex = 0;
-  final GlobalKey _reportPageKey = GlobalKey();
   final GlobalKey<HomeFloodOverviewState> _homeOverviewKey =
       GlobalKey<HomeFloodOverviewState>();
 
@@ -51,9 +50,13 @@ class _UserHomeState extends State<UserHome> {
   }
 
   void _showReportChooser() {
+    // Navigate with the State's own `context` (stable while UserHome is
+    // mounted), never the sheet builder's context — that one is defunct the
+    // moment the sheet is popped, so a callback captured from it (e.g.
+    // SubmitReportPage.onSubmissionComplete) could no longer pop.
     showModalBottomSheet<void>(
       context: context,
-      builder: (context) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Wrap(
           children: [
             ListTile(
@@ -64,8 +67,20 @@ class _UserHomeState extends State<UserHome> {
               title: const Text('Report a flood'),
               subtitle: const Text('Share live flood conditions in your area'),
               onTap: () {
-                Navigator.pop(context);
-                setState(() => currentIndex = 1);
+                Navigator.pop(sheetContext);
+                // Pushed as a full page (with its own back button) so it
+                // matches "Report Asset Loss", rather than swapping the
+                // bottom-nav tab underneath.
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SubmitReportPage(
+                      onSubmissionComplete: () {
+                        _homeOverviewKey.currentState?.refresh();
+                      },
+                    ),
+                  ),
+                );
               },
             ),
             ListTile(
@@ -78,7 +93,7 @@ class _UserHomeState extends State<UserHome> {
                 'Report assets lost or damaged by a flood',
               ),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(sheetContext);
                 Navigator.pushNamed(context, AppRoutes.assetLossCreate);
               },
             ),
@@ -211,13 +226,9 @@ class _UserHomeState extends State<UserHome> {
   Widget build(BuildContext context) {
     final pages = [
       _buildHomePage(),
-      SubmitReportPage(
-        key: _reportPageKey,
-        onSubmissionComplete: () {
-          setState(() => currentIndex = 0);
-          _homeOverviewKey.currentState?.refresh();
-        },
-      ),
+      // The "Report" nav item opens a chooser and pushes a full page (see
+      // _showReportChooser) — this slot is never shown as a tab.
+      const SizedBox.shrink(),
       const ProfilePage(),
     ];
 

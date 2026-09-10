@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 
 import '../models/river_flood_data.dart';
+import '../utils/http_retry.dart';
 
 /// Live river-flood signal via the Open-Meteo Flood API
 /// (https://open-meteo.com/en/docs/flood-api) — free, keyless. Backed by
@@ -12,6 +12,10 @@ import '../models/river_flood_data.dart';
 /// of daily discharge and compare the forecast peak to the recent average.
 class RiverFloodService {
   static const String _baseUrl = 'https://flood-api.open-meteo.com/v1/flood';
+
+  /// The GloFAS flood endpoint is the slowest of the Open-Meteo APIs — cap
+  /// it so it can't hold up a whole risk assessment on its own.
+  static const Duration _timeout = Duration(seconds: 10);
 
   Future<RiverFloodData?> getRiverFlood({
     required double latitude,
@@ -23,7 +27,7 @@ class RiverFloodService {
         '&daily=river_discharge&past_days=7&forecast_days=7',
       );
 
-      final response = await http.get(uri);
+      final response = await getWithRetry(uri, timeout: _timeout);
       if (response.statusCode != 200) {
         debugPrint('RiverFloodService.getRiverFlood HTTP ${response.statusCode}');
         return null;

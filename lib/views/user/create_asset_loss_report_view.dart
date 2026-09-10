@@ -12,6 +12,7 @@ import '../../services/asset_ai_service.dart';
 import '../../services/asset_loss_report_service.dart';
 import '../../services/flood_incident_service.dart';
 import '../../services/property_service.dart';
+import '../../utils/currency_input.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/photo_preview.dart';
 import '../../widgets/review_card.dart';
@@ -84,6 +85,11 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
   bool _isSubmitting = false;
   bool _isSubmitted = false;
   bool _isAnalyzing = false;
+
+  /// How many reports were actually submitted — the current-entry asset is
+  /// combined with [_pendingAssets] only at submit time, so this is captured
+  /// then for the success screen.
+  int _submittedCount = 0;
 
   @override
   void initState() {
@@ -160,23 +166,32 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
 
   double get _estimatedTotalLoss {
     final quantity = int.tryParse(_quantityController.text.trim()) ?? 0;
-    final value = double.tryParse(_valueController.text.trim()) ?? 0;
+    final value = CurrencyInputFormatter.parse(_valueController.text) ?? 0;
     return quantity * value;
   }
 
+  /// The asset currently being filled in on the form. Defensive parsing so
+  /// it's safe to call from [_allAssets] on any rebuild — by the time it
+  /// matters (step 3+) step 2's validators have already run.
   _PendingAsset _captureCurrentAsset() {
     return _PendingAsset(
-      category: _selectedCategory!,
+      category: _selectedCategory ?? assetCategories.first,
       assetName: _assetNameController.text.trim(),
-      condition: _selectedCondition!,
-      quantity: int.parse(_quantityController.text.trim()),
-      valuePerItem: double.parse(_valueController.text.trim()),
+      condition: _selectedCondition ?? assetConditions.first,
+      quantity: int.tryParse(_quantityController.text.trim()) ?? 1,
+      valuePerItem: CurrencyInputFormatter.parse(_valueController.text) ?? 0,
       description: _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
       photos: List<XFile>.from(_photos),
     );
   }
+
+  /// Every asset that will be submitted: the ones explicitly queued with
+  /// "Add Another Asset", plus the current entry. The current entry is
+  /// never stored in [_pendingAssets] — combining it here means going Back
+  /// from Review and forward again can't queue a duplicate.
+  List<_PendingAsset> get _allAssets => [..._pendingAssets, _captureCurrentAsset()];
 
   void _resetCurrentAssetFields() {
     _selectedCategory = null;
@@ -198,10 +213,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
   }
 
   void _proceedToReview() {
-    setState(() {
-      _pendingAssets.add(_captureCurrentAsset());
-      _currentStep = 4;
-    });
+    setState(() => _currentStep = 4);
   }
 
   void _removePendingAsset(int index) {
@@ -209,11 +221,13 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
   }
 
   Future<void> _submitAllReports() async {
-    if (_isSubmitting || _isSubmitted || _pendingAssets.isEmpty) return;
+    if (_isSubmitting || _isSubmitted) return;
+    final assets = _allAssets;
+    if (assets.isEmpty) return;
     setState(() => _isSubmitting = true);
 
     var allSucceeded = true;
-    for (final asset in _pendingAssets) {
+    for (final asset in assets) {
       final submitted = await _reportController.submit(
         AssetLossReport(
           propertyId: _selectedProperty!.id!,
@@ -233,13 +247,16 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
 
     setState(() {
       _isSubmitting = false;
-      if (allSucceeded) _isSubmitted = true;
+      if (allSucceeded) {
+        _isSubmitted = true;
+        _submittedCount = assets.length;
+      }
     });
 
     _showSnack(
       allSucceeded
-          ? (_pendingAssets.length > 1
-                ? 'Your ${_pendingAssets.length} asset loss reports have been submitted.'
+          ? (assets.length > 1
+                ? 'Your ${assets.length} asset loss reports have been submitted.'
                 : 'Your asset loss report has been submitted.')
           : 'Some reports could not be submitted. Please try again.',
     );
@@ -271,8 +288,9 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Text(
-                'Take or choose a photo of the damaged item — Claude will fill '
-                'in the category, name, condition and an estimated value.',
+                'Take or choose a photo of the damaged item — Gemini will fill '
+                'in the category, name, condition and quantity. You enter the '
+                'loss amount.',
                 style: TextStyle(color: Colors.grey, fontSize: 12),
               ),
             ),
@@ -321,15 +339,11 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
     }
 
     setState(() {
-      if (suggestion.category != null) _selectedCategory = suggestion.category;
-      final name = suggestion.assetName;
-      if (name != null && name.isNotEmpty) _assetNameController.text = name;
-      if (suggestion.condition != null)
-        _selectedCondition = suggestion.condition;
-      final qty = suggestion.quantity;
-      if (qty != null && qty > 0) _quantityController.text = '$qty';
-      final value = suggestion.estimatedValuePerItem;
-      if (value != null) _valueController.text = value.toStringAsFixed(2);
+      final s = suggestion;
+      if (s.category != null) _selectedCategory = s.category;
+      if ((s.assetName ?? '').isNotEmpty) _assetNameController.text = s.assetName!;
+      if (s.condition != null) _selectedCondition = s.condition;
+      if ((s.quantity ?? 0) > 0) _quantityController.text = '${s.quantity}';
       final desc = suggestion.description;
       if (desc != null &&
           desc.isNotEmpty &&
@@ -340,8 +354,8 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
 
     _showSnack(
       suggestion.note != null
-          ? 'AI filled in the details — ${suggestion.note}'
-          : 'AI filled in the details — please check and adjust.',
+          ? 'Gemini filled in the details — ${suggestion.note}'
+          : 'Gemini filled in the details — check them and enter the loss amount.',
     );
   }
 
@@ -446,8 +460,8 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
       case 3:
         return 'Review All (${_pendingAssets.length + 1})';
       case 4:
-        return _pendingAssets.length > 1
-            ? 'Submit ${_pendingAssets.length} Reports'
+        return _allAssets.length > 1
+            ? 'Submit ${_allAssets.length} Reports'
             : 'Submit Report';
       default:
         return 'Next';
@@ -460,7 +474,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
       case 3:
         return _proceedToReview;
       case 4:
-        return _pendingAssets.isEmpty ? null : _submitAllReports;
+        return _submitAllReports;
       default:
         return _goToNextStep;
     }
@@ -480,9 +494,14 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
           maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
         ),
         child: CustomScrollView(
+          // Stable keys so removing the chrome slivers when the keyboard
+          // opens can't make Flutter match the form-content sliver against a
+          // keyless sibling SliverPadding and rebuild it — that tears down the
+          // focused TextField and drops the keyboard as it opens.
           slivers: [
-            if (!keyboardVisible)
+            if (!keyboardVisible && !_isSubmitted)
               SliverAppBar(
+                key: const ValueKey('asset-loss-step-indicator'),
                 backgroundColor: Colors.white,
                 surfaceTintColor: Colors.white,
                 elevation: 0,
@@ -505,6 +524,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                 ),
               ),
             SliverPadding(
+              key: const ValueKey('asset-loss-form-content'),
               padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
               sliver: SliverToBoxAdapter(
                 child: Column(
@@ -518,8 +538,9 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                 ),
               ),
             ),
-            if (!keyboardVisible)
+            if (!keyboardVisible && !_isSubmitted)
               SliverPadding(
+                key: const ValueKey('asset-loss-nav-buttons'),
                 padding: EdgeInsets.fromLTRB(
                   horizontalPadding,
                   0,
@@ -530,7 +551,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (_currentStep == 3 && !_isSubmitted) ...[
+                      if (_currentStep == 3) ...[
                         SizedBox(
                           width: double.infinity,
                           height: 50,
@@ -544,7 +565,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                       ],
                       Row(
                         children: [
-                          if (_currentStep > 1 && !_isSubmitted) ...[
+                          if (_currentStep > 1) ...[
                             Expanded(
                               child: SizedBox(
                                 height: 50,
@@ -608,7 +629,9 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
         ..._myProperties.map(
           (property) => RadioListTile<int>(
             value: property.id!,
+            // ignore: deprecated_member_use
             groupValue: _selectedProperty?.id,
+            // ignore: deprecated_member_use
             onChanged: (value) => setState(
               () => _selectedProperty = _myProperties.firstWhere(
                 (p) => p.id == value,
@@ -721,9 +744,9 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Snap the damaged item and Claude suggests the category, '
-                    'name, condition and an estimated value. You can edit '
-                    'everything afterwards.',
+                    'Snap the damaged item and Gemini identifies the category, '
+                    'name, condition and quantity. You enter the loss amount, '
+                    'and can edit everything afterwards.',
                     style: TextStyle(color: Colors.grey, fontSize: 12),
                   ),
                   const SizedBox(height: 10),
@@ -850,6 +873,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    inputFormatters: const [CurrencyInputFormatter()],
                     decoration: const InputDecoration(
                       labelText: 'Value per item',
                       prefixText: 'RM ',
@@ -857,7 +881,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                     ),
                     onChanged: (_) => setState(() {}),
                     validator: (value) {
-                      final n = double.tryParse(value?.trim() ?? '');
+                      final n = CurrencyInputFormatter.parse(value);
                       return (n == null || n < 0)
                           ? 'Enter a valid value.'
                           : null;
@@ -870,7 +894,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                 _valueController.text.trim().isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                'Estimated asset loss: RM ${_estimatedTotalLoss.toStringAsFixed(2)}',
+                'Estimated asset loss: ${formatRinggit(_estimatedTotalLoss)}',
                 style: const TextStyle(
                   fontWeight: FontWeight.w600,
                   color: Colors.blue,
@@ -983,53 +1007,11 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
 
   Widget _buildReviewStep() {
     if (_isSubmitted) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.only(top: 56),
-          child: Column(
-            children: [
-              const Icon(
-                Icons.check_circle_outline,
-                color: Colors.green,
-                size: 72,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _pendingAssets.length > 1
-                    ? 'Reports submitted'
-                    : 'Report submitted',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'An admin or assigned helper will review your report soon.',
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: 180,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('OK'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildSubmittedScreen();
     }
 
-    final grandTotal = _pendingAssets.fold<double>(
-      0,
-      (sum, a) => sum + a.totalLoss,
-    );
+    final assets = _allAssets;
+    final grandTotal = assets.fold<double>(0, (sum, a) => sum + a.totalLoss);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1046,25 +1028,80 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
           ReviewCard(title: 'Flood incident', value: _selectedIncident!.name),
         const SizedBox(height: 8),
         Text(
-          '${_pendingAssets.length} asset${_pendingAssets.length == 1 ? '' : 's'} reported',
+          '${assets.length} asset${assets.length == 1 ? '' : 's'} reported',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         const SizedBox(height: 12),
-        ..._pendingAssets.asMap().entries.map(
-          (entry) => _PendingAssetCard(
+        ...assets.asMap().entries.map((entry) {
+          // The last card is the current form entry — edit it by going Back,
+          // not by removing it here. Only queued assets get a remove button.
+          final isQueued = entry.key < _pendingAssets.length;
+          return _PendingAssetCard(
             asset: entry.value,
-            onRemove: _pendingAssets.length > 1
-                ? () => _removePendingAsset(entry.key)
-                : null,
-          ),
-        ),
+            onRemove:
+                isQueued ? () => _removePendingAsset(entry.key) : null,
+          );
+        }),
         const SizedBox(height: 12),
         ReviewCard(
           title: 'Total Potential Asset Loss',
-          value: 'RM ${grandTotal.toStringAsFixed(2)}',
+          value: formatRinggit(grandTotal),
         ),
         const SizedBox(height: 30),
       ],
+    );
+  }
+
+  Widget _buildSubmittedScreen() {
+    final many = _submittedCount > 1;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 56, 8, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Center(
+            child: Container(
+              width: 92,
+              height: 92,
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.check_rounded, color: Colors.green.shade600, size: 52),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            many ? '$_submittedCount reports submitted' : 'Report submitted',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            many
+                ? 'Your $_submittedCount asset loss reports have been sent. An admin '
+                    'or assigned helper will review them soon.'
+                : 'Your asset loss report has been sent. An admin or assigned '
+                    'helper will review it soon.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 14, height: 1.4),
+          ),
+          const SizedBox(height: 28),
+          SizedBox(
+            height: 50,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('OK', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1116,12 +1153,12 @@ class _PendingAssetCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '${assetConditionLabels[asset.condition]} · Qty ${asset.quantity} · '
-            'RM ${asset.valuePerItem.toStringAsFixed(2)} each',
+            '${formatRinggit(asset.valuePerItem)} each',
             style: const TextStyle(color: Colors.grey, fontSize: 13),
           ),
           const SizedBox(height: 4),
           Text(
-            'RM ${asset.totalLoss.toStringAsFixed(2)}'
+            '${formatRinggit(asset.totalLoss)}'
             '${asset.photos.isNotEmpty ? ' · ${asset.photos.length} photo(s)' : ''}',
             style: const TextStyle(
               fontWeight: FontWeight.w600,
