@@ -14,7 +14,9 @@ class FacilityManagementView extends StatefulWidget {
 
 class _FacilityManagementViewState extends State<FacilityManagementView> {
   final _controller = FacilityController(FacilityService());
+  final _searchController = TextEditingController();
   late Future<List<Facility>> _facilitiesFuture;
+  String _searchQuery = '';
   String _typeFilter = 'all';
 
   static const _typeOptions = ['all', 'shelter', 'distribution_center', 'medical_station'];
@@ -23,6 +25,12 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
   void initState() {
     super.initState();
     _facilitiesFuture = _controller.getAllFacilities();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -67,6 +75,33 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
             ),
             child: Column(
               children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) => setState(
+                      () => _searchQuery = value.trim().toLowerCase(),
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Search shelters by name',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _searchQuery.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.clear),
+                              tooltip: 'Clear search',
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _searchQuery = '');
+                              },
+                            ),
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
                 _buildFilterBar(),
                 Expanded(
                   child: RefreshIndicator(
@@ -85,6 +120,15 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
                         if (_typeFilter != 'all') {
                           facilities = facilities.where((f) => f.facilityType == _typeFilter).toList();
                         }
+                        if (_searchQuery.isNotEmpty) {
+                          facilities = facilities
+                              .where(
+                                (facility) => facility.name
+                                    .toLowerCase()
+                                    .contains(_searchQuery),
+                              )
+                              .toList();
+                        }
 
                         if (facilities.isEmpty) {
                           return LayoutBuilder(
@@ -92,7 +136,13 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
                               physics: const AlwaysScrollableScrollPhysics(),
                               child: ConstrainedBox(
                                 constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                                child: const Center(child: Text('No facilities yet. Tap + to add one.')),
+                                child: Center(
+                                  child: Text(
+                                    _searchQuery.isNotEmpty
+                                        ? 'No shelters match your search.'
+                                        : 'No facilities yet. Tap + to add one.',
+                                  ),
+                                ),
                               ),
                             ),
                           );
