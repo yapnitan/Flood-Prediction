@@ -1,12 +1,15 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import '../models/terrain_data.dart';
+import '../utils/http_retry.dart';
 
 /// Terrain elevation lookups via the Open-Meteo Elevation API
 /// (https://open-meteo.com/en/docs/elevation-api) — free, keyless.
 class TerrainService {
   static const String _baseUrl = 'https://api.open-meteo.com/v1/elevation';
+
+  /// Cap each call so one slow response can't stall a whole risk assessment.
+  static const Duration _timeout = Duration(seconds: 8);
 
   Future<TerrainData?> getElevation({
     required double latitude,
@@ -17,7 +20,7 @@ class TerrainService {
         '$_baseUrl?latitude=$latitude&longitude=$longitude',
       );
 
-      final response = await http.get(uri);
+      final response = await getWithRetry(uri, timeout: _timeout);
 
       if (response.statusCode != 200) {
         debugPrint('TerrainService.getElevation HTTP ${response.statusCode}');

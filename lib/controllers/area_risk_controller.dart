@@ -1,4 +1,5 @@
 import '../models/flood_report.dart';
+import '../models/river_flood_data.dart';
 import '../services/area_risk_service.dart';
 import 'environment_controller.dart';
 import 'flood_report_controller.dart';
@@ -36,10 +37,11 @@ class AreaRiskController {
   );
 
   /// Combines the long-term hazard baseline (historical flood frequency)
-  /// with two live signals — current rainfall and nearby community
-  /// reports — into a single ambient risk badge for the given location.
-  /// Ephemeral: recomputed on demand, never persisted (unlike
-  /// [RiskAssessmentController.runAssessment]'s saved simulations).
+  /// with three live signals — current rainfall, nearby community reports
+  /// and the nearby river's forecast flow — into a single ambient risk
+  /// badge for the given location. Ephemeral: recomputed on demand, never
+  /// persisted (unlike [RiskAssessmentController.runAssessment]'s saved
+  /// simulations).
   Future<AreaRiskAssessment> assessCurrentLocation({
     required double latitude,
     required double longitude,
@@ -59,16 +61,22 @@ class AreaRiskController {
       radiusKm: 5,
       maxAge: const Duration(hours: 24),
     );
+    final riverFuture = environmentController.getRiverFlood(
+      latitude: latitude,
+      longitude: longitude,
+    );
 
     final historical = await historicalFuture;
     final weather = await weatherFuture;
     final reports = await reportsFuture;
+    final river = await riverFuture;
 
     final result = areaRiskService.assess(
       AreaRiskInput(
         nearbyHistoricalFloodCount: historical.length,
         currentRainfallMm: weather?.rainfallMm,
         nearbyReportWaterLevels: reports.map((r) => r.waterLevel).toList(),
+        riverFloodLevel: river?.level ?? RiverFloodLevel.unknown,
       ),
     );
 

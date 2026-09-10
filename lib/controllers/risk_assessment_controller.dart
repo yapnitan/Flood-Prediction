@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/flood_simulation.dart';
 import '../models/river_flood_data.dart';
 import '../models/simulation_factor.dart';
+import '../models/terrain_data.dart';
 import '../services/risk_assessment_service.dart';
 import '../services/flood_simulation_service.dart';
 import '../services/flood_report_service.dart';
@@ -169,43 +172,52 @@ class RiskAssessmentController {
     required bool hasFloodBarriers,
     required bool hasRaisedFoundation,
   }) async {
-    final nearbyFloods = await historicalFloodController.getNearby(
-      latitude: latitude,
-      longitude: longitude,
-      radiusKm: 20,
-    );
+    final baselineCoord =
+        MalaysiaGeocoder.centroidFor(state: state, district: district);
 
-    final recentReports = await floodReportService.getNearby(
-      latitude: latitude,
-      longitude: longitude,
-      radiusKm: _recentReportRadiusKm,
-      maxAge: _recentReportWindow,
-    );
+    // All six lookups are independent (the baseline coord is a local table
+    // lookup), so fire them together — sequential awaits here made a single
+    // assessment take as long as the sum of every API round-trip.
+    final (
+      nearbyFloods,
+      recentReports,
+      riverFlood,
+      terrain,
+      baselineTerrain,
+      weather,
+    ) = await (
+      historicalFloodController.getNearby(
+        latitude: latitude,
+        longitude: longitude,
+        radiusKm: 20,
+      ),
+      floodReportService.getNearby(
+        latitude: latitude,
+        longitude: longitude,
+        radiusKm: _recentReportRadiusKm,
+        maxAge: _recentReportWindow,
+      ),
+      environmentController.getRiverFlood(
+        latitude: latitude,
+        longitude: longitude,
+      ),
+      environmentController.getTerrain(
+        latitude: latitude,
+        longitude: longitude,
+      ),
+      baselineCoord != null
+          ? environmentController.getTerrain(
+              latitude: baselineCoord.$1,
+              longitude: baselineCoord.$2,
+            )
+          : Future<TerrainData?>.value(null),
+      environmentController.getWeather(
+        latitude: latitude,
+        longitude: longitude,
+      ),
+    ).wait;
 
-    final riverFlood = await environmentController.getRiverFlood(
-      latitude: latitude,
-      longitude: longitude,
-    );
     final riverFloodLevel = riverFlood?.level ?? RiverFloodLevel.unknown;
-
-    final terrain = await environmentController.getTerrain(
-      latitude: latitude,
-      longitude: longitude,
-    );
-
-    final baselineCoord = MalaysiaGeocoder.centroidFor(state: state, district: district);
-    final baselineTerrain = baselineCoord != null
-        ? await environmentController.getTerrain(
-            latitude: baselineCoord.$1,
-            longitude: baselineCoord.$2,
-          )
-        : null;
-
-    final weather = await environmentController.getWeather(
-      latitude: latitude,
-      longitude: longitude,
-    );
-
     final propertyElevation = userElevationMeters ?? terrain?.elevationMeters;
 
     final result = riskAssessmentService.assess(

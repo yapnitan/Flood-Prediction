@@ -8,7 +8,6 @@ import '../../services/terrain_service.dart';
 import '../../services/weather_service.dart';
 import '../../services/risk_assessment_service.dart';
 import '../../services/flood_simulation_service.dart';
-import '../../services/connectivity_service.dart';
 import '../../routes/app_routes.dart';
 import '../../routes/route_arguments.dart';
 import '../../utils/responsive.dart';
@@ -36,31 +35,18 @@ class _SimulationListViewState extends State<SimulationListView> {
     _refresh();
   }
 
+  /// Just reads the saved assessments — the list always shows each one's
+  /// last stored score. Re-scoring against current data only happens when
+  /// the user opens a simulation (see [SimulationDetailView]); returning
+  /// from there calls [_refresh] again, so an updated score shows up then.
   void _refresh() {
     setState(() {
-      _simulationsFuture = _loadSimulations();
+      _simulationsFuture = _riskAssessmentController.listSimulations();
     });
   }
 
-  /// Loads the saved assessments, then re-scores each one against current
-  /// data (recent community reports, weather, river forecast) so the list
-  /// stays in sync with the real-time detail view. One refresh pass per
-  /// simulation — heavier than a plain read, but assessments are few per
-  /// account. Skipped entirely when offline (the pipeline needs live APIs).
-  Future<List<FloodSimulation>> _loadSimulations() async {
-    final simulations = await _riskAssessmentController.listSimulations();
-    if (!ConnectivityService.instance.isOnline) return simulations;
-    return Future.wait(
-      simulations.map((simulation) async {
-        final outcome =
-            await _riskAssessmentController.refreshSimulation(simulation);
-        return outcome.simulation ?? simulation;
-      }),
-    );
-  }
-
   Future<void> _handlePullToRefresh() async {
-    final simulations = await _loadSimulations();
+    final simulations = await _riskAssessmentController.listSimulations();
     if (!mounted) return;
     setState(() => _simulationsFuture = Future.value(simulations));
   }
