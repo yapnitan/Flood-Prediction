@@ -41,6 +41,72 @@ class MalaysiaGeocoder {
     'WP Putrajaya',
   ];
 
+  static const Map<String, List<String>> districtsByState = {
+    'Johor': [
+      'Batu Pahat', 'Johor Bahru', 'Kluang', 'Kota Tinggi', 'Kulai',
+      'Mersing', 'Muar', 'Pontian', 'Segamat', 'Tangkak',
+    ],
+    'Kedah': [
+      'Baling', 'Bandar Baharu', 'Kota Setar', 'Kuala Muda', 'Kubang Pasu',
+      'Kulim', 'Langkawi', 'Padang Terap', 'Pendang', 'Pokok Sena', 'Sik',
+      'Yan',
+    ],
+    'Kelantan': [
+      'Bachok', 'Gua Musang', 'Jeli', 'Kecil Lojing', 'Kota Bharu',
+      'Kuala Krai', 'Machang', 'Pasir Mas', 'Pasir Puteh', 'Tanah Merah',
+      'Tumpat',
+    ],
+    'Melaka': ['Alor Gajah', 'Jasin', 'Melaka Tengah'],
+    'Negeri Sembilan': [
+      'Jelebu', 'Jempol', 'Kuala Pilah', 'Port Dickson', 'Rembau',
+      'Seremban', 'Tampin',
+    ],
+    'Pahang': [
+      'Bentong', 'Bera', 'Cameron Highlands', 'Jerantut', 'Kuantan',
+      'Lipis', 'Maran', 'Pekan', 'Raub', 'Rompin', 'Temerloh',
+    ],
+    'Perak': [
+      'Bagan Datuk', 'Batang Padang', 'Hilir Perak', 'Hulu Perak', 'Kampar',
+      'Kerian', 'Kinta', 'Kuala Kangsar', 'Larut dan Matang', 'Manjung',
+      'Muallim', 'Perak Tengah', 'Selama',
+    ],
+    'Perlis': ['Perlis'],
+    'Pulau Pinang': [
+      'Barat Daya', 'Seberang Perai Selatan', 'Seberang Perai Tengah',
+      'Seberang Perai Utara', 'Timur Laut',
+    ],
+    'Sabah': [
+      'Beaufort', 'Beluran', 'Kalabakan', 'Keningau', 'Kinabatangan',
+      'Kota Belud', 'Kota Kinabalu', 'Kota Marudu', 'Kuala Penyu', 'Kudat',
+      'Kunak', 'Lahad Datu', 'Nabawan', 'Papar', 'Penampang', 'Pitas',
+      'Putatan', 'Ranau', 'Sandakan', 'Semporna', 'Sipitang', 'Tambunan',
+      'Tawau', 'Telupid', 'Tenom', 'Tongod', 'Tuaran',
+    ],
+    'Sarawak': [
+      'Asajaya', 'Bau', 'Belaga', 'Beluru', 'Betong', 'Bintulu',
+      'Bukit Mabong', 'Dalat', 'Daro', 'Julau', 'Kabong', 'Kanowit',
+      'Kapit', 'Lawas', 'Limbang', 'Lubok Antu', 'Lundu', 'Maradong',
+      'Marudi', 'Matu', 'Miri', 'Mukah', 'Pakan', 'Pusa', 'Samarahan',
+      'Saratok', 'Sarikei', 'Sebauh', 'Selangau', 'Serian', 'Sibu',
+      'Simunjan', 'Song', 'Sri Aman', 'Subis', 'Tanjung Manis', 'Tatau',
+      'Tebedu', 'Telang Usan',
+    ],
+    'Selangor': [
+      'Gombak', 'Klang', 'Kuala Langat', 'Kuala Selangor', 'Petaling',
+      'Sabak Bernam', 'Sepang', 'Ulu Langat', 'Ulu Selangor',
+    ],
+    'Terengganu': [
+      'Besut', 'Dungun', 'Hulu Terengganu', 'Kemaman', 'Kuala Nerus',
+      'Kuala Terengganu', 'Marang', 'Setiu',
+    ],
+    'WP Kuala Lumpur': ['Kuala Lumpur'],
+    'WP Labuan': ['Labuan'],
+    'WP Putrajaya': ['Putrajaya'],
+  };
+
+  static List<String> districtsFor(String state) =>
+      districtsByState[state] ?? const [];
+
   /// Best-effort centroid for [district] within [state]. Tries an exact
   /// district match first, then falls back to the state centroid, then
   /// null if neither is recognized.

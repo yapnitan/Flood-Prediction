@@ -74,6 +74,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
     String? helperId = existing?['helper_id'] as String?;
     String state = existing?['state'] as String? ?? MalaysiaGeocoder.states.first;
     final districtController = TextEditingController(text: existing?['district'] as String? ?? '');
+    final districtFocusNode = FocusNode();
 
     final result = await showDialog<bool>(
       context: context,
@@ -97,12 +98,54 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                 initialValue: state,
                 decoration: const InputDecoration(labelText: 'State'),
                 items: MalaysiaGeocoder.states.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                onChanged: (value) => setDialogState(() => state = value ?? state),
+                onChanged: (value) => setDialogState(() {
+                  if (value == null || value == state) return;
+                  state = value;
+                  if (!MalaysiaGeocoder.districtsFor(state).contains(districtController.text.trim())) {
+                    districtController.clear();
+                  }
+                }),
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: districtController,
-                decoration: const InputDecoration(labelText: 'District', hintText: 'e.g. Petaling'),
+              RawAutocomplete<String>(
+                key: ValueKey(state),
+                textEditingController: districtController,
+                focusNode: districtFocusNode,
+                optionsBuilder: (value) {
+                  final districts = MalaysiaGeocoder.districtsFor(state);
+                  final query = value.text.trim().toLowerCase();
+                  if (query.isEmpty) return districts;
+                  return districts.where((d) => d.toLowerCase().contains(query));
+                },
+                onSelected: (value) => districtController.text = value,
+                optionsViewBuilder: (context, onSelected, options) => Align(
+                  alignment: Alignment.topLeft,
+                  child: Material(
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(10),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 250, maxWidth: 300),
+                      child: ListView(
+                        padding: EdgeInsets.zero,
+                        shrinkWrap: true,
+                        children: options.map((district) {
+                          return ListTile(
+                            dense: true,
+                            title: Text(district),
+                            onTap: () => onSelected(district),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ),
+                fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+                  return TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: const InputDecoration(labelText: 'District', hintText: 'e.g. Petaling'),
+                  );
+                },
               ),
             ],
           ),

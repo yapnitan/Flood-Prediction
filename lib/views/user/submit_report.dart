@@ -37,6 +37,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
   double? _selectedLongitude;
   String? _selectedState;
   final TextEditingController _districtController = TextEditingController();
+  final FocusNode _districtFocusNode = FocusNode();
   bool _isLocating = false;
 
   final _detailsFormKey = GlobalKey<FormState>();
@@ -93,6 +94,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
     _contactController.dispose();
     _locationNameController.dispose();
     _districtController.dispose();
+    _districtFocusNode.dispose();
     _locationFocusNode.dispose();
     super.dispose();
   }
@@ -702,14 +704,52 @@ class _SubmitReportState extends State<SubmitReportPage> {
           onChanged: (value) => setState(() => _selectedState = value),
         ),
         const SizedBox(height: 12),
-        TextField(
-          controller: _districtController,
-          decoration: const InputDecoration(
-            labelText: 'District',
-            hintText: 'e.g. Petaling',
-            border: OutlineInputBorder(),
-            isDense: true,
+        RawAutocomplete<String>(
+          key: ValueKey('district-$_selectedState'),
+          textEditingController: _districtController,
+          focusNode: _districtFocusNode,
+          optionsBuilder: (value) {
+            final districts = _selectedState == null
+                ? const <String>[]
+                : MalaysiaGeocoder.districtsFor(_selectedState!);
+            final query = value.text.trim().toLowerCase();
+            if (query.isEmpty) return districts;
+            return districts.where((d) => d.toLowerCase().contains(query));
+          },
+          onSelected: (value) => _districtController.text = value,
+          optionsViewBuilder: (context, onSelected, options) => Align(
+            alignment: Alignment.topLeft,
+            child: Material(
+              elevation: 4,
+              borderRadius: BorderRadius.circular(10),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 250, maxWidth: 600),
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  children: options.map((district) {
+                    return ListTile(
+                      dense: true,
+                      title: Text(district),
+                      onTap: () => onSelected(district),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
           ),
+          fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
+            return TextField(
+              controller: controller,
+              focusNode: focusNode,
+              decoration: const InputDecoration(
+                labelText: 'District',
+                hintText: 'e.g. Petaling',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+            );
+          },
         ),
         const SizedBox(height: 24),
         const Text(
