@@ -3,6 +3,7 @@ import '../../controllers/facility_controller.dart';
 import '../../models/facility.dart';
 import '../../services/facility_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/adaptive_search_filter_header.dart';
 import 'facility_form_view.dart';
 
 class FacilityManagementView extends StatefulWidget {
@@ -77,32 +78,55 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (value) => setState(
-                      () => _searchQuery = value.trim().toLowerCase(),
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Search shelters by name',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchQuery.isEmpty
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.clear),
-                              tooltip: 'Clear search',
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() => _searchQuery = '');
-                              },
-                            ),
-                      isDense: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  child: AdaptiveSearchFilterHeader(
+                    searchField: TextField(
+                      controller: _searchController,
+                      onChanged: (value) => setState(
+                        () => _searchQuery = value.trim().toLowerCase(),
                       ),
+                      decoration: InputDecoration(
+                        hintText: 'Search shelters by name',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchQuery.isEmpty
+                            ? null
+                            : IconButton(
+                                icon: const Icon(Icons.clear),
+                                tooltip: 'Clear search',
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                              ),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    portraitFilters: [_buildFilterBar()],
+                    sheetTitle: 'Filter facilities',
+                    activeFilterCount: _typeFilter == 'all' ? 0 : 1,
+                    sheetBuilder: (context, setSheetState) => Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final type in _typeOptions)
+                          ChoiceChip(
+                            label: Text(
+                              type == 'all'
+                                  ? 'All'
+                                  : Facility.typeLabels[type]!,
+                            ),
+                            selected: _typeFilter == type,
+                            onSelected: (_) {
+                              setState(() => _typeFilter = type);
+                              setSheetState(() {});
+                            },
+                          ),
+                      ],
                     ),
                   ),
                 ),
-                _buildFilterBar(),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _refresh,
@@ -174,7 +198,7 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
     return SizedBox(
       height: 48,
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         scrollDirection: Axis.horizontal,
         itemCount: _typeOptions.length,
         separatorBuilder: (context, index) => const SizedBox(width: 8),
