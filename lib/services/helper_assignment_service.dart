@@ -31,9 +31,10 @@ class HelperAssignmentService {
     return (data as List).map((e) => HelperDistrictAssignment.fromJson(e)).toList();
   }
 
-  /// Returns a user-facing error message on failure (most commonly the
-  /// "one active helper per district" unique-index conflict), or null on
-  /// success.
+  /// Returns a user-facing error message on failure, or null on success.
+  /// A 23505 unique-index conflict is either "this district already has an
+  /// active helper" (0024) or "this helper is already assigned to a place"
+  /// (0042) — the constraint name tells them apart.
   Future<String?> assign(HelperDistrictAssignment assignment) async {
     try {
       await _supabase.from(_table).insert(assignment.toJson());
@@ -41,6 +42,10 @@ class HelperAssignmentService {
     } on PostgrestException catch (e) {
       debugPrint('HelperAssignmentService.assign error: $e');
       if (e.code == '23505') {
+        if (e.message.contains('active_helper')) {
+          return 'This helper is already assigned to a place. Change their '
+              'place instead of adding another.';
+        }
         return '${assignment.district}, ${assignment.state} already has an active helper assignment.';
       }
       return 'Could not create the assignment. Please try again.';
@@ -63,7 +68,9 @@ class HelperAssignmentService {
     } on PostgrestException catch (e) {
       debugPrint('HelperAssignmentService.setStatus error: $e');
       if (e.code == '23505') {
-        return 'That district already has another active helper assignment.';
+        return e.message.contains('active_helper')
+            ? 'This helper already has an active place. Deactivate it first.'
+            : 'That district already has another active helper assignment.';
       }
       return 'Could not update the assignment. Please try again.';
     } catch (error) {

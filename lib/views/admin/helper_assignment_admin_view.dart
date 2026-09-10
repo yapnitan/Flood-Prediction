@@ -14,11 +14,11 @@ import '../../widgets/adaptive_search_filter_header.dart';
 import '../../widgets/empty_state.dart';
 
 /// Admin's Helper Assignment page (Task/asset report §32-§34): assigns
-/// approved helpers to a state/district so they can verify Potential Asset
-/// Loss reports there. A district-coverage grid (§33) is intentionally out
-/// of scope for now — it would require enumerating every Malaysian
-/// district up front; the assignment list below already surfaces which
-/// districts currently have an active helper.
+/// each approved helper to exactly one state/district ("their place") so
+/// they can verify Potential Asset Loss reports and log shelter occupancy
+/// there. One active place per helper and one active helper per district
+/// are both enforced at the DB level (migrations 0024 + 0042) — the admin
+/// can only ever *change* a helper's place, never stack a second one.
 class HelperAssignmentAdminView extends StatefulWidget {
   const HelperAssignmentAdminView({super.key});
 
@@ -35,6 +35,12 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _assignments = [];
   List<Account> _helpers = [];
+
+  /// Helper ids that already have an active place — they can only be
+  /// *reassigned*, never given a second place, so they're kept out of the
+  /// "assign a helper" dropdown.
+  Set<String> _assignedHelperIds = {};
+
   Map<String, int> _pendingByDistrict = {};
   Map<String, int> _completedByDistrict = {};
   String _searchQuery = '';
@@ -103,6 +109,10 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
     setState(() {
       _assignments = assignments;
       _helpers = accounts.where((a) => a.role == 'helper' && a.status == 'active').toList();
+      _assignedHelperIds = {
+        for (final a in assignments)
+          if (a['status'] == 'active') a['helper_id'] as String,
+      };
       _pendingByDistrict = pending;
       _completedByDistrict = completed;
       _isLoading = false;
@@ -117,23 +127,31 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
     String state = existing?['state'] as String? ?? MalaysiaGeocoder.states.first;
     final districtController = TextEditingController(text: existing?['district'] as String? ?? '');
 
+    // Only helpers without an active place can be freshly assigned — an
+    // already-assigned helper is changed via the card's "Change place".
+    final assignableHelpers = _helpers
+        .where((h) => !_assignedHelperIds.contains(h.id))
+        .toList();
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           scrollable: true,
-          title: Text(existing == null ? 'Assign Helper' : 'Reassign District'),
+          title: Text(existing == null
+              ? 'Assign Helper to a Place'
+              : "Change Helper's Place"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (existing == null)
                 DropdownButtonFormField<String>(
-                  initialValue: _helpers.any((h) => h.id == helperId)
+                  initialValue: assignableHelpers.any((h) => h.id == helperId)
                       ? helperId
                       : null,
                   decoration: const InputDecoration(labelText: 'Helper'),
-                  items: _helpers
+                  items: assignableHelpers
                       .map(
                         (helper) => DropdownMenuItem(
                           value: helper.id,
@@ -144,8 +162,8 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                   onChanged: (value) =>
                       setDialogState(() => helperId = value),
                   hint: Text(
-                    _helpers.isEmpty
-                        ? 'No active helpers available'
+                    assignableHelpers.isEmpty
+                        ? 'Every active helper already has a place'
                         : 'Select a helper',
                   ),
                 )
@@ -192,7 +210,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                         ),
                       )
                     : await _assignmentController.reassign(
-                        existingAssignmentId: existing!['id'] as String?,
+                        existingAssignmentId: existing['id'] as String?,
                         helperId: helperId!,
                         state: state,
                         district: district,
@@ -204,7 +222,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                 }
                 Navigator.pop(context, true);
               },
-              child: const Text('Save'),
+              child: Text(existing == null ? 'Assign' : 'Change place'),
             ),
           ],
         ),
@@ -416,7 +434,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                                           _searchQuery.isEmpty &&
                                           _statusFilter == 'all' &&
                                           _stateFilter == 'all'
-                                      ? 'Tap + to assign an approved helper to a state/district.'
+                                      ? 'Tap + to assign an approved helper to a place. Each helper covers exactly one place.'
                                       : null,
                                 )
                               : ListView.separated(
@@ -480,7 +498,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                                         if (isActive) ...[
                                           OutlinedButton(
                                             onPressed: () => _openAssignDialog(existing: a),
-                                            child: const Text('Reassign'),
+                                            child: const Text('Change place'),
                                           ),
                                           const SizedBox(width: 8),
                                           OutlinedButton(
