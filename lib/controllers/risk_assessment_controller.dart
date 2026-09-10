@@ -56,6 +56,7 @@ class RiskAssessmentController {
   /// Gathers historical flood, terrain and weather data for the given
   /// property, scores it, saves the result, and returns the outcome.
   Future<SimulationOutcome> runAssessment({
+    int? propertyId,
     required String propertyName,
     required String structureType,
     required double latitude,
@@ -78,6 +79,7 @@ class RiskAssessmentController {
 
     final (:simulation, :result) = await _gatherAndScore(
       accountId: accountId,
+      propertyId: propertyId,
       propertyName: propertyName,
       structureType: structureType,
       latitude: latitude,
@@ -107,6 +109,7 @@ class RiskAssessmentController {
   /// but overwrites [simulationId] instead of inserting a new row.
   Future<SimulationOutcome> updateAssessment({
     required String simulationId,
+    int? propertyId,
     required String propertyName,
     required String structureType,
     required double latitude,
@@ -130,6 +133,7 @@ class RiskAssessmentController {
     final (:simulation, :result) = await _gatherAndScore(
       id: simulationId,
       accountId: accountId,
+      propertyId: propertyId,
       propertyName: propertyName,
       structureType: structureType,
       latitude: latitude,
@@ -163,6 +167,7 @@ class RiskAssessmentController {
   Future<({FloodSimulation simulation, RiskAssessmentResult result})> _gatherAndScore({
     String? id,
     required String accountId,
+    int? propertyId,
     required String propertyName,
     required String structureType,
     required double latitude,
@@ -269,6 +274,7 @@ class RiskAssessmentController {
     final simulation = FloodSimulation(
       id: id,
       accountId: accountId,
+      propertyId: propertyId,
       propertyName: propertyName,
       structureType: structureType,
       latitude: latitude,
@@ -343,6 +349,7 @@ class RiskAssessmentController {
     }
     return updateAssessment(
       simulationId: id,
+      propertyId: simulation.propertyId,
       propertyName: simulation.propertyName,
       structureType: simulation.structureType,
       latitude: simulation.latitude,

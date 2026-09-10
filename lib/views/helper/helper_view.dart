@@ -181,7 +181,7 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
   Future<void> _refresh() => _load();
 
   Future<void> _openReport(Map<String, dynamic> data) async {
-    await Navigator.push(
+    final submitted = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => AssetLossHelperVerifyView(
@@ -190,6 +190,14 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
         ),
       ),
     );
+    if (!mounted) return;
+    if (submitted == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Verification submitted for admin review.'),
+        ),
+      );
+    }
     _refresh();
   }
 
@@ -403,8 +411,7 @@ class _ReportCard extends StatelessWidget {
               'Potential loss: ${formatRinggit(estimatedTotal)}',
               style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.blue, fontSize: 13),
             ),
-            if (data['verification_result'] != null &&
-                status == 'pending_review') ...[
+            if (status == 'helper_verified') ...[
               const SizedBox(height: 4),
               Text(
                 'Verified — awaiting admin approval',

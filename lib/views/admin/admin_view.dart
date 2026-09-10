@@ -65,7 +65,9 @@ class _AdminHomeState extends State<AdminHome> {
     if (!mounted) return;
     setState(() {
       _pendingAssetLossCount = reports
-          .where((r) => r['status'] == 'pending_review')
+          .where((r) =>
+              r['status'] == 'pending_review' ||
+              r['status'] == 'helper_verified')
           .length;
     });
   }

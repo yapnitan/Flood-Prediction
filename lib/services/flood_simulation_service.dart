@@ -116,7 +116,19 @@ class FloodSimulationService {
     List<SimulationFactor> factors,
   ) async {
     try {
-      await supabase.from(_simulationTable).update(simulation.toJson()).eq('id', id);
+      // Never send the primary key in an UPDATE body, and use `.select()` so
+      // a row that RLS silently refused to touch comes back empty instead of
+      // looking like success (which then "reverts" on the next read).
+      final payload = simulation.toJson()..remove('id');
+      final updated = await supabase
+          .from(_simulationTable)
+          .update(payload)
+          .eq('id', id)
+          .select();
+      if ((updated as List).isEmpty) {
+        debugPrint('FloodSimulationService.updateSimulation: nothing updated for $id');
+        return false;
+      }
 
       await supabase.from(_factorTable).delete().eq('simulation_id', id);
       if (factors.isNotEmpty) {

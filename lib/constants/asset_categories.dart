@@ -75,6 +75,7 @@ const List<String> verificationResults = [
 
 const Map<String, String> assetLossStatusLabels = {
   'pending_review': 'Pending Review',
+  'helper_verified': 'Helper Verified',
   'verified': 'Verified',
   'rejected': 'Rejected',
 };

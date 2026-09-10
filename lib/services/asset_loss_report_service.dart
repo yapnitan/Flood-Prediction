@@ -252,8 +252,11 @@ class AssetLossReportService {
     return List<Map<String, dynamic>>.from(data);
   }
 
-  /// The verify-once / district-match rules are enforced by RLS (0036) and by
-  /// the verify screen only opening its form for still-verifiable reports.
+  /// The verify-once / district-match rules are enforced by RLS (0036/0038)
+  /// and by the verify screen only opening its form for still-verifiable
+  /// reports. Moves the report to `helper_verified` so it enters the admin's
+  /// approval queue and starts counting toward the Economic Loss Dashboard
+  /// at its verified figure.
   Future<void> submitHelperVerification({
     required String reportId,
     required int verifiedQuantity,
@@ -265,6 +268,7 @@ class AssetLossReportService {
   }) async {
     final helperId = _supabase.auth.currentUser?.id;
     await _supabase.from(_table).update({
+      'status': 'helper_verified',
       'verified_quantity': verifiedQuantity,
       'verified_value_per_item': verifiedValuePerItem,
       'verified_condition': verifiedCondition,
@@ -274,7 +278,7 @@ class AssetLossReportService {
       'verified_by': helperId,
       'verified_at': DateTime.now().toIso8601String(),
       'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', reportId);
+    }).eq('id', reportId).eq('status', 'pending_review');
   }
 
   Future<void> adminApprove({

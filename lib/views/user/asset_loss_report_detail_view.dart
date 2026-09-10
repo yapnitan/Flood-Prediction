@@ -217,6 +217,14 @@ class _ReportBody extends StatelessWidget {
           if (report.verificationNotes != null &&
               report.verificationNotes!.isNotEmpty)
             ReviewCard(title: 'Notes', value: report.verificationNotes!),
+          if (report.isHelperVerified)
+            const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text(
+                'Verified by a helper — awaiting the admin\'s final approval.',
+                style: TextStyle(fontSize: 12, color: Colors.orange),
+              ),
+            ),
         ],
         if (report.isVerified && report.approvedTotalLoss != null) ...[
           const Divider(height: 32),

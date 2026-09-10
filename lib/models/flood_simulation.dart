@@ -4,6 +4,11 @@ import 'river_flood_data.dart';
 class FloodSimulation {
   final String? id;
   final String accountId;
+
+  /// The resident's saved address (public.property) this assessment is for.
+  /// Null only for assessments created before addresses were linked.
+  final int? propertyId;
+
   final String propertyName;
   final String structureType;
   final double latitude;
@@ -47,6 +52,7 @@ class FloodSimulation {
   FloodSimulation({
     this.id,
     required this.accountId,
+    this.propertyId,
     required this.propertyName,
     required this.structureType,
     required this.latitude,
@@ -71,6 +77,7 @@ class FloodSimulation {
     return FloodSimulation(
       id: json['id'] as String?,
       accountId: json['account_id'] as String,
+      propertyId: (json['property_id'] as num?)?.toInt(),
       propertyName: json['property_name'] as String,
       structureType: json['structure_type'] as String,
       latitude: (json['latitude'] as num).toDouble(),
@@ -102,6 +109,7 @@ class FloodSimulation {
     return {
       if (id != null) 'id': id,
       'account_id': accountId,
+      'property_id': propertyId,
       'property_name': propertyName,
       'structure_type': structureType,
       'latitude': latitude,

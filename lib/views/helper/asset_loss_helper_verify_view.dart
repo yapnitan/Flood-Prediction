@@ -42,16 +42,17 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
   final ImagePicker _imagePicker = ImagePicker();
   final List<XFile> _photos = [];
   bool _isSubmitting = false;
-  bool _isSubmitted = false;
+
+  String get _status =>
+      widget.data['status'] as String? ?? 'pending_review';
 
   /// A helper may only verify a report that is still pending review and has
-  /// not been verified by anyone yet — matches migration 0036's RLS.
+  /// not been verified by anyone yet — matches migration 0036/0038's RLS.
   bool get _alreadyVerified =>
-      (widget.data['verification_result'] as String?) != null;
-  bool get _reportSettled =>
-      (widget.data['status'] as String? ?? 'pending_review') != 'pending_review';
-  bool get _canVerify =>
-      !_isSubmitted && !_alreadyVerified && !_reportSettled;
+      (widget.data['verification_result'] as String?) != null ||
+      _status == 'helper_verified';
+  bool get _reportSettled => _status == 'verified' || _status == 'rejected';
+  bool get _canVerify => !_alreadyVerified && !_reportSettled;
 
   @override
   void initState() {
@@ -165,13 +166,9 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
       return;
     }
     if (!mounted) return;
-    setState(() {
-      _isSubmitting = false;
-      _isSubmitted = true;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Verification submitted for admin review.')),
-    );
+    // Back to the helper dashboard — it shows the confirmation snackbar and
+    // refreshes the list so this report moves to the "Reviewed" section.
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -186,7 +183,7 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
     final lng = (property?['lng'] as num?)?.toDouble();
 
     return AbsorbPointer(
-      absorbing: _isSubmitting || _isSubmitted,
+      absorbing: _isSubmitting,
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
@@ -313,21 +310,7 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
                         ),
                       ),
 
-                    if (_isSubmitted) ...[
-                      const Divider(height: 32),
-                      const Row(
-                        children: [
-                          Icon(Icons.check_circle, color: Colors.green),
-                          SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Verification submitted — awaiting admin review.',
-                              style: TextStyle(color: Colors.green),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ] else if (!_canVerify) ...[
+                    if (!_canVerify) ...[
                       const Divider(height: 32),
                       _ClosedNotice(
                         settled: _reportSettled,
@@ -501,16 +484,12 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: _isSubmitting || _isSubmitted
-                              ? null
-                              : _submit,
+                          onPressed: _isSubmitting ? null : _submit,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
                           ),
                           child: Text(
-                            _isSubmitted
-                                ? 'Submitted'
-                                : _isSubmitting
+                            _isSubmitting
                                 ? 'Submitting...'
                                 : 'Submit Verification',
                             style: const TextStyle(
@@ -547,8 +526,8 @@ class _ClosedNotice extends StatelessWidget {
     final message = settled
         ? 'An admin has already ${status == 'rejected' ? 'rejected' : 'approved'} '
               'this report — no verification is needed.'
-        : 'This report has already been verified. Only an admin can change the '
-              'outcome now.';
+        : 'This report has already been verified and is now awaiting the '
+              'admin\'s approval. Only an admin can change the outcome now.';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),

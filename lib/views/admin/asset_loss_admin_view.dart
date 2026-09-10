@@ -33,6 +33,7 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
   static const _statusFilters = [
     'All',
     'Pending Review',
+    'Helper Verified',
     'Verified',
     'Rejected',
   ];
@@ -78,7 +79,10 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
   }
 
   static int _triageOrder(Map<String, dynamic> a, Map<String, dynamic> b) {
-    int rank(Map<String, dynamic> r) => r['status'] == 'pending_review' ? 0 : 1;
+    int rank(Map<String, dynamic> r) =>
+        (r['status'] == 'pending_review' || r['status'] == 'helper_verified')
+            ? 0
+            : 1;
     final byStatus = rank(a).compareTo(rank(b));
     if (byStatus != 0) return byStatus;
     final av = (a['estimated_total_loss'] as num?)?.toDouble() ?? 0;
