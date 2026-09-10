@@ -171,11 +171,11 @@ class _ChecklistViewState extends State<ChecklistView> {
                     itemCount: checklists.length,
                     separatorBuilder: (context, index) => const SizedBox(height: 12),
                     itemBuilder: (context, index) => _ChecklistCard(
+                      key: ValueKey(checklists[index].id),
                       checklist: checklists[index],
                       controller: _controller,
                       onRename: () => _renameChecklist(checklists[index]),
                       onDelete: () => _deleteChecklist(checklists[index]),
-                      onProgressChanged: _refresh,
                     ),
                   );
                 },
@@ -190,31 +190,35 @@ class _ChecklistViewState extends State<ChecklistView> {
 
 class _ChecklistCard extends StatefulWidget {
   const _ChecklistCard({
+    super.key,
     required this.checklist,
     required this.controller,
     required this.onRename,
     required this.onDelete,
-    required this.onProgressChanged,
   });
 
   final EmergencyChecklist checklist;
   final PlannerController controller;
   final VoidCallback onRename;
   final VoidCallback onDelete;
-  final VoidCallback onProgressChanged;
 
   @override
   State<_ChecklistCard> createState() => _ChecklistCardState();
 }
 
 class _ChecklistCardState extends State<_ChecklistCard> {
-  late Future<List<ChecklistItem>> _itemsFuture;
+  /// Held as a mutable list (not a re-assigned Future) so checking an item
+  /// updates it in place — no refetch, no FutureBuilder spinner flash, and
+  /// the ExpansionTile stays open. The DB write happens in the background
+  /// and only a failure triggers a revert.
+  List<ChecklistItem>? _items;
+  bool _loadFailed = false;
   final _newItemController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _itemsFuture = widget.controller.getItems(widget.checklist.id!);
+    _loadItems();
   }
 
   @override
@@ -223,19 +227,66 @@ class _ChecklistCardState extends State<_ChecklistCard> {
     super.dispose();
   }
 
-  void _reloadItems() {
-    setState(() {
-      _itemsFuture = widget.controller.getItems(widget.checklist.id!);
-    });
-    widget.onProgressChanged();
+  Future<void> _loadItems() async {
+    try {
+      final items = await widget.controller.getItems(widget.checklist.id!);
+      if (!mounted) return;
+      setState(() {
+        _items = items;
+        _loadFailed = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadFailed = true);
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _toggle(ChecklistItem item, bool checked) async {
+    final items = _items;
+    if (items == null) return;
+    final index = items.indexWhere((i) => i.id == item.id);
+    if (index == -1) return;
+    setState(() => items[index] = items[index].copyWith(isChecked: checked));
+    final ok = await widget.controller
+        .setItemChecked(item.id!, checked, widget.checklist.id!);
+    if (!mounted || ok) return;
+    setState(() => items[index] = items[index].copyWith(isChecked: !checked));
+    _showError('Could not save that change.');
+  }
+
+  Future<void> _deleteItem(ChecklistItem item) async {
+    final items = _items;
+    if (items == null) return;
+    final index = items.indexWhere((i) => i.id == item.id);
+    if (index == -1) return;
+    final removed = items[index];
+    setState(() => items.removeAt(index));
+    final ok = await widget.controller
+        .deleteItem(item.id!, widget.checklist.id!);
+    if (!mounted || ok) return;
+    setState(() => items.insert(index, removed));
+    _showError('Could not delete that item.');
   }
 
   Future<void> _addItem() async {
     final label = _newItemController.text.trim();
     if (label.isEmpty) return;
     _newItemController.clear();
-    await widget.controller.addItem(widget.checklist.id!, label);
-    _reloadItems();
+    final ok = await widget.controller.addItem(widget.checklist.id!, label);
+    if (!mounted) return;
+    if (ok) {
+      // One refetch here (add is infrequent) so the new row picks up its
+      // server-assigned id and sort order.
+      await _loadItems();
+    } else {
+      _showError('Could not add that item.');
+    }
   }
 
   @override
@@ -267,63 +318,58 @@ class _ChecklistCardState extends State<_ChecklistCard> {
           ],
         ),
         children: [
-          FutureBuilder<List<ChecklistItem>>(
-            future: _itemsFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-              final items = snapshot.data ?? [];
-              return Column(
+          if (_items == null && !_loadFailed)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_loadFailed)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
                 children: [
-                  for (final item in items)
-                    CheckboxListTile(
-                      value: item.isChecked,
-                      title: Text(
-                        item.label,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: item.isChecked
-                            ? const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.grey)
-                            : null,
+                  const Expanded(child: Text('Could not load items.')),
+                  TextButton(onPressed: _loadItems, child: const Text('Retry')),
+                ],
+              ),
+            )
+          else ...[
+            for (final item in _items!)
+              CheckboxListTile(
+                value: item.isChecked,
+                title: Text(
+                  item.label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: item.isChecked
+                      ? const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.grey)
+                      : null,
+                ),
+                secondary: IconButton(
+                  icon: const Icon(Icons.delete_outline, size: 20, color: Colors.grey),
+                  onPressed: () => _deleteItem(item),
+                ),
+                onChanged: (checked) => _toggle(item, checked ?? false),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 8, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _newItemController,
+                      decoration: const InputDecoration(
+                        hintText: 'Add an item',
+                        isDense: true,
                       ),
-                      secondary: IconButton(
-                        icon: const Icon(Icons.delete_outline, size: 20, color: Colors.grey),
-                        onPressed: () async {
-                          await widget.controller.deleteItem(item.id!, widget.checklist.id!);
-                          _reloadItems();
-                        },
-                      ),
-                      onChanged: (checked) async {
-                        await widget.controller.setItemChecked(item.id!, checked ?? false, widget.checklist.id!);
-                        _reloadItems();
-                      },
-                    ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 8, 12),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _newItemController,
-                            decoration: const InputDecoration(
-                              hintText: 'Add an item',
-                              isDense: true,
-                            ),
-                            onSubmitted: (_) => _addItem(),
-                          ),
-                        ),
-                        IconButton(icon: const Icon(Icons.add_circle, color: Colors.blue), onPressed: _addItem),
-                      ],
+                      onSubmitted: (_) => _addItem(),
                     ),
                   ),
+                  IconButton(icon: const Icon(Icons.add_circle, color: Colors.blue), onPressed: _addItem),
                 ],
-              );
-            },
-          ),
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -86,21 +86,23 @@ class UserManagementView extends StatefulWidget {
 }
 
 class _UserManagementViewState extends State<UserManagementView> {
-  static const _roles = ['user', 'helper', 'admin'];
-  static const _statusFilters = ['All', 'Pending', 'Active', 'Rejected'];
-  static const _roleFilters = ['All', 'User', 'Helper', 'Admin'];
+  // Same horizontal chip-bar filter format as FloodReportAdminView: an
+  // 'all' sentinel plus the raw stored values, with a labelBuilder for
+  // display.
+  static const _statusFilters = ['all', 'pending', 'active', 'rejected'];
+  static const _roleFilters = ['all', 'user', 'helper', 'admin'];
 
   final _controller = UserManagementController(UserManagementService());
   final _searchController = TextEditingController();
   late Future<List<Account>> _usersFuture;
 
-  /// The signed-in admin — their own account's role/status/enabled controls
+  /// The signed-in admin — their own account's status/enabled controls
   /// are locked so they can't accidentally lock themselves out.
   final String? _myId = Supabase.instance.client.auth.currentUser?.id;
 
   String _searchQuery = '';
-  String _statusFilter = 'All';
-  String _roleFilter = 'All';
+  String _statusFilter = 'all';
+  String _roleFilter = 'all';
 
   @override
   void initState() {
@@ -121,20 +123,22 @@ class _UserManagementViewState extends State<UserManagementView> {
 
   List<Account> _applyFilters(List<Account> accounts) {
     return accounts.where((account) {
-      final matchesStatus =
-          _statusFilter == 'All' ||
-          account.status == _statusFilter.toLowerCase();
-      if (!matchesStatus) return false;
-
-      final matchesRole =
-          _roleFilter == 'All' || account.role == _roleFilter.toLowerCase();
-      if (!matchesRole) return false;
+      if (_statusFilter != 'all' && account.status != _statusFilter) {
+        return false;
+      }
+      if (_roleFilter != 'all' && account.role != _roleFilter) return false;
 
       if (_searchQuery.isEmpty) return true;
       return account.name.toLowerCase().contains(_searchQuery) ||
           account.email.toLowerCase().contains(_searchQuery);
     }).toList();
   }
+
+  String _statusFilterLabel(String value) =>
+      value == 'all' ? 'All statuses' : _roleLabel(value);
+
+  String _roleFilterLabel(String value) =>
+      value == 'all' ? 'All roles' : _roleLabel(value);
 
   // NOTE: must be a block body `{ ... }`, not an arrow `=> expr`. An arrow
   // body would make the assignment's *value* (a Future) the return value of
@@ -157,55 +161,6 @@ class _UserManagementViewState extends State<UserManagementView> {
       role.isEmpty ? role : '${role[0].toUpperCase()}${role.substring(1)}';
 
   bool _isSelf(Account account) => account.id == _myId;
-
-  Future<void> _changeRole(Account account, String role) async {
-    if (role == account.role || _isSelf(account)) return;
-
-    final confirmed = await _confirmRoleChange(account, role);
-    if (confirmed != true) return;
-
-    // A pending/rejected account an admin is deliberately assigning a role
-    // to is being approved by that action — clear it so it isn't locked out
-    // (e.g. a still-pending helper demoted to a plain user).
-    final activate = account.status != 'active';
-    final ok = await _controller.changeRole(account.id, role, activate: activate);
-    if (!mounted) return;
-    if (ok) {
-      _refresh();
-      widget.onUsersChanged?.call();
-    } else {
-      _snack('Failed to update role');
-    }
-  }
-
-  Future<bool?> _confirmRoleChange(Account account, String role) {
-    final who = account.name.isNotEmpty ? account.name : account.email;
-    final String body;
-    if (role == 'admin') {
-      body = '$who will be able to manage every account and all data.';
-    } else if (account.role == 'admin') {
-      body = '$who will lose admin access.';
-    } else {
-      body = '$who will become a ${_roleLabel(role)} on their next sign-in.';
-    }
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Change role to ${_roleLabel(role)}?'),
-        content: Text(body),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Change role'),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _toggleActive(Account account) async {
     if (_isSelf(account)) return;
@@ -342,39 +297,23 @@ class _UserManagementViewState extends State<UserManagementView> {
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  // Guard against role values outside _roles (blank/legacy
-                  // data) — that mismatch red-screens DropdownButtonFormField.
-                  initialValue:
-                      _roles.contains(account.role) ? account.role : null,
-                  hint: Text(account.role),
-                  isDense: true,
-                  decoration: InputDecoration(
-                    labelText: 'Role',
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: roleColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: roleColor.withValues(alpha: 0.4)),
+                ),
+                child: Text(
+                  _roleLabel(account.role),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: roleColor,
                   ),
-                  items: _roles
-                      .map((r) => DropdownMenuItem(
-                            value: r,
-                            child: Text(_roleLabel(r)),
-                          ))
-                      .toList(),
-                  onChanged: isSelf
-                      ? null
-                      : (value) {
-                          if (value != null) _changeRole(account, value);
-                        },
                 ),
               ),
-              const SizedBox(width: 12),
+              const Spacer(),
               Column(
                 children: [
                   Switch(
@@ -474,49 +413,34 @@ class _UserManagementViewState extends State<UserManagementView> {
     return Padding(padding: const EdgeInsets.only(top: 10), child: content);
   }
 
-  /// One labelled, wrapping row of filter chips for the portrait inline
-  /// header — "Status" / "Role" each get their own line so nothing is
-  /// hidden off-screen behind a horizontal scroll.
-  Widget _filterRow({
-    required String label,
+  /// Horizontal scrolling chip bar — same filter format as
+  /// FloodReportAdminView._buildFilterBar.
+  Widget _buildFilterBar({
     required List<String> options,
     required String selected,
     required ValueChanged<String> onSelected,
+    required String Function(String) labelBuilder,
   }) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 9, right: 10),
-            child: SizedBox(
-              width: 44,
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade700,
-                ),
-              ),
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        scrollDirection: Axis.horizontal,
+        itemCount: options.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final value = options[index];
+          final isSelected = selected == value;
+          return ChoiceChip(
+            label: Text(labelBuilder(value)),
+            selected: isSelected,
+            onSelected: (_) => onSelected(value),
+            selectedColor: Colors.blue.shade100,
+            labelStyle: TextStyle(
+              color: isSelected ? Colors.blue.shade900 : Colors.black87,
             ),
-          ),
-          Expanded(
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final option in options)
-                  ChoiceChip(
-                    label: Text(option),
-                    selected: selected == option,
-                    onSelected: (_) => onSelected(option),
-                  ),
-              ],
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -570,25 +494,25 @@ class _UserManagementViewState extends State<UserManagementView> {
                       ),
                     ),
                     portraitFilters: [
-                      _filterRow(
-                        label: 'Status',
+                      _buildFilterBar(
                         options: _statusFilters,
                         selected: _statusFilter,
                         onSelected: (value) =>
                             setState(() => _statusFilter = value),
+                        labelBuilder: _statusFilterLabel,
                       ),
-                      _filterRow(
-                        label: 'Role',
+                      _buildFilterBar(
                         options: _roleFilters,
                         selected: _roleFilter,
                         onSelected: (value) =>
                             setState(() => _roleFilter = value),
+                        labelBuilder: _roleFilterLabel,
                       ),
                     ],
                     sheetTitle: 'Filter users',
                     activeFilterCount:
-                        (_statusFilter == 'All' ? 0 : 1) +
-                        (_roleFilter == 'All' ? 0 : 1),
+                        (_statusFilter == 'all' ? 0 : 1) +
+                        (_roleFilter == 'all' ? 0 : 1),
                     sheetBuilder: (context, setSheetState) => Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -603,7 +527,7 @@ class _UserManagementViewState extends State<UserManagementView> {
                           children: [
                             for (final status in _statusFilters)
                               ChoiceChip(
-                                label: Text(status),
+                                label: Text(_statusFilterLabel(status)),
                                 selected: _statusFilter == status,
                                 onSelected: (_) {
                                   setState(() => _statusFilter = status);
@@ -624,7 +548,7 @@ class _UserManagementViewState extends State<UserManagementView> {
                           children: [
                             for (final role in _roleFilters)
                               ChoiceChip(
-                                label: Text(role),
+                                label: Text(_roleFilterLabel(role)),
                                 selected: _roleFilter == role,
                                 onSelected: (_) {
                                   setState(() => _roleFilter = role);

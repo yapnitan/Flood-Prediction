@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../constants/resource_cost_rates.dart';
 import '../../controllers/asset_loss_report_controller.dart';
+import '../../controllers/facility_controller.dart';
 import '../../controllers/shelter_occupancy_controller.dart';
+import '../../models/facility.dart';
+import '../../models/shelter_occupancy_report.dart';
 import '../../services/asset_loss_report_service.dart';
+import '../../services/facility_service.dart';
 import '../../services/shelter_occupancy_service.dart';
 import '../../utils/currency_input.dart';
 import '../../utils/responsive.dart';
@@ -22,9 +27,12 @@ class EconomicLossDashboardView extends StatefulWidget {
 class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
   final _assetLossController = AssetLossReportController(AssetLossReportService());
   final _shelterController = ShelterOccupancyController(ShelterOccupancyService());
+  final _facilityController = FacilityController(FacilityService());
 
   bool _isLoading = true;
   List<Map<String, dynamic>> _reports = [];
+  Map<String, ShelterOccupancyReport> _latestByFacility = {};
+  Map<String, Facility> _facilitiesById = {};
   double _resourceCost = 0;
 
   @override
@@ -36,10 +44,19 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
   Future<void> _load() async {
     final reports = await _assetLossController.getAdminOverview();
     final latestByFacility = await _shelterController.getLatestPerFacility();
+    final facilities = await _facilityController.getAllFacilities();
     if (!mounted) return;
     setState(() {
       _reports = reports;
-      _resourceCost = latestByFacility.values.fold(0.0, (sum, r) => sum + (r.resourceCost ?? r.calculatedResourceCost));
+      _latestByFacility = latestByFacility;
+      _facilitiesById = {
+        for (final f in facilities)
+          if (f.id != null) f.id!: f,
+      };
+      _resourceCost = latestByFacility.values.fold(
+        0.0,
+        (sum, r) => sum + (r.resourceCost ?? r.calculatedResourceCost),
+      );
       _isLoading = false;
     });
   }
@@ -60,6 +77,19 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
       default:
         return 0;
     }
+  }
+
+  /// One entry per shelter with a logged occupancy — its latest snapshot and
+  /// resolved facility name — sorted by cost, largest first.
+  List<_ShelterCostEntry> _resourceCostEntries() {
+    final entries = [
+      for (final e in _latestByFacility.entries)
+        _ShelterCostEntry(
+          name: _facilitiesById[e.key]?.name ?? 'Unknown shelter',
+          report: e.value,
+        ),
+    ]..sort((a, b) => b.cost.compareTo(a.cost));
+    return entries;
   }
 
   @override
@@ -138,6 +168,11 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
                     const SizedBox(height: 16),
                     _BreakdownCard(title: 'Counted Asset Loss by Flood Incident', amounts: byIncident),
                   ],
+                  const SizedBox(height: 16),
+                  _ResourceCostCard(
+                    entries: _resourceCostEntries(),
+                    total: _resourceCost,
+                  ),
                 ],
               ),
             ),
@@ -272,6 +307,116 @@ class _PotentialVsVerifiedCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(child: Text('Admin-approved loss: ${formatRinggit(adminApproved)}')),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShelterCostEntry {
+  _ShelterCostEntry({required this.name, required this.report});
+
+  final String name;
+  final ShelterOccupancyReport report;
+
+  double get cost => report.resourceCost ?? report.calculatedResourceCost;
+  int get people => report.totalVictims ?? report.headcount;
+}
+
+/// Breaks the single "Resource Cost" figure on the total card into its
+/// parts — one row per shelter (current headcount × days) plus the flat
+/// per-person/day rates it's priced on, so the number is auditable (§17).
+class _ResourceCostCard extends StatelessWidget {
+  const _ResourceCostCard({required this.entries, required this.total});
+
+  final List<_ShelterCostEntry> entries;
+  final double total;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Resource Consumption Cost by Shelter',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
+          const SizedBox(height: 16),
+          if (entries.isEmpty)
+            const Text(
+              'No shelter occupancy logged yet.',
+              style: TextStyle(color: Colors.grey),
+            )
+          else ...[
+            for (final e in entries)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            e.name,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            '${e.people} ${e.people == 1 ? 'person' : 'people'} · '
+                            '${e.report.days} ${e.report.days == 1 ? 'day' : 'days'}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      formatRinggit(e.cost),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.teal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Total resource cost',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                Text(
+                  formatRinggit(total),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Colors.teal,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 12),
+          Text(
+            'Priced per person per day: adult ${formatRinggit(ResourceCostRates.perAdult)}, '
+            'child ${formatRinggit(ResourceCostRates.perChild)}, '
+            'elderly ${formatRinggit(ResourceCostRates.perElderly)}, '
+            'infant ${formatRinggit(ResourceCostRates.perInfant)}, '
+            'person with disability ${formatRinggit(ResourceCostRates.perPersonWithDisability)}.',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
           ),
         ],
       ),
