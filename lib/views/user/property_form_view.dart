@@ -3,6 +3,7 @@ import 'package:latlong2/latlong.dart';
 import '../../controllers/property_controller.dart';
 import '../../models/property.dart';
 import '../../services/location_service.dart';
+import '../../utils/currency_input.dart';
 import '../../utils/malaysia_geocoding.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/location_search_field.dart';
@@ -74,7 +75,9 @@ class _PropertyFormViewState extends State<PropertyFormView> {
     _districtController.text = existing.district ?? '';
     _postcodeController.text = existing.postcode ?? '';
     _floorsController.text = existing.floors?.toString() ?? '';
-    _estimatedValueController.text = existing.estimatedValue?.toString() ?? '';
+    _estimatedValueController.text = existing.estimatedValue == null
+        ? ''
+        : formatAmount(existing.estimatedValue!);
     _propertyType = existing.propertyType;
     _latitude = existing.lat;
     _longitude = existing.lng;
@@ -201,7 +204,7 @@ class _PropertyFormViewState extends State<PropertyFormView> {
           : _postcodeController.text.trim(),
       propertyType: _propertyType,
       floors: int.tryParse(_floorsController.text.trim()),
-      estimatedValue: double.tryParse(_estimatedValueController.text.trim()),
+      estimatedValue: CurrencyInputFormatter.parse(_estimatedValueController.text),
     );
 
     final saved = _isEditing
@@ -456,6 +459,7 @@ class _PropertyFormViewState extends State<PropertyFormView> {
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
+                        inputFormatters: const [CurrencyInputFormatter()],
                         decoration: const InputDecoration(
                           labelText: 'Estimated property value (optional)',
                           prefixText: 'RM ',

@@ -29,6 +29,26 @@ class PropertyService {
     return data == null ? null : Property.fromJson(data);
   }
 
+  /// Un-archives a property the user previously "deleted" — clears
+  /// `archived_at` so it reappears in their Saved Locations and the address
+  /// pickers. Returns false if nothing was updated (e.g. RLS / wrong owner).
+  Future<bool> restoreProperty(int propertyId) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return false;
+    try {
+      final rows = await _supabase
+          .from(_table)
+          .update({'archived_at': null})
+          .eq('id', propertyId)
+          .eq('account_id', userId)
+          .select();
+      return (rows as List).isNotEmpty;
+    } catch (error) {
+      debugPrint('PropertyService.restoreProperty error: $error');
+      return false;
+    }
+  }
+
   Future<Property?> createProperty(Property property) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/property_controller.dart';
 import '../../models/property.dart';
 import '../../services/property_service.dart';
+import '../../utils/currency_input.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/empty_state.dart';
 import 'property_form_view.dart';
@@ -24,12 +25,12 @@ class _MyPropertiesViewState extends State<MyPropertiesView> {
   @override
   void initState() {
     super.initState();
-    _propertiesFuture = _controller.getMyProperties();
+    _propertiesFuture = _controller.getMyProperties(includeArchived: true);
   }
 
   Future<void> _refresh() async {
     setState(() {
-      _propertiesFuture = _controller.getMyProperties();
+      _propertiesFuture = _controller.getMyProperties(includeArchived: true);
     });
     await _propertiesFuture;
   }
@@ -81,6 +82,21 @@ class _MyPropertiesViewState extends State<MyPropertiesView> {
     if (result.changed) _refresh();
   }
 
+  Future<void> _restoreProperty(Property property) async {
+    final ok = await _controller.restoreProperty(property.id!);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? '"${property.displayLabel}" restored to your saved locations.'
+              : 'Could not restore this address. Please try again.',
+        ),
+      ),
+    );
+    if (ok) _refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -121,15 +137,58 @@ class _MyPropertiesViewState extends State<MyPropertiesView> {
                     );
                   }
 
-                  return ListView.separated(
+                  final active =
+                      properties.where((p) => !p.isArchived).toList();
+                  final archived =
+                      properties.where((p) => p.isArchived).toList();
+
+                  return ListView(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
-                    itemCount: properties.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) => _PropertyCard(
-                      property: properties[index],
-                      onTap: () => _editProperty(properties[index]),
-                      onDelete: () => _deleteProperty(properties[index]),
-                    ),
+                    children: [
+                      for (final property in active) ...[
+                        _PropertyCard(
+                          property: property,
+                          onTap: () => _editProperty(property),
+                          onDelete: () => _deleteProperty(property),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (archived.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(Icons.archive_outlined,
+                                size: 16, color: Colors.grey.shade600),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Archived',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Hidden because they are linked to asset-loss reports. '
+                          'Restore one to use it again.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        for (final property in archived) ...[
+                          _PropertyCard(
+                            property: property,
+                            archived: true,
+                            onRestore: () => _restoreProperty(property),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                      ],
+                    ],
                   );
                 },
               ),
@@ -142,15 +201,25 @@ class _MyPropertiesViewState extends State<MyPropertiesView> {
 }
 
 class _PropertyCard extends StatelessWidget {
-  const _PropertyCard({required this.property, required this.onTap, required this.onDelete});
+  const _PropertyCard({
+    required this.property,
+    this.onTap,
+    this.onDelete,
+    this.onRestore,
+    this.archived = false,
+  });
 
   final Property property;
-  final VoidCallback onTap;
-  final VoidCallback onDelete;
+  final VoidCallback? onTap;
+  final VoidCallback? onDelete;
+  final VoidCallback? onRestore;
+  final bool archived;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return Opacity(
+      opacity: archived ? 0.65 : 1,
+      child: InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: onTap,
       child: Container(
@@ -172,12 +241,22 @@ class _PropertyCard extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                 ),
               ),
-              IconButton(
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                tooltip: 'Delete',
-                visualDensity: VisualDensity.compact,
-              ),
+              if (archived)
+                TextButton.icon(
+                  onPressed: onRestore,
+                  icon: const Icon(Icons.unarchive_outlined, size: 18),
+                  label: const Text('Restore'),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                )
+              else
+                IconButton(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                  tooltip: 'Delete',
+                  visualDensity: VisualDensity.compact,
+                ),
             ],
           ),
           if (property.district != null && property.state != null) ...[
@@ -194,11 +273,12 @@ class _PropertyCard extends StatelessWidget {
           if (property.estimatedValue != null) ...[
             const SizedBox(height: 4),
             Text(
-              'Estimated value: RM ${property.estimatedValue!.toStringAsFixed(0)}',
+              'Estimated value: ${formatRinggit(property.estimatedValue!)}',
               style: const TextStyle(color: Colors.grey, fontSize: 13),
             ),
           ],
         ],
+      ),
       ),
       ),
     );

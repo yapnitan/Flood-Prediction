@@ -18,4 +18,7 @@ class PropertyController {
 
   Future<({bool changed, String? message})> deleteProperty(int propertyId) =>
       propertyService.deleteProperty(propertyId);
+
+  Future<bool> restoreProperty(int propertyId) =>
+      propertyService.restoreProperty(propertyId);
 }
