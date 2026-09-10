@@ -3,9 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flood_prediction/views/auth/login_view.dart';
 
 void main() {
-  // These only exercise the empty-field guard clause in LoginView.login(),
-  // which returns before ever touching AuthController/Supabase — so no
-  // Supabase initialization or mocking is needed for this path.
   testWidgets('shows a validation error when submitted with empty fields', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: LoginView()));
 
