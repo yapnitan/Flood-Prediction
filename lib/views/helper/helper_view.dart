@@ -7,6 +7,7 @@ import '../../models/helper_district_assignment.dart';
 import '../../services/asset_loss_report_service.dart';
 import '../../services/helper_assignment_service.dart';
 import '../../services/realtime_alert_service.dart';
+import '../../utils/currency_input.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/status_badge.dart';
@@ -265,7 +266,7 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
                           children: [
                             Text('Pending: ${entry.value.length}', style: const TextStyle(fontSize: 12)),
                             Text(
-                              'RM ${totalPotential.toStringAsFixed(0)} potential loss',
+                              '${formatRinggit(totalPotential)} potential loss',
                               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue),
                             ),
                           ],
@@ -363,7 +364,7 @@ class _ReportCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Potential loss: RM ${estimatedTotal.toStringAsFixed(2)}',
+              'Potential loss: ${formatRinggit(estimatedTotal)}',
               style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.blue, fontSize: 13),
             ),
           ],

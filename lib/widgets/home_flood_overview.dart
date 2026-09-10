@@ -232,6 +232,23 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
     return nearest;
   }
 
+  /// The nearby reports' water levels averaged into a single category:
+  /// Low/Medium/High are scored 1/2/3, averaged, then rounded back to the
+  /// nearest category. Null when there are no nearby reports.
+  static const _waterLevelRank = {'Low': 1, 'Medium': 2, 'High': 3};
+  static const _waterLevelLabels = ['Low', 'Medium', 'High'];
+
+  String? get _averageWaterLevel {
+    if (_nearbyReports.isEmpty) return null;
+    final scores = _nearbyReports
+        .map((r) => _waterLevelRank[r.waterLevel])
+        .whereType<int>()
+        .toList();
+    if (scores.isEmpty) return _nearbyReports.first.waterLevel;
+    final average = scores.reduce((a, b) => a + b) / scores.length;
+    return _waterLevelLabels[average.round().clamp(1, 3) - 1];
+  }
+
   void _showAreaRiskDetail(AreaRiskResult risk) {
     showModalBottomSheet(
       context: context,
@@ -318,6 +335,88 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
             ),
           ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Opens the nearby community reports behind the Home tab's "Water level"
+  /// / "Nearby reports" tiles — the same 5 km / 24 h list [AreaRiskController]
+  /// scored. One report opens straight into its detail sheet; several show a
+  /// pickable list first.
+  void _showNearbyReports() {
+    final reports = _nearbyReports;
+    if (reports.isEmpty) return;
+    if (reports.length == 1) {
+      _showReportInfo(reports.first);
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${reports.length} nearby flood reports',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Within 5 km, reported in the last 24 hours',
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: reports.length,
+                separatorBuilder: (context, index) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final report = reports[index];
+                  final reportedTime = report.createdAt ?? report.observedAt;
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.location_on,
+                      color: _areaRiskColor(report.waterLevel),
+                    ),
+                    title: Text(
+                      report.locationName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      '${report.floodType} · ${report.waterLevel} water level · '
+                      '${_formatTimeAgo(reportedTime)}',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showReportInfo(report);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -730,12 +829,14 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                 child: _StatBox(
                   label: "Water level",
                   isLoading: _isLoadingAreaRisk,
-                  value: _nearbyReports.isEmpty
-                      ? 'No reports nearby'
-                      : _nearbyReports.first.waterLevel,
-                  valueColor: _nearbyReports.isEmpty
+                  value: _averageWaterLevel ?? 'No reports nearby',
+                  valueColor: _averageWaterLevel == null
                       ? null
-                      : _areaRiskColor(_nearbyReports.first.waterLevel),
+                      : _areaRiskColor(_averageWaterLevel),
+                  caption: _nearbyReports.length > 1
+                      ? 'avg of ${_nearbyReports.length} reports'
+                      : null,
+                  onTap: _nearbyReports.isEmpty ? null : _showNearbyReports,
                 ),
               ),
               const SizedBox(width: 12),
@@ -745,6 +846,7 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
                   isLoading: _isLoadingAreaRisk,
                   value: '${_nearbyReports.length}',
                   caption: 'within 5km, 24h',
+                  onTap: _nearbyReports.isEmpty ? null : _showNearbyReports,
                 ),
               ),
             ],
@@ -895,13 +997,15 @@ Color _areaRiskColor(String? level) {
 
 /// Small labelled stat tile — rainfall, nearest report's water level,
 /// nearby report count — sharing the same [InfoBox] card style as
-/// [_FloodRiskCard].
+/// [_FloodRiskCard]. Pass [onTap] to make the tile open a detail sheet;
+/// it then shows a chevron affordance next to the value.
 class _StatBox extends StatelessWidget {
   final String label;
   final String value;
   final bool isLoading;
   final Color? valueColor;
   final String? caption;
+  final VoidCallback? onTap;
 
   const _StatBox({
     required this.label,
@@ -909,39 +1013,63 @@ class _StatBox extends StatelessWidget {
     required this.isLoading,
     this.valueColor,
     this.caption,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InfoBox(
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+    final tappable = onTap != null && !isLoading;
+
+    final content = Column(
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
+        const SizedBox(height: 6),
+        if (isLoading)
+          const SizedBox(
+            height: 14,
+            width: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        else
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: valueColor,
+                  ),
+                ),
+              ),
+              if (tappable)
+                Icon(Icons.chevron_right, size: 16, color: Colors.grey[600]),
+            ],
           ),
-          const SizedBox(height: 6),
-          if (isLoading)
-            const SizedBox(
-              height: 14,
-              width: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else
-            Text(
-              value,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontWeight: FontWeight.bold, color: valueColor),
-            ),
-          if (!isLoading && caption != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              caption!,
-              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-            ),
-          ],
+        if (!isLoading && caption != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            caption!,
+            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+          ),
         ],
-      ),
+      ],
+    );
+
+    return InfoBox(
+      child: tappable
+          ? InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(8),
+              child: content,
+            )
+          : content,
     );
   }
 }

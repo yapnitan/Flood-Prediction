@@ -4,6 +4,7 @@ import '../../controllers/asset_loss_report_controller.dart';
 import '../../controllers/shelter_occupancy_controller.dart';
 import '../../services/asset_loss_report_service.dart';
 import '../../services/shelter_occupancy_service.dart';
+import '../../utils/currency_input.dart';
 import '../../utils/responsive.dart';
 
 /// Admin's Economic Loss Dashboard (Task/asset report §11-§17): combines
@@ -141,7 +142,7 @@ class _TotalCard extends StatelessWidget {
   final double assetLoss;
   final double resourceCost;
 
-  String _rm(double v) => 'RM ${v.toStringAsFixed(2)}';
+  String _rm(double v) => formatRinggit(v);
 
   @override
   Widget build(BuildContext context) {
@@ -209,7 +210,7 @@ class _PotentialVsVerifiedCard extends StatelessWidget {
             children: [
               Icon(Icons.hourglass_top, size: 18, color: Colors.orange.shade700),
               const SizedBox(width: 8),
-              Expanded(child: Text('Pending potential loss: RM ${potential.toStringAsFixed(2)}')),
+              Expanded(child: Text('Pending potential loss: ${formatRinggit(potential)}')),
             ],
           ),
           const SizedBox(height: 8),
@@ -217,7 +218,7 @@ class _PotentialVsVerifiedCard extends StatelessWidget {
             children: [
               const Icon(Icons.check_circle, size: 18, color: Colors.green),
               const SizedBox(width: 8),
-              Expanded(child: Text('Verified/approved loss: RM ${verified.toStringAsFixed(2)}')),
+              Expanded(child: Text('Verified/approved loss: ${formatRinggit(verified)}')),
             ],
           ),
         ],
@@ -278,7 +279,7 @@ class _BreakdownCard extends StatelessWidget {
                     SizedBox(
                       width: 90,
                       child: Text(
-                        'RM ${entry.value.toStringAsFixed(0)}',
+                        'RM ${groupThousands(entry.value.toStringAsFixed(0))}',
                         textAlign: TextAlign.right,
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                       ),

@@ -83,8 +83,19 @@ class AssetLossReportService {
     return paths;
   }
 
-  Future<String> getSignedPhotoUrl(String path, {int expiresInSeconds = 3600}) {
-    return _supabase.storage.from(_photoBucket).createSignedUrl(path, expiresInSeconds);
+  Future<String> getSignedPhotoUrl(String path, {int expiresInSeconds = 3600}) async {
+    try {
+      return await _supabase.storage
+          .from(_photoBucket)
+          .createSignedUrl(path, expiresInSeconds);
+    } catch (error) {
+      // Usually a storage-RLS denial: the caller lacks `select` on this
+      // object. Admins need the "Admins can view all asset loss photos"
+      // policy on storage.objects (migration 0023); assigned helpers need
+      // the district-scoped one (migration 0025).
+      debugPrint('AssetLossReportService.getSignedPhotoUrl($path) failed: $error');
+      rethrow;
+    }
   }
 
   Future<List<AssetLossReport>> getUserReports(String userId) async {

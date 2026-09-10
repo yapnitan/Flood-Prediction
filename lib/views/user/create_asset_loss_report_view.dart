@@ -12,6 +12,7 @@ import '../../services/asset_ai_service.dart';
 import '../../services/asset_loss_report_service.dart';
 import '../../services/flood_incident_service.dart';
 import '../../services/property_service.dart';
+import '../../utils/currency_input.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/photo_preview.dart';
 import '../../widgets/review_card.dart';
@@ -165,7 +166,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
 
   double get _estimatedTotalLoss {
     final quantity = int.tryParse(_quantityController.text.trim()) ?? 0;
-    final value = double.tryParse(_valueController.text.trim()) ?? 0;
+    final value = CurrencyInputFormatter.parse(_valueController.text) ?? 0;
     return quantity * value;
   }
 
@@ -178,7 +179,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
       assetName: _assetNameController.text.trim(),
       condition: _selectedCondition ?? assetConditions.first,
       quantity: int.tryParse(_quantityController.text.trim()) ?? 1,
-      valuePerItem: double.tryParse(_valueController.text.trim()) ?? 0,
+      valuePerItem: CurrencyInputFormatter.parse(_valueController.text) ?? 0,
       description: _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
@@ -872,6 +873,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    inputFormatters: const [CurrencyInputFormatter()],
                     decoration: const InputDecoration(
                       labelText: 'Value per item',
                       prefixText: 'RM ',
@@ -879,7 +881,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                     ),
                     onChanged: (_) => setState(() {}),
                     validator: (value) {
-                      final n = double.tryParse(value?.trim() ?? '');
+                      final n = CurrencyInputFormatter.parse(value);
                       return (n == null || n < 0)
                           ? 'Enter a valid value.'
                           : null;
@@ -892,7 +894,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
                 _valueController.text.trim().isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                'Estimated asset loss: RM ${_estimatedTotalLoss.toStringAsFixed(2)}',
+                'Estimated asset loss: ${formatRinggit(_estimatedTotalLoss)}',
                 style: const TextStyle(
                   fontWeight: FontWeight.w600,
                   color: Colors.blue,
@@ -1043,7 +1045,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
         const SizedBox(height: 12),
         ReviewCard(
           title: 'Total Potential Asset Loss',
-          value: 'RM ${grandTotal.toStringAsFixed(2)}',
+          value: formatRinggit(grandTotal),
         ),
         const SizedBox(height: 30),
       ],
@@ -1151,12 +1153,12 @@ class _PendingAssetCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '${assetConditionLabels[asset.condition]} · Qty ${asset.quantity} · '
-            'RM ${asset.valuePerItem.toStringAsFixed(2)} each',
+            '${formatRinggit(asset.valuePerItem)} each',
             style: const TextStyle(color: Colors.grey, fontSize: 13),
           ),
           const SizedBox(height: 4),
           Text(
-            'RM ${asset.totalLoss.toStringAsFixed(2)}'
+            '${formatRinggit(asset.totalLoss)}'
             '${asset.photos.isNotEmpty ? ' · ${asset.photos.length} photo(s)' : ''}',
             style: const TextStyle(
               fontWeight: FontWeight.w600,

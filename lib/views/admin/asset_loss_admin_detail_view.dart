@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../constants/asset_categories.dart';
 import '../../controllers/asset_loss_report_controller.dart';
 import '../../services/asset_loss_report_service.dart';
+import '../../utils/currency_input.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/network_photo_thumbnail.dart';
 import '../../widgets/review_card.dart';
@@ -35,10 +36,11 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
     // exists, otherwise the resident's originally reported figure (§30 —
     // the admin can approve directly even with no helper verification yet).
     final quantity = _data['verified_quantity'] ?? _data['quantity'];
-    final value =
-        _data['verified_value_per_item'] ?? _data['estimated_value_per_item'];
+    final value = (_data['verified_value_per_item'] ??
+        _data['estimated_value_per_item']) as num?;
     _approvedQuantityController = TextEditingController(text: '$quantity');
-    _approvedValueController = TextEditingController(text: '$value');
+    _approvedValueController =
+        TextEditingController(text: formatAmount(value ?? 0));
   }
 
   @override
@@ -76,7 +78,7 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
 
   Future<void> _approve() async {
     final quantity = int.tryParse(_approvedQuantityController.text.trim());
-    final value = double.tryParse(_approvedValueController.text.trim());
+    final value = CurrencyInputFormatter.parse(_approvedValueController.text);
     if (quantity == null || quantity <= 0 || value == null || value < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -215,12 +217,13 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
                         ),
                         ReviewCard(
                           title: 'Estimated value per item',
-                          value:
-                              'RM ${(_data['estimated_value_per_item'] as num).toStringAsFixed(2)}',
+                          value: formatRinggit(
+                            (_data['estimated_value_per_item'] as num?) ?? 0,
+                          ),
                         ),
                         ReviewCard(
                           title: 'Potential Asset Loss (user-reported)',
-                          value: 'RM ${estimatedTotal.toStringAsFixed(2)}',
+                          value: formatRinggit(estimatedTotal),
                         ),
                         if ((_data['description'] as String?)
                                 ?.trim()
@@ -280,13 +283,14 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
                           ),
                           ReviewCard(
                             title: 'Verified value per item',
-                            value:
-                                'RM ${(_data['verified_value_per_item'] as num).toStringAsFixed(2)}',
+                            value: formatRinggit(
+                              (_data['verified_value_per_item'] as num?) ?? 0,
+                            ),
                           ),
                           if (verifiedTotal != null)
                             ReviewCard(
                               title: 'Verified loss',
-                              value: 'RM ${verifiedTotal.toStringAsFixed(2)}',
+                              value: formatRinggit(verifiedTotal),
                             ),
                           if ((_data['verification_notes'] as String?)
                                   ?.trim()
@@ -342,6 +346,9 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
                                       const TextInputType.numberWithOptions(
                                         decimal: true,
                                       ),
+                                  inputFormatters: const [
+                                    CurrencyInputFormatter(),
+                                  ],
                                   decoration: const InputDecoration(
                                     labelText: 'Approved value/item',
                                     prefixText: 'RM ',
@@ -390,8 +397,9 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
                           const Divider(height: 32),
                           ReviewCard(
                             title: 'Approved loss',
-                            value:
-                                'RM ${(_data['approved_total_loss'] as num).toStringAsFixed(2)}',
+                            value: formatRinggit(
+                              (_data['approved_total_loss'] as num?) ?? 0,
+                            ),
                           ),
                         ],
 
