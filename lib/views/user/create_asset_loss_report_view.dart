@@ -378,11 +378,13 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
 
   Future<void> _confirmDiscardAndLeave() async {
     FocusManager.instance.primaryFocus?.unfocus();
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    if (!mounted) return;
     final discard = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         scrollable: true,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         title: const Text('Discard report?'),
         content: const Text(
           'Your input in this form will be lost if you go back.',
