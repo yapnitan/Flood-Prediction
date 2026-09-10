@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../controllers/facility_controller.dart';
 import '../../controllers/helper_assignment_controller.dart';
@@ -381,14 +382,15 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
 
   void _fillFromHistory() {
     final e = _entryFor(_date);
-    _adults.text = '${e?.adults ?? 0}';
-    _children.text = '${e?.children ?? 0}';
-    _elderly.text = '${e?.elderly ?? 0}';
-    _infants.text = '${e?.infants ?? 0}';
-    _pwd.text = '${e?.personsWithDisabilities ?? 0}';
+    _adults.text = groupThousands('${e?.adults ?? 0}');
+    _children.text = groupThousands('${e?.children ?? 0}');
+    _elderly.text = groupThousands('${e?.elderly ?? 0}');
+    _infants.text = groupThousands('${e?.infants ?? 0}');
+    _pwd.text = groupThousands('${e?.personsWithDisabilities ?? 0}');
   }
 
-  int _value(TextEditingController c) => int.tryParse(c.text.trim()) ?? 0;
+  int _value(TextEditingController c) =>
+      int.tryParse(c.text.replaceAll(',', '').trim()) ?? 0;
 
   int get _headcount =>
       _value(_adults) + _value(_children) + _value(_elderly) + _value(_infants) + _value(_pwd);
@@ -461,6 +463,11 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
       child: TextField(
         controller: controller,
         keyboardType: TextInputType.number,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          const CurrencyInputFormatter(decimalDigits: 0),
+          const MaxValueInputFormatter(10000),
+        ],
         onChanged: (_) => setState(() {}),
         decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), isDense: true),
       ),

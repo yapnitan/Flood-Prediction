@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:latlong2/latlong.dart';
 import '../../controllers/property_controller.dart';
 import '../../models/property.dart';
@@ -275,6 +276,7 @@ class _PropertyFormViewState extends State<PropertyFormView> {
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: _labelController,
+                        maxLength: 20,
                         decoration: const InputDecoration(
                           labelText: 'Name this address',
                           hintText: 'e.g. Home, Work, or a custom name',
@@ -419,6 +421,10 @@ class _PropertyFormViewState extends State<PropertyFormView> {
                       TextFormField(
                         controller: _postcodeController,
                         keyboardType: TextInputType.number,
+                        maxLength: 5,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
                         decoration: const InputDecoration(
                           labelText: 'Postcode (optional)',
                           border: OutlineInputBorder(),
@@ -448,10 +454,22 @@ class _PropertyFormViewState extends State<PropertyFormView> {
                       TextFormField(
                         controller: _floorsController,
                         keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          const MaxValueInputFormatter(100),
+                        ],
                         decoration: const InputDecoration(
                           labelText: 'Number of floors (optional)',
+                          hintText: 'Maximum 100',
                           border: OutlineInputBorder(),
                         ),
+                        validator: (value) {
+                          final floors = int.tryParse((value ?? '').trim());
+                          if (floors != null && floors > 100) {
+                            return 'Number of floors cannot exceed 100.';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
@@ -459,12 +477,23 @@ class _PropertyFormViewState extends State<PropertyFormView> {
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
-                        inputFormatters: const [CurrencyInputFormatter()],
+                        inputFormatters: const [
+                          CurrencyInputFormatter(),
+                          MaxValueInputFormatter(1000000000, decimalDigits: 2),
+                        ],
                         decoration: const InputDecoration(
                           labelText: 'Estimated property value (optional)',
+                          hintText: 'Maximum 1,000,000,000',
                           prefixText: 'RM ',
                           border: OutlineInputBorder(),
                         ),
+                        validator: (value) {
+                          final amount = CurrencyInputFormatter.parse(value);
+                          if (amount != null && amount > 1000000000) {
+                            return 'Maximum RM 1,000,000,000';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 30),
                       SizedBox(

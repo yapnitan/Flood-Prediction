@@ -82,3 +82,35 @@ class CurrencyInputFormatter extends TextInputFormatter {
     );
   }
 }
+
+/// Clamps a comma-grouped numeric field to [max] — typing (or pasting) past
+/// it snaps the value straight down to [max] rather than rejecting the
+/// keystroke. Pair with [CurrencyInputFormatter] and list it after that
+/// formatter so it clamps the already-grouped value; pass the same
+/// [decimalDigits] as that formatter so the clamped value's formatting
+/// matches (e.g. `1,000,000,000.00` rather than a bare whole number).
+class MaxValueInputFormatter extends TextInputFormatter {
+  const MaxValueInputFormatter(this.max, {this.decimalDigits = 0});
+
+  final num max;
+  final int decimalDigits;
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(',', '');
+    if (digits.isEmpty) return newValue;
+    final value = double.tryParse(digits);
+    if (value == null || value <= max) return newValue;
+
+    final clamped = decimalDigits > 0
+        ? formatAmount(max)
+        : groupThousands(max.toString());
+    return TextEditingValue(
+      text: clamped,
+      selection: TextSelection.collapsed(offset: clamped.length),
+    );
+  }
+}
