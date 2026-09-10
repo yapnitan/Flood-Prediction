@@ -177,7 +177,10 @@ class _AdminHomeState extends State<AdminHome> {
           MaterialPageRoute(builder: (_) => const FloodIncidentAdminView()),
         ),
       ),
-      UserManagementView(onUsersChanged: _loadPendingHelperCount),
+      UserManagementView(
+        isVisible: currentIndex == 1,
+        onUsersChanged: _loadPendingHelperCount,
+      ),
       _showFloodReports
           ? const FloodReportAdminView()
           : AssetLossAdminView(onReportsChanged: _loadPendingCount),

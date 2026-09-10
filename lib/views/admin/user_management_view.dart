@@ -74,12 +74,20 @@ class _StatusLabel extends StatelessWidget {
 }
 
 class UserManagementView extends StatefulWidget {
-  const UserManagementView({super.key, this.onUsersChanged});
+  const UserManagementView({
+    super.key,
+    this.onUsersChanged,
+    this.isVisible = false,
+  });
 
   /// Called after a role/status/active change succeeds, so a host screen
   /// (e.g. the admin's pending-approval badge on the Users tab) can refresh
   /// without waiting for a tab switch.
   final VoidCallback? onUsersChanged;
+
+  /// The admin shell keeps tabs mounted in an IndexedStack. This flag lets
+  /// the page restore its default filters whenever the Users tab is opened.
+  final bool isVisible;
 
   @override
   State<UserManagementView> createState() => _UserManagementViewState();
@@ -113,6 +121,15 @@ class _UserManagementViewState extends State<UserManagementView> {
         () => _searchQuery = _searchController.text.trim().toLowerCase(),
       );
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant UserManagementView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.isVisible && widget.isVisible) {
+      _statusFilter = 'all';
+      _roleFilter = 'all';
+    }
   }
 
   @override
