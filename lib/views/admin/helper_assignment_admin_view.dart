@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../controllers/asset_loss_report_controller.dart';
+import '../../controllers/facility_controller.dart';
 import '../../controllers/helper_assignment_controller.dart';
+import '../../controllers/property_controller.dart';
 import '../../controllers/user_management_controller.dart';
 import '../../models/account.dart';
 import '../../models/helper_district_assignment.dart';
 import '../../services/asset_loss_report_service.dart';
+import '../../services/facility_service.dart';
 import '../../services/helper_assignment_service.dart';
+import '../../services/property_service.dart';
 import '../../services/user_management_service.dart';
 import '../../utils/malaysia_geocoding.dart';
 import '../../utils/responsive.dart';
@@ -30,6 +34,8 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
   final _assignmentController = HelperAssignmentController(HelperAssignmentService());
   final _userManagementController = UserManagementController(UserManagementService());
   final _assetLossController = AssetLossReportController(AssetLossReportService());
+  final _propertyController = PropertyController(PropertyService());
+  final _facilityController = FacilityController(FacilityService());
   final _searchController = TextEditingController();
 
   bool _isLoading = true;
@@ -40,6 +46,11 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
   /// *reassigned*, never given a second place, so they're kept out of the
   /// "assign a helper" dropdown.
   Set<String> _assignedHelperIds = {};
+
+  /// Districts that actually exist on a saved property or facility, grouped
+  /// by state — the source for the assign dialog's district dropdown, so the
+  /// admin can't typo a district that won't match anything.
+  Map<String, List<String>> _districtsByState = {};
 
   Map<String, int> _pendingByDistrict = {};
   Map<String, int> _completedByDistrict = {};
@@ -91,6 +102,8 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
     final assignments = await _assignmentController.getAllWithHelperInfo();
     final accounts = await _userManagementController.listUsers();
     final reports = await _assetLossController.getAdminOverview();
+    final propertyPairs = await _propertyController.getStateDistrictPairs();
+    final facilities = await _facilityController.getAllFacilities();
     if (!mounted) return;
 
     final pending = <String, int>{};
@@ -106,12 +119,35 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
       }
     }
 
+    final districtsByState = <String, Set<String>>{};
+    void addPair(String? state, String? district) {
+      final s = state?.trim();
+      final d = district?.trim();
+      if (s == null || s.isEmpty || d == null || d.isEmpty) return;
+      districtsByState.putIfAbsent(s, () => <String>{}).add(d);
+    }
+    for (final p in propertyPairs) {
+      addPair(p['state'] as String?, p['district'] as String?);
+    }
+    for (final f in facilities) {
+      addPair(f.state, f.district);
+    }
+    // Keep every already-assigned district selectable even if its property
+    // was since removed.
+    for (final a in assignments) {
+      addPair(a['state'] as String?, a['district'] as String?);
+    }
+
     setState(() {
       _assignments = assignments;
       _helpers = accounts.where((a) => a.role == 'helper' && a.status == 'active').toList();
       _assignedHelperIds = {
         for (final a in assignments)
           if (a['status'] == 'active') a['helper_id'] as String,
+      };
+      _districtsByState = {
+        for (final e in districtsByState.entries)
+          e.key: (e.value.toList()..sort()),
       };
       _pendingByDistrict = pending;
       _completedByDistrict = completed;
@@ -124,8 +160,11 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
     final existingAccount = existing?['account'] as Map<String, dynamic>?;
     final existingHelperName =
         existingAccount?['name'] as String? ?? 'Unknown helper';
-    String state = existing?['state'] as String? ?? MalaysiaGeocoder.states.first;
-    final districtController = TextEditingController(text: existing?['district'] as String? ?? '');
+    // States that actually have a district to pick from.
+    final knownStates = _districtsByState.keys.toList()..sort();
+    String state = existing?['state'] as String? ??
+        (knownStates.isNotEmpty ? knownStates.first : MalaysiaGeocoder.states.first);
+    String? districtValue = existing?['district'] as String?;
 
     // Only helpers without an active place can be freshly assigned — an
     // already-assigned helper is changed via the card's "Change place".
@@ -183,15 +222,39 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                 ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: state,
+                initialValue: MalaysiaGeocoder.states.contains(state) ? state : null,
                 decoration: const InputDecoration(labelText: 'State'),
-                items: MalaysiaGeocoder.states.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                onChanged: (value) => setDialogState(() => state = value ?? state),
+                items: MalaysiaGeocoder.states
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                    .toList(),
+                onChanged: (value) => setDialogState(() {
+                  state = value ?? state;
+                  final districts = _districtsByState[state] ?? const [];
+                  if (!districts.contains(districtValue)) districtValue = null;
+                }),
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: districtController,
-                decoration: const InputDecoration(labelText: 'District', hintText: 'e.g. Petaling'),
+              Builder(
+                builder: (context) {
+                  final districts = _districtsByState[state] ?? const <String>[];
+                  return DropdownButtonFormField<String>(
+                    key: ValueKey('district-$state'),
+                    initialValue:
+                        districts.contains(districtValue) ? districtValue : null,
+                    decoration: const InputDecoration(labelText: 'District'),
+                    isExpanded: true,
+                    items: districts
+                        .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                        .toList(),
+                    onChanged: (value) =>
+                        setDialogState(() => districtValue = value),
+                    hint: Text(
+                      districts.isEmpty
+                          ? 'No saved address or shelter in this state yet'
+                          : 'Select a district',
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -199,8 +262,12 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
             TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
             TextButton(
               onPressed: () async {
-                if (helperId == null || districtController.text.trim().isEmpty) return;
-                final district = districtController.text.trim();
+                if (helperId == null ||
+                    districtValue == null ||
+                    districtValue!.trim().isEmpty) {
+                  return;
+                }
+                final district = districtValue!.trim();
                 final error = existing == null
                     ? await _assignmentController.assign(
                         HelperDistrictAssignment(
