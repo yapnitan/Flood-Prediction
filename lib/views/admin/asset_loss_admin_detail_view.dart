@@ -5,7 +5,7 @@ import '../../controllers/asset_loss_report_controller.dart';
 import '../../services/asset_loss_report_service.dart';
 import '../../utils/currency_input.dart';
 import '../../utils/responsive.dart';
-import '../../widgets/network_photo_thumbnail.dart';
+import '../../widgets/photo_gallery_viewer.dart';
 import '../../widgets/review_card.dart';
 import '../../widgets/status_badge.dart';
 
@@ -444,27 +444,70 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
       '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 }
 
+/// Grid of evidence/verification photos — batch-signs the whole group in
+/// one round-trip, then taps open the full-screen swipe/zoom gallery, the
+/// same as the admin's flood-report photo view.
 class _PhotoGrid extends StatelessWidget {
   const _PhotoGrid({required this.paths, required this.controller});
 
   final List<String> paths;
   final AssetLossReportController controller;
 
+  static const _brokenImage = ColoredBox(
+    color: Color(0xFFF2F2F2),
+    child: Icon(Icons.broken_image_outlined, color: Colors.grey),
+  );
+
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: paths.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-      ),
-      itemBuilder: (context, index) => NetworkPhotoThumbnail(
-        storagePath: paths[index],
-        urlResolver: controller.getSignedPhotoUrl,
-      ),
+    return FutureBuilder<List<String>>(
+      future: controller.getSignedPhotoUrls(paths),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        final urls = snapshot.data ?? const [];
+        if (urls.isEmpty) {
+          return const Text(
+            'Photos unavailable',
+            style: TextStyle(color: Colors.grey),
+          );
+        }
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: urls.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: context.responsive(mobile: 3, tablet: 4, desktop: 5),
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+          ),
+          itemBuilder: (context, index) => ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  fullscreenDialog: true,
+                  builder: (_) => PhotoGalleryViewer(
+                    urls: urls,
+                    initialIndex: index,
+                  ),
+                ),
+              ),
+              child: Image.network(
+                urls[index],
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => _brokenImage,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

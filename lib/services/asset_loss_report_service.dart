@@ -195,6 +195,29 @@ class AssetLossReportService {
     return paths;
   }
 
+  /// Batch-signs a group of photo paths in one round-trip, for the
+  /// full-screen gallery viewer. Paths the caller can't read under storage
+  /// RLS are dropped rather than failing the whole batch (same shape as
+  /// FloodReportService.getPhotoUrls).
+  Future<List<String>> getSignedPhotoUrls(
+    List<String> paths, {
+    int expiresInSeconds = 3600,
+  }) async {
+    if (paths.isEmpty) return [];
+    try {
+      final results = await _supabase.storage
+          .from(_photoBucket)
+          .createSignedUrlsResult(paths, expiresInSeconds);
+      return results
+          .whereType<SignedUrlSuccess>()
+          .map((r) => r.signedUrl)
+          .toList();
+    } catch (error) {
+      debugPrint('AssetLossReportService.getSignedPhotoUrls error: $error');
+      return [];
+    }
+  }
+
   Future<String> getSignedPhotoUrl(String path, {int expiresInSeconds = 3600}) async {
     try {
       return await _supabase.storage

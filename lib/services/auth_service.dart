@@ -387,25 +387,64 @@ class AuthService {
     }
   }
 
+  /// Registration state of an email, via the `auth_email_status` RPC
+  /// (migration 0041): `'not_registered'`, `'unconfirmed'`, `'confirmed'`,
+  /// or `'unknown'` if the check itself failed.
+  Future<String> emailAccountStatus(String email) async {
+    try {
+      final result = await supabase.rpc(
+        'auth_email_status',
+        params: {'p_email': email},
+      );
+      return result as String? ?? 'unknown';
+    } catch (e) {
+      debugPrint('AuthService.emailAccountStatus error: $e');
+      return 'unknown';
+    }
+  }
+
   /// Re-sends the signup confirmation code for an account that was created
   /// but never confirmed (the user closed the app before entering the
   /// code). Reached from the login page, not the registration form.
+  ///
+  /// Checks the email's registration state first so a never-registered
+  /// address gets "sign up first" instead of a silent no-op, and an
+  /// already-confirmed one gets "log in" instead of a resend.
   Future<Map<String, dynamic>> resendSignupCode(String email) async {
     try {
+      switch (await emailAccountStatus(email)) {
+        case 'not_registered':
+          return {
+            'status': 'not_registered',
+            'message':
+                "You haven't signed up with this email yet. Create an account first.",
+          };
+        case 'confirmed':
+          return {
+            'status': 'error',
+            'message': 'This email is already confirmed. Please log in instead.',
+          };
+      }
+
       await supabase.auth.resend(type: OtpType.signup, email: email);
       return {
         'status': 'success',
-        'message': 'If that account is awaiting confirmation, a new code has been sent.',
+        'message': 'A new confirmation code has been sent to your email.',
       };
     } on AuthApiException catch (e) {
       debugPrint('AuthService.resendSignupCode error: $e');
-      // Supabase rejects resend() outright (rather than silently no-op'ing,
-      // like signUp() does) when the account is already confirmed — surface
-      // that distinctly instead of a generic failure message.
-      if (e.message.toLowerCase().contains('already confirmed')) {
+      final message = e.message.toLowerCase();
+      if (message.contains('already confirmed')) {
         return {
           'status': 'error',
           'message': 'This email is already confirmed. Please log in instead.',
+        };
+      }
+      if (e.code == 'user_not_found' || message.contains('user not found')) {
+        return {
+          'status': 'not_registered',
+          'message':
+              "You haven't signed up with this email yet. Create an account first.",
         };
       }
       return {'status': 'error', 'message': e.message};

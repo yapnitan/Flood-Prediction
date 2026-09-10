@@ -46,6 +46,33 @@ class _Avatar extends StatelessWidget {
   }
 }
 
+/// Icon + short caption for an account's approval status. Kept to its
+/// intrinsic width so it can sit next to (or wrap away from) the action
+/// buttons in [_UserManagementViewState._buildApprovalControl].
+class _StatusLabel extends StatelessWidget {
+  const _StatusLabel({
+    required this.icon,
+    required this.text,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
+        Text(text, style: TextStyle(fontSize: 12, color: color)),
+      ],
+    );
+  }
+}
+
 class UserManagementView extends StatefulWidget {
   const UserManagementView({super.key, this.onUsersChanged});
 
@@ -382,44 +409,55 @@ class _UserManagementViewState extends State<UserManagementView> {
     final Widget content;
     switch (account.status) {
       case 'pending':
-        content = Row(
+        // Wrap (not Row+Spacer) so the two action buttons drop below the
+        // status label on a narrow card instead of overflowing it.
+        content = Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            const Icon(Icons.hourglass_top, size: 16, color: Colors.orange),
-            const SizedBox(width: 6),
-            const Text(
-              'Awaiting review',
-              style: TextStyle(fontSize: 12, color: Colors.orange),
+            const _StatusLabel(
+              icon: Icons.hourglass_top,
+              text: 'Awaiting review',
+              color: Colors.orange,
             ),
-            const Spacer(),
-            OutlinedButton(
-              onPressed: isSelf ? null : () => _reject(account),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-                visualDensity: VisualDensity.compact,
-              ),
-              child: const Text('Reject'),
-            ),
-            const SizedBox(width: 8),
-            FilledButton(
-              onPressed: isSelf ? null : () => _approve(account),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.green,
-                visualDensity: VisualDensity.compact,
-              ),
-              child: const Text('Approve'),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                OutlinedButton(
+                  onPressed: isSelf ? null : () => _reject(account),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: const Text('Reject'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: isSelf ? null : () => _approve(account),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: const Text('Approve'),
+                ),
+              ],
             ),
           ],
         );
       case 'rejected':
-        content = Row(
+        content = Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            const Icon(Icons.block, size: 16, color: Colors.red),
-            const SizedBox(width: 6),
-            const Text(
-              'Rejected',
-              style: TextStyle(fontSize: 12, color: Colors.red),
+            const _StatusLabel(
+              icon: Icons.block,
+              text: 'Rejected',
+              color: Colors.red,
             ),
-            const Spacer(),
             TextButton(
               onPressed: isSelf ? null : () => _approve(account),
               child: const Text('Reconsider'),
@@ -427,16 +465,10 @@ class _UserManagementViewState extends State<UserManagementView> {
           ],
         );
       default: // 'active'
-        content = Row(
-          children: [
-            Icon(Icons.verified_user_outlined,
-                size: 16, color: Colors.green.shade600),
-            const SizedBox(width: 6),
-            const Text(
-              'Approved',
-              style: TextStyle(fontSize: 12, color: Colors.green),
-            ),
-          ],
+        content = const _StatusLabel(
+          icon: Icons.verified_user_outlined,
+          text: 'Approved',
+          color: Colors.green,
         );
     }
     return Padding(padding: const EdgeInsets.only(top: 10), child: content);
