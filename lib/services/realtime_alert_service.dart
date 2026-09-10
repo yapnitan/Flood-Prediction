@@ -5,16 +5,6 @@ import '../models/helper_district_assignment.dart';
 import '../utils/geo_utils.dart';
 import 'notification_service.dart';
 
-/// The Task 12 cases that need to react to something happening *elsewhere*
-/// (another user submitting a report, an admin assigning a helper) rather
-/// than something the current screen just did itself. Subscribes to
-/// Supabase Realtime (`postgres_changes`) while the relevant screen is
-/// mounted, and surfaces a local notification when a row change matches.
-///
-/// This only fires while the app is running in the foreground with an
-/// active subscription — there's no FCM/Edge Function backend behind it,
-/// so it's session-based, not true background push (see NotificationService
-/// doc comment).
 class RealtimeAlertService {
   RealtimeAlertService._();
   static final RealtimeAlertService instance = RealtimeAlertService._();
@@ -25,8 +15,6 @@ class RealtimeAlertService {
   RealtimeChannel? _floodReportChannel;
   RealtimeChannel? _helperAssignmentChannel;
 
-  /// For a resident: notifies when their own report's status changes
-  /// (e.g. verified, rejected).
   void watchOwnAssetLossReports(String accountId) {
     stopAssetLossReportWatch();
     _assetLossReportChannel = _supabase
@@ -58,12 +46,6 @@ class RealtimeAlertService {
     }
   }
 
-  /// For a district-assigned helper: notifies when a new asset loss report
-  /// lands in one of their active districts. Realtime filters only support
-  /// simple column equality, not a join through `property`, so this
-  /// subscribes to all inserts and does one small follow-up query per event
-  /// to resolve the report's district — same shape as
-  /// [watchNearbyFloodReports]'s client-side distance check below.
   void watchAssignedDistrictReports(
     String helperId, {
     required List<HelperDistrictAssignment> assignments,
@@ -117,7 +99,6 @@ class RealtimeAlertService {
     _assetLossReportChannel = null;
   }
 
-  /// For a helper: notifies when the admin assigns them to a new district.
   void watchHelperAssignments(String helperId) {
     stopHelperAssignmentWatch();
     _helperAssignmentChannel = _supabase
@@ -156,9 +137,6 @@ class RealtimeAlertService {
     _helperAssignmentChannel = null;
   }
 
-  /// Notifies when a newly-submitted flood report lands within [radiusKm]
-  /// of [latitude]/[longitude] — a snapshot of the user's location at
-  /// watch-start, not continuously tracked.
   void watchNearbyFloodReports({
     required double latitude,
     required double longitude,

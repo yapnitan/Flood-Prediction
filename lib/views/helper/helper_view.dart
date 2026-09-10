@@ -36,9 +36,6 @@ class _HelperHomeState extends State<HelperHome> {
   Future<void> _startWatches() async {
     final accountId = Supabase.instance.client.auth.currentUser?.id;
     if (accountId == null) return;
-    // Task 12 "aid assignment updates" — notifies this helper of new
-    // district assignments, and of new asset loss reports in areas
-    // they're already assigned to.
     RealtimeAlertService.instance.watchHelperAssignments(accountId);
     final assignments = await HelperAssignmentController(HelperAssignmentService()).getMyAssignments();
     RealtimeAlertService.instance.watchAssignedDistrictReports(accountId, assignments: assignments);
@@ -62,9 +59,6 @@ class _HelperHomeState extends State<HelperHome> {
     final bool useRail = !context.isMobile;
 
     return PopScope(
-      // Only let back actually leave this screen when already on the
-      // Dashboard tab — otherwise it pops the whole HelperHome route
-      // instead of just returning to Dashboard like a bottom-nav app should.
       canPop: currentIndex == 0,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
@@ -72,20 +66,11 @@ class _HelperHomeState extends State<HelperHome> {
       },
       child: Scaffold(
       appBar: AppBar(title: Text(titles[currentIndex])),
-      // Both orientations keep an identical body element tree —
-      // LayoutBuilder > Row > Expanded(keyed) > IndexedStack — and only
-      // add/remove the leading NavigationRail. Without this, crossing the
-      // `useRail` width breakpoint on rotation swapped the whole body subtree,
-      // remounting each tab body and wiping its filter/search/scroll state.
       body: LayoutBuilder(
         builder: (context, constraints) {
           return Row(
             children: [
               if (useRail) ...[
-                // NavigationRail isn't internally scrollable, so on a short
-                // (e.g. landscape) screen it can overflow vertically. Let it
-                // scroll while still stretching to fill the available
-                // height so the VerticalDivider spans the full body.
                 SingleChildScrollView(
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
@@ -141,11 +126,6 @@ class _HelperHomeState extends State<HelperHome> {
   }
 }
 
-/// Helper's district-scoped verification queue (Task/asset report §28):
-/// "My Assigned Areas" + potential asset losses awaiting verification in
-/// those areas. RLS already restricts what comes back to the helper's
-/// active district assignments (0025_asset_loss_helper_district_scoping.sql)
-/// — this view doesn't need to filter on top of that.
 class _HelperDashboardTab extends StatefulWidget {
   const _HelperDashboardTab();
 
@@ -218,10 +198,6 @@ class _HelperDashboardTabState extends State<_HelperDashboardTab> {
 
     int byNewest(Map<String, dynamic> a, Map<String, dynamic> b) =>
         (b['created_at'] as String).compareTo(a['created_at'] as String);
-
-    // A helper can only act on reports that are still pending AND not yet
-    // verified by anyone (matches migration 0036's RLS). Everything else is
-    // view-only.
     bool awaitingVerification(Map<String, dynamic> r) =>
         r['status'] == 'pending_review' && r['verification_result'] == null;
 

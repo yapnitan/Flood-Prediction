@@ -49,17 +49,11 @@ class _SubmitReportState extends State<SubmitReportPage> {
 
   static const _maxPhotos = 3;
 
-  /// Existing (already-uploaded) photos plus newly picked ones — the cap
-  /// applies to the report's total attachment count either way.
   int get _totalPhotoCount => _existingPhotoPaths.length + _photos.length;
   final FloodReportController _controller = FloodReportController(
     FloodReportService(),
   );
 
-  /// Storage paths of this report's already-uploaded photos, kept editable
-  /// so the resident can remove one — mutated locally and only sent to the
-  /// server on save. Paired with `_existingPhotoUrlsFuture` (path -> signed
-  /// URL) so the grid below can render a thumbnail per path.
   List<String> _existingPhotoPaths = [];
   Future<Map<String, String>>? _existingPhotoUrlsFuture;
   DateTime? _observedAt;
@@ -290,8 +284,6 @@ class _SubmitReportState extends State<SubmitReportPage> {
     });
   }
 
-  /// `dd/MM/yyyy HH:mm` — context-free so it's safe to call from initState
-  /// (unlike `TimeOfDay.format(context)`, which needs the widget tree).
   static String _formatObservedAt(DateTime dt) {
     final date =
         '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
@@ -379,9 +371,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
       Navigator.of(context).pop(true);
       return;
     }
-    // Pushed as a full page from Home: tell Home to refresh, then close
-    // ourselves with our own (always-valid) context. The callback used to
-    // own the pop, but it captured a stale context and silently failed.
+
     widget.onSubmissionComplete?.call();
     final navigator = Navigator.of(context);
     if (navigator.canPop()) {
@@ -513,11 +503,7 @@ class _SubmitReportState extends State<SubmitReportPage> {
               ),
             ),
             child: CustomScrollView(
-              // Stable keys so that removing the chrome slivers when the
-              // keyboard opens can't make Flutter match the form-content
-              // sliver against a sibling (both are keyless SliverPaddings) and
-              // rebuild it from scratch — that was tearing down the focused
-              // TextField and dropping the keyboard as it tried to open.
+
               slivers: [
                 if (!keyboardVisible && !_isSubmitted)
                   SliverAppBar(
@@ -947,11 +933,6 @@ class _SubmitReportState extends State<SubmitReportPage> {
     );
   }
 
-  /// This report's already-uploaded photos, each with a remove button —
-  /// removing one only updates `_existingPhotoPaths` locally; nothing is
-  /// deleted from storage until the form is saved (`_submitReport` sends
-  /// the trimmed list, which `FloodReportService.updateReport` uses to
-  /// overwrite `photo_paths` wholesale).
   Widget _buildExistingPhotosGrid() {
     if (_existingPhotoPaths.isEmpty) return const SizedBox.shrink();
     return Column(

@@ -7,8 +7,6 @@ import '../../services/planner_service.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/offline_banner.dart';
 
-/// Module 3 entry point (CLAUDE.md Task 8) — preparation progress plus
-/// cards into the Emergency Checklist and the Nearby PPS map.
 class PlannerDashboardView extends StatefulWidget {
   const PlannerDashboardView({super.key});
 
@@ -34,11 +32,6 @@ class _PlannerDashboardViewState extends State<PlannerDashboardView> {
     future.then(_syncChecklistReminder);
   }
 
-  /// Task 9 "reminder notifications" — keeps a daily local reminder armed
-  /// while preparation is incomplete, and cancels it once everything's
-  /// checked off. Re-synced every time this dashboard loads/refreshes
-  /// rather than on a background schedule, since there's no server-side
-  /// trigger to drive it otherwise.
   Future<void> _syncChecklistReminder(double progress) async {
     if (progress >= 1) {
       await NotificationService.instance.cancel(NotificationService.idChecklistReminder);

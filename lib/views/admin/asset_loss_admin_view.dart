@@ -11,9 +11,6 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/status_badge.dart';
 import 'asset_loss_admin_detail_view.dart';
 
-/// Admin's Asset Loss Management page (Task/asset report §10) — replaces
-/// the old RepairRequestAdminView. Deliberately has no Scaffold/AppBar of
-/// its own, like the other admin tab bodies (admin_view.dart).
 class AssetLossAdminView extends StatefulWidget {
   const AssetLossAdminView({super.key, this.onReportsChanged});
 
@@ -72,7 +69,6 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
     _refresh();
   }
 
-  // "Unknown state" / "Unknown district" buckets always sort to the bottom.
   static int _unknownLast(String a, String b) {
     final au = a.startsWith('Unknown');
     final bu = b.startsWith('Unknown');
@@ -92,8 +88,6 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
     return bv.compareTo(av);
   }
 
-  /// Groups the filtered reports state → district, each as a header row
-  /// followed by its cards (pending first, then largest potential loss).
   List<Widget> _buildGrouped(List<Map<String, dynamic>> rows) {
     final byState = <String, Map<String, List<Map<String, dynamic>>>>{};
     for (final r in rows) {
@@ -454,8 +448,6 @@ class _ReportSummaryCard extends StatelessWidget {
   final Map<String, dynamic> data;
   final VoidCallback onTap;
 
-  /// The specific address/name for this property — state/district already
-  /// show in the group header above, so those aren't repeated here.
   static String _propertyLine(Map<String, dynamic>? property) {
     if (property == null) return '';
     final address = (property['address'] as String?)?.trim() ?? '';

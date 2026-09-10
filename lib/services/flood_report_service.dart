@@ -50,20 +50,10 @@ class FloodReportService {
     }
   }
 
-  /// Reports older than this drop out of the live/community feed
-  /// ([getRecent]) automatically — they're still visible in "My Reports"
-  /// and the admin history, just no longer part of the "what's happening
-  /// right now" view. Pragmatic client-side archival: filtering by age on
-  /// read, rather than a scheduled job flipping a status column, since
-  /// nothing else in this schema uses pg_cron.
   static const Duration _activeReportWindow = Duration(days: 7);
 
   static const _cacheKeyRecent = 'flood_report_recent';
 
-  /// Task 14 offline support — reads from the local cache when offline (or
-  /// when the live fetch fails despite [ConnectivityService] thinking we're
-  /// online), so the community map/feed still shows the last-known reports
-  /// instead of going empty.
   Future<List<FloodReport>> getRecent({int limit = 50}) async {
     if (!ConnectivityService.instance.isOnline) {
       return _reportsFromCache(_cacheKeyRecent);
@@ -96,11 +86,6 @@ class FloodReportService {
     return data == null ? null : FloodReport.fromJson(data);
   }
 
-  /// Overwrites an editable report's fields (own report, still `submitted`
-  /// — enforced by RLS, see 0018_flood_report_edit_delete_verify.sql).
-  /// [existingPhotoPaths] is whatever the edit form's user is left with
-  /// after any removals (a subset of the report's original photo paths);
-  /// any [newPhotos] are uploaded and appended to that set.
   Future<bool> updateReport(
     String id,
     FloodReport report,
@@ -109,8 +94,6 @@ class FloodReportService {
   ) async {
     try {
       final newPaths = newPhotos.isEmpty ? <String>[] : await _uploadPhotos(newPhotos);
-      // `.select()` so we can tell an RLS no-op (0 rows) from a real update —
-      // without it the call succeeds silently even when nothing changed.
       final rows = await _supabase.from(_table).update({
         'location_name': report.locationName,
         'latitude': report.latitude,
@@ -139,9 +122,6 @@ class FloodReportService {
     }
   }
 
-  /// Admin-only (migration 0018's "Admins can update any flood report" RLS).
-  /// Toggles a report between 'submitted' and 'verified'. Returns false if
-  /// nothing was updated (not an admin, or the policy isn't deployed).
   Future<bool> setVerified(String id, bool verified) async {
     try {
       final rows = await _supabase
@@ -177,11 +157,6 @@ class FloodReportService {
     }
   }
 
-  /// Reports submitted by the currently authenticated user, most recent
-  /// first — backs the Report History page. Falls back to the offline
-  /// cache (same as [getRecent]) when offline or the live fetch fails, so
-  /// "no cache yet" reads as an empty list rather than a distinct error
-  /// state.
   Future<List<FloodReport>> getMyReports({int limit = 100}) async {
     final reporterId = _supabase.auth.currentUser?.id;
     if (reporterId == null) return [];
@@ -206,11 +181,6 @@ class FloodReportService {
     }
   }
 
-  /// Every flood report, most recent first, joined with the reporter's
-  /// account so the admin list can show who submitted each one. Relies on
-  /// the "Administrators can read flood reports" RLS policy (0004 migration)
-  /// to see reports beyond the caller's own — same join pattern as
-  /// [RepairRequestService.getAllRequestsWithAccountInfo].
   Future<List<Map<String, dynamic>>> getAllReportsWithAccountInfo() async {
     final rows = await _supabase
         .from(_table)
@@ -219,9 +189,6 @@ class FloodReportService {
     return List<Map<String, dynamic>>.from(rows);
   }
 
-  /// Reports within [radiusKm] of the given coordinates, reported within
-  /// the last [maxAge] — a live "what's happening near here right now"
-  /// signal, as opposed to [getRecent]'s global recent-reports list.
   Future<List<FloodReport>> getNearby({
     required double latitude,
     required double longitude,
@@ -268,11 +235,6 @@ class FloodReportService {
     }
   }
 
-  /// Signed, time-limited URLs for a report's evidence photos — the
-  /// `flood-report-photos` bucket is private, so a plain public URL
-  /// won't work; each viewer needs their own freshly-signed one. Paths
-  /// the caller isn't allowed to read (RLS) are silently omitted rather
-  /// than failing the whole batch.
   Future<List<String>> getPhotoUrls(
     List<String> paths, {
     int expiresInSeconds = 600,
@@ -292,9 +254,6 @@ class FloodReportService {
     }
   }
 
-  /// Same as [getPhotoUrls], but keeps each URL paired with its storage
-  /// path (path -> signed URL) — the edit form needs this to know which
-  /// path to drop when the resident removes a specific existing photo.
   Future<Map<String, String>> getPhotoUrlsByPath(
     List<String> paths, {
     int expiresInSeconds = 600,

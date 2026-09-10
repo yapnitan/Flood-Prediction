@@ -4,19 +4,6 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
-/// Wraps [FlutterLocalNotificationsPlugin] for every CLAUDE.md Task 12
-/// notification case this app can genuinely support without a server-side
-/// push backend (no Firebase Cloud Messaging project is configured here):
-///
-/// - Checklist reminders: a real scheduled local notification, fires even
-///   if the app is closed.
-/// - Nearby flood reports / weather warnings / aid assignment updates /
-///   simulation completion: fired immediately, in response to something
-///   that happened *while the app is running* (a Supabase Realtime event,
-///   or a computed threshold check) — not true background push.
-///
-/// See [callers in `user_view.dart`/`helper_view.dart`/`home_flood_overview.dart`]
-/// for where each case is wired up.
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
@@ -29,8 +16,6 @@ class NotificationService {
   static const _channelDescription =
       'Flood reports, weather warnings, checklist reminders, and status updates';
 
-  /// Notification ids — fixed per case so re-showing/canceling a case
-  /// replaces its previous notification instead of stacking duplicates.
   static const idChecklistReminder = 1001;
   static const idSimulationCompletion = 1002;
   static const idAidAssignment = 1003;
@@ -91,11 +76,6 @@ class NotificationService {
     }
   }
 
-  /// Schedules a daily reminder at [hour]:[minute] local time — used for
-  /// "you still have unchecked emergency-checklist items" while
-  /// preparation is incomplete. Re-calling this replaces any existing
-  /// reminder (same [idChecklistReminder]) rather than stacking a second
-  /// one.
   Future<void> scheduleDailyReminder({
     required int id,
     required String title,

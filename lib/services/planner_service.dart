@@ -8,19 +8,6 @@ import '../models/inventory_item.dart';
 import 'connectivity_service.dart';
 import 'offline_sync_service.dart';
 
-/// All Supabase access for Module 3 (Evacuation & Inventory Planner) —
-/// checklists/items, inventory, and emergency contacts. One service per
-/// CLAUDE.md's naming (`PlannerService`), covering all four tables since
-/// they're simple, closely-related, account-scoped CRUD — same rationale
-/// as FacilityService covering one table's full CRUD in one place.
-///
-/// Task 14 offline support: every read here falls back to
-/// [OfflineSyncService]'s local cache when offline, and every write below
-/// (except [createChecklist] — see its doc comment) queues instead of
-/// failing outright, replayed once connectivity returns. This is the one
-/// part of the app where full offline CRUD makes sense: nothing here
-/// depends on a live external API or a file upload the way flood report
-/// photos or a risk assessment's terrain/weather lookups do.
 class PlannerService {
   PlannerService({SupabaseClient? client}) : _supabase = client ?? Supabase.instance.client;
 
@@ -30,8 +17,6 @@ class PlannerService {
   static const _contactTable = 'emergency_contact';
 
   final SupabaseClient _supabase;
-
-  // ---- Shared read/write helpers ----
 
   Future<List<T>> _cachedList<T>(
     String cacheKey,
@@ -53,10 +38,6 @@ class PlannerService {
     }
   }
 
-  /// Queues [payload] when offline (also patching [cacheKey]'s cached list
-  /// so the change shows immediately), otherwise writes straight through.
-  /// [rowId] must be an existing row's id — this helper doesn't handle
-  /// insert-then-reference-the-new-id chains (see [createChecklist]).
   Future<bool> _write({
     required String table,
     required String opType,
@@ -98,8 +79,6 @@ class PlannerService {
     }
   }
 
-  // ---- Checklists ----
-
   Future<List<EmergencyChecklist>> getChecklists(String accountId) {
     return _cachedList(
       'planner_checklists_$accountId',
@@ -115,12 +94,6 @@ class PlannerService {
     );
   }
 
-  /// Not offline-queueable like the rest of this service — a checklist's
-  /// id is server-generated, and its items reference that id as a foreign
-  /// key. Queuing the insert here would mean every item added under it
-  /// while still offline points at a local placeholder id that no longer
-  /// matches once the checklist itself syncs and gets its real id. Simpler
-  /// and more honest to require connectivity for this one operation.
   Future<EmergencyChecklist?> createChecklist(EmergencyChecklist checklist) async {
     if (!ConnectivityService.instance.isOnline) {
       debugPrint('PlannerService.createChecklist: offline, new checklists need a connection.');
@@ -155,8 +128,6 @@ class PlannerService {
     );
   }
 
-  // ---- Checklist items ----
-
   Future<List<ChecklistItem>> getItems(String checklistId) {
     return _cachedList(
       'planner_items_$checklistId',
@@ -173,13 +144,6 @@ class PlannerService {
     );
   }
 
-  /// All items across all of [accountId]'s checklists — used to compute
-  /// overall preparation progress without N+1-fetching per checklist. Its
-  /// own cache entry, kept separate from the per-checklist [getItems]
-  /// caches; offline item writes below patch the per-checklist cache but
-  /// not this one, so the progress % can be slightly stale until the next
-  /// successful online refresh — an acceptable trade-off for how small
-  /// that drift is.
   Future<List<ChecklistItem>> getAllItems(String accountId) {
     return _cachedList(
       'planner_all_items_$accountId',
@@ -223,7 +187,6 @@ class PlannerService {
     );
   }
 
-  // ---- Inventory ----
 
   Future<List<InventoryItem>> getInventory(String accountId) {
     return _cachedList(
@@ -269,7 +232,6 @@ class PlannerService {
     );
   }
 
-  // ---- Emergency contacts ----
 
   Future<List<EmergencyContact>> getContacts(String accountId) {
     return _cachedList(

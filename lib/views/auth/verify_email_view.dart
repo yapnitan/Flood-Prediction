@@ -7,11 +7,6 @@ import '../../services/auth_service.dart';
 import '../../utils/responsive.dart';
 import '../../routes/app_routes.dart';
 
-/// Reached from the login page by a user who registered but closed the app
-/// before entering the confirmation code — resends the code, then verifies
-/// it. Unlike [RegistrationPage]'s inline code step, this doesn't have the
-/// original name/role in memory, so [AuthService.verifySignupCode] recovers
-/// them from the signup's stored user metadata instead.
 class VerifyEmailPage extends StatefulWidget {
   const VerifyEmailPage({super.key});
 
@@ -29,8 +24,6 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
   String _errorMessage = '';
   bool _codeSent = false;
 
-  /// Set when the entered email was never registered — the email step then
-  /// offers a shortcut to Sign Up instead of a plain error.
   bool _notRegistered = false;
 
   int _cooldownSeconds = 0;
@@ -97,8 +90,6 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
         _errorMessage = '';
         _startCooldown(waitSeconds);
       } else {
-        // 'already confirmed' etc. carry an actionable message; only the
-        // truly opaque failures fall back to the generic text.
         _errorMessage = message.isNotEmpty
             ? message
             : 'Something went wrong. Please try again.';
@@ -106,11 +97,6 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     });
   }
 
-  /// Parses Supabase's rate-limit message (e.g. "...after 47 seconds...")
-  /// to show a friendly countdown instead of the raw exception text. Keyed
-  /// off the "after N seconds" phrasing itself rather than the exception's
-  /// `over_email_send_rate_limit` code, since AuthService now passes through
-  /// the clean `e.message` (no code embedded) for this case.
   int? _extractRateLimitSeconds(String message) {
     final match = RegExp(r'after (\d+) seconds').firstMatch(message);
     if (match == null) return null;
@@ -146,8 +132,6 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     }
   }
 
-  /// A helper account still pending admin approval can't log in yet — send
-  /// them back to Login with an explanation instead of into the app.
   void _handleVerified(Account account) {
     if (account.status == 'pending') {
       ScaffoldMessenger.of(context).showSnackBar(

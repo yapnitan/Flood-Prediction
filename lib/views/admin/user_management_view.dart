@@ -7,9 +7,6 @@ import '../../utils/responsive.dart';
 import '../../widgets/adaptive_search_filter_header.dart';
 import '../../widgets/empty_state.dart';
 
-/// Circle avatar for a user row — shows their profile picture (the
-/// `avatars` bucket is public, so a plain network image) and falls back to
-/// the first letter of their name while it loads or if it fails / isn't set.
 class _Avatar extends StatelessWidget {
   const _Avatar({required this.name, required this.url, required this.color});
 
@@ -46,9 +43,6 @@ class _Avatar extends StatelessWidget {
   }
 }
 
-/// Icon + short caption for an account's approval status. Kept to its
-/// intrinsic width so it can sit next to (or wrap away from) the action
-/// buttons in [_UserManagementViewState._buildApprovalControl].
 class _StatusLabel extends StatelessWidget {
   const _StatusLabel({
     required this.icon,
@@ -80,13 +74,8 @@ class UserManagementView extends StatefulWidget {
     this.isVisible = false,
   });
 
-  /// Called after a role/status/active change succeeds, so a host screen
-  /// (e.g. the admin's pending-approval badge on the Users tab) can refresh
-  /// without waiting for a tab switch.
   final VoidCallback? onUsersChanged;
 
-  /// The admin shell keeps tabs mounted in an IndexedStack. This flag lets
-  /// the page restore its default filters whenever the Users tab is opened.
   final bool isVisible;
 
   @override
@@ -94,9 +83,7 @@ class UserManagementView extends StatefulWidget {
 }
 
 class _UserManagementViewState extends State<UserManagementView> {
-  // Same horizontal chip-bar filter format as FloodReportAdminView: an
-  // 'all' sentinel plus the raw stored values, with a labelBuilder for
-  // display.
+
   static const _statusFilters = ['all', 'pending', 'active', 'rejected'];
   static const _roleFilters = ['all', 'user', 'helper', 'admin'];
 
@@ -104,8 +91,6 @@ class _UserManagementViewState extends State<UserManagementView> {
   final _searchController = TextEditingController();
   late Future<List<Account>> _usersFuture;
 
-  /// The signed-in admin — their own account's status/enabled controls
-  /// are locked so they can't accidentally lock themselves out.
   final String? _myId = Supabase.instance.client.auth.currentUser?.id;
 
   String _searchQuery = '';
@@ -157,11 +142,6 @@ class _UserManagementViewState extends State<UserManagementView> {
   String _roleFilterLabel(String value) =>
       value == 'all' ? 'All roles' : _roleLabel(value);
 
-  // NOTE: must be a block body `{ ... }`, not an arrow `=> expr`. An arrow
-  // body would make the assignment's *value* (a Future) the return value of
-  // the closure, and setState() only accepts callbacks that return void —
-  // that mismatch is what throws "setState() callback argument returned a
-  // Future" at runtime.
   void _refresh() {
     setState(() {
       _usersFuture = _controller.listUsers();
@@ -361,9 +341,6 @@ class _UserManagementViewState extends State<UserManagementView> {
     );
   }
 
-  /// Approval workflow — shown only for helper/admin accounts. A plain
-  /// `user` never needs approval (migration 0016 makes them `active` on
-  /// sign-up), and there is deliberately no way back to `pending`.
   Widget _buildApprovalControl(Account account) {
     if (account.role == 'user') return const SizedBox.shrink();
 
@@ -371,8 +348,7 @@ class _UserManagementViewState extends State<UserManagementView> {
     final Widget content;
     switch (account.status) {
       case 'pending':
-        // Wrap (not Row+Spacer) so the two action buttons drop below the
-        // status label on a narrow card instead of overflowing it.
+
         content = Wrap(
           alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
@@ -436,8 +412,6 @@ class _UserManagementViewState extends State<UserManagementView> {
     return Padding(padding: const EdgeInsets.only(top: 10), child: content);
   }
 
-  /// Horizontal scrolling chip bar — same filter format as
-  /// FloodReportAdminView._buildFilterBar.
   Widget _buildFilterBar({
     required List<String> options,
     required String selected,
@@ -473,10 +447,7 @@ class _UserManagementViewState extends State<UserManagementView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FC),
       body: SafeArea(
-        // Cap the content width and center it — without this, on a wide
-        // landscape screen (the NavigationRail eats the left edge but what's
-        // left is still very wide) the search bar and filter chips stretch
-        // edge-to-edge and look oversized, same as every other admin page.
+
         child: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(
@@ -486,14 +457,7 @@ class _UserManagementViewState extends State<UserManagementView> {
                 desktop: 900,
               ),
             ),
-            // CustomScrollView (not Column+Expanded) so that if the header
-            // — search field + filter chips/button — ever needs more height
-            // than is available (e.g. landscape with the keyboard open,
-            // where viewport height is already tight), the whole page
-            // scrolls to fit it instead of overflowing. A rigid Column
-            // child can't shrink below its natural size, so with a plain
-            // Column that scenario used to overflow right below the search
-            // bar.
+
             child: CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
@@ -601,13 +565,7 @@ class _UserManagementViewState extends State<UserManagementView> {
                     child: FutureBuilder<List<Account>>(
                       future: _usersFuture,
                       builder: (context, snapshot) {
-                        // Only show the full-screen spinner on the very first
-                        // load. FutureBuilder keeps the previous snapshot.data
-                        // around while a new future is in flight, so reusing it
-                        // here (instead of blanking the list on every refresh)
-                        // keeps the same ListView mounted and its scroll
-                        // position intact after actions like toggling a user's
-                        // active state.
+
                         if (snapshot.connectionState ==
                                 ConnectionState.waiting &&
                             !snapshot.hasData) {

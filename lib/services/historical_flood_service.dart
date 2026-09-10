@@ -4,20 +4,12 @@ import '../models/historical_flood.dart';
 import '../utils/geo_utils.dart';
 import '../utils/malaysia_geocoding.dart';
 
-/// All Supabase access for the `historical_flood` table.
-///
-/// This table holds the official JPS/DID historical flood dataset
-/// (https://mywater.gov.my/Portal/Modules/HidroMet/Banjir.aspx), imported via
-/// [importRecords]. The app never hardcodes historical flood records.
 class HistoricalFloodService {
   final supabase = Supabase.instance.client;
 
   static const String _table = 'historical_flood';
   static const int defaultPageSize = 20;
 
-  /// Filters by any combination of state, district, river basin, flood
-  /// cause and flood-date range, with pagination. Pass no filters to
-  /// page through the full dataset.
   Future<List<HistoricalFlood>> search({
     String? state,
     String? district,
@@ -81,8 +73,6 @@ class HistoricalFloodService {
     }
   }
 
-  /// Records within [radiusKm] of the given coordinates, nearest first.
-  /// Narrows the query with a bounding box, then ranks by exact distance.
   Future<List<HistoricalFlood>> getNearby({
     required double latitude,
     required double longitude,
@@ -142,13 +132,6 @@ class HistoricalFloodService {
     }
   }
 
-  /// Bulk-imports parsed government dataset records into Supabase, in
-  /// chunks to stay under request payload limits. Existing rows with a
-  /// matching `id` are upserted rather than duplicated.
-  ///
-  /// The source dataset has no coordinates, so any record missing
-  /// latitude/longitude is filled in with an approximate state/district
-  /// centroid (see [MalaysiaGeocoder]) before being written.
   Future<int> importRecords(
     List<HistoricalFlood> records, {
     int chunkSize = 500,

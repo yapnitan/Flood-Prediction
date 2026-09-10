@@ -5,9 +5,6 @@ import '../../utils/responsive.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/password_field.dart';
 
-/// Registration flow, in two steps on one screen: fill in the form, then
-/// enter the verification code emailed by Supabase. No confirmation link,
-/// no browser hand-off — mirrors the forgot-password flow.
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
 
@@ -32,8 +29,6 @@ class _RegisterViewState extends State<RegistrationPage> {
   bool isSubmitting = false;
   bool codeSent = false;
 
-  /// 'user' (resident) or 'helper' — never 'admin'; admin accounts are only
-  /// created by an existing admin promoting a user in User Management.
   String selectedRole = "user";
 
   void _clearFormErrors() {
@@ -84,14 +79,11 @@ class _RegisterViewState extends State<RegistrationPage> {
     if (result['status'] == 'confirm_email') {
       setState(() => codeSent = true);
     } else if (result['status'] == 'success') {
-      // Auto-confirm was on for this project — no code needed, go straight in.
+
       _handleRegistrationSuccess();
     } else {
       final message = result['message'] as String? ?? "Registration failed";
-      // Not every server error names a field — most either mention
-      // "password" or are really about the email (already registered,
-      // invalid address, rate limited), so route on that instead of a
-      // generic banner.
+
       setState(() {
         if (message.toLowerCase().contains('password')) {
           passwordError = message;
@@ -133,10 +125,6 @@ class _RegisterViewState extends State<RegistrationPage> {
     }
   }
 
-  /// Residents land straight in the app. Helper sign-ups start with
-  /// [Account.status] 'pending' — they can't log in yet (see
-  /// [AuthService.loginValidate]), so send them back to Login with an
-  /// explanation instead of into the app.
   void _handleRegistrationSuccess() {
     if (selectedRole == 'helper') {
       ScaffoldMessenger.of(context).showSnackBar(

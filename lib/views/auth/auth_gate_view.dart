@@ -5,12 +5,6 @@ import '../../controllers/auth_controller.dart';
 import '../../services/auth_service.dart';
 import '../../routes/app_routes.dart';
 
-/// App's actual starting screen: if there's already a valid Supabase
-/// session (app was reopened without logging out), skip straight to the
-/// right home screen instead of always forcing the user back through
-/// Login. Falls back to Login if there's no session, the account row is
-/// missing, or the account is disabled/pending/rejected — mirroring the
-/// same gates [AuthService.loginValidate] applies on a fresh login.
 class AuthGateView extends StatefulWidget {
   const AuthGateView({super.key});
 
@@ -50,12 +44,6 @@ class _AuthGateViewState extends State<AuthGateView> {
     _goTo(destination);
   }
 
-  /// Deferred to after the current frame so this never fires synchronously
-  /// inside initState()'s call stack — when there's no session, [_resolve]
-  /// returns without ever hitting an `await`, so without this the push
-  /// would run while the Navigator is still mid-build on the very first
-  /// frame and hit Flutter's `!_debugLocked` assertion (red screen right
-  /// on launch, before login).
   void _goTo(String route) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;

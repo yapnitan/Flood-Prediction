@@ -13,11 +13,6 @@ import '../../services/shelter_occupancy_service.dart';
 import '../../utils/currency_input.dart';
 import '../../utils/responsive.dart';
 
-/// Admin's Economic Loss Dashboard (Task/asset report §11-§17): combines
-/// counted asset loss (helper-verified + admin-approved) with Resource
-/// Consumption Cost, and distinguishes reported-potential, helper-verified
-/// and admin-approved figures throughout — never lets a still-pending
-/// report silently inflate the official total.
 class EconomicLossDashboardView extends StatefulWidget {
   const EconomicLossDashboardView({super.key});
 
@@ -33,15 +28,9 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _reports = [];
 
-  /// Shelter occupancy daily log, one entry per (shelter, date), newest date
-  /// first. The resource-cost total is the sum of every entry; the breakdown
-  /// card lets the admin filter it by month / date.
   List<ShelterOccupancyReport> _dailyLog = [];
   Map<String, Facility> _facilitiesById = {};
 
-  /// Global period filter — applies to the whole dashboard. Asset-loss
-  /// reports are filtered by their `created_at` date; shelter occupancy by
-  /// its `occupancy_date`.
   String _monthFilter = 'all'; // 'YYYY-MM'
   String _dayFilter = 'all'; // 'YYYY-MM-DD'
 
@@ -93,8 +82,6 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
   List<ShelterOccupancyReport> get _filteredLog =>
       _dailyLog.where((r) => _inPeriod(r.occupancyDate)).toList();
 
-  /// Every YYYY-MM that has asset-loss reports or shelter occupancy, newest
-  /// first.
   List<String> get _availableMonths {
     final set = <String>{};
     for (final r in _reports) {
@@ -123,10 +110,6 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
   double _sum(Iterable<Map<String, dynamic>> rows, String field) =>
       rows.fold(0.0, (sum, r) => sum + ((r[field] as num?)?.toDouble() ?? 0));
 
-  /// What one report contributes to the official total: an admin-approved
-  /// report counts its approved figure; a helper-verified report (still
-  /// awaiting admin approval) counts its verified figure; anything else
-  /// contributes nothing.
   static double _contribution(Map<String, dynamic> r) {
     switch (r['status']) {
       case 'verified':
@@ -154,7 +137,6 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
     return '${p[2]}/${p[1]}/${p[0]}';
   }
 
-  /// Global month / date selector — filters the whole dashboard.
   Widget _buildPeriodFilter() {
     final months = _availableMonths;
     final days = _availableDays;
@@ -304,12 +286,10 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // Everything below respects the global month / date filter.
     final reports = _filteredReports;
     final log = _filteredLog;
 
-    // Reports that count toward the official total right now: admin-approved
-    // plus helper-verified (the latter drop out again if the admin rejects).
+
     final countedReports = reports
         .where((r) =>
             r['status'] == 'verified' || r['status'] == 'helper_verified')
@@ -352,7 +332,6 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
       }
     }
 
-    // Resource-cost dimensions, from the (filtered) shelter daily log.
     final resourceByDate = <String, double>{};
     final resourceByShelter = <String, double>{};
     for (final r in log) {
@@ -447,8 +426,6 @@ class _TotalCard extends StatelessWidget {
   final double assetLoss;
   final double resourceCost;
 
-  /// Non-null when the dashboard is filtered to a month/date — shown next to
-  /// the heading so the figure isn't mistaken for the all-time total.
   final String? periodLabel;
 
   String _rm(double v) => formatRinggit(v);
@@ -505,9 +482,6 @@ class _StatColumn extends StatelessWidget {
   }
 }
 
-/// §17: never conflates a pending report's amount with the counted total,
-/// and shows how much of the counted total is still only helper-verified
-/// (i.e. could still be removed if the admin rejects it).
 class _PotentialVsVerifiedCard extends StatelessWidget {
   const _PotentialVsVerifiedCard({
     required this.potential,
@@ -560,8 +534,6 @@ class _PotentialVsVerifiedCard extends StatelessWidget {
   }
 }
 
-/// One date in the resource-cost breakdown — the day's total across every
-/// shelter in the title, expanding to the per-shelter figures.
 class _DateCostTile extends StatelessWidget {
   const _DateCostTile({
     super.key,
@@ -581,10 +553,6 @@ class _DateCostTile extends StatelessWidget {
     final dayTotal = reports.fold<double>(0, (s, r) => s + r.cost);
     final sorted = [...reports]..sort((a, b) => b.cost.compareTo(a.cost));
 
-    // `shape`/`collapsedShape` kill the ExpansionTile divider lines without a
-    // Theme(dividerColor: transparent) wrapper — wrapping each tile in its
-    // own Theme element can trip the framework's `_dependents.isEmpty`
-    // assertion when the list rebuilds on a filter change mid-animation.
     return ExpansionTile(
       key: PageStorageKey(date),
       shape: const Border(),
@@ -641,9 +609,6 @@ class _DateCostTile extends StatelessWidget {
 
 enum _ChartKind { bar, pie }
 
-/// The main visual breakdown: the admin picks a dimension (state, district,
-/// category, incident, date, shelter) and a chart type (bar or pie); the
-/// chart plus a ranked legend below both come from the same amounts map.
 class _BreakdownExplorerCard extends StatefulWidget {
   const _BreakdownExplorerCard({required this.dimensions});
 

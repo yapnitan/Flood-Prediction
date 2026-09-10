@@ -11,10 +11,6 @@ import '../../widgets/location_search_field.dart';
 import '../../widgets/selectable_chip.dart';
 import 'pick_property_location_view.dart';
 
-/// Property types a user can pick from when adding a saved address —
-/// previously came from assistance_field_spec.dart (repair-request-only,
-/// now removed); kept as a small local list since Property has no other
-/// source for this.
 const List<String> propertyTypeOptions = [
   'House',
   'Apartment/Condo',
@@ -27,8 +23,6 @@ class PropertyFormView extends StatefulWidget {
 
   final PropertyController controller;
 
-  /// When set, the form opens pre-filled to edit this property instead of
-  /// creating a new one.
   final Property? existing;
 
   @override
@@ -51,11 +45,6 @@ class _PropertyFormViewState extends State<PropertyFormView> {
   double? _latitude;
   double? _longitude;
 
-  /// State and district are both display-only — auto-filled from the picked
-  /// address's reverse geocode (`_applyGeocodedFields`) rather than
-  /// user-editable, since Nominatim's district classification isn't reliable
-  /// enough to trust for a value locked at submit time, and state is picked
-  /// from a fixed, known-good list of Malaysian states.
   final TextEditingController _stateController = TextEditingController();
   bool _isLocating = false;
   bool _isSaving = false;
@@ -120,9 +109,6 @@ class _PropertyFormViewState extends State<PropertyFormView> {
     });
   }
 
-  /// Fills in state/district from a reverse-geocode result — the only way
-  /// these fields are ever set, since both are display-only in the form
-  /// below.
   void _applyGeocodedFields({String? state, String? district}) {
     if (state != null && MalaysiaGeocoder.states.contains(state)) {
       _stateController.text = state;

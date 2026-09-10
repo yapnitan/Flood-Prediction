@@ -3,27 +3,11 @@ import '../models/simulation_factor.dart';
 
 class RiskAssessmentInput {
   final int nearbyFloodCount;
-
-  /// Water levels ("Low" / "Medium" / "High") of community flood reports
-  /// submitted nearby in the last 7 days — a live signal that flooding is
-  /// happening now, distinct from the historical [nearbyFloodCount]. Scored
-  /// by severity, the same way the Home tab does.
   final List<String> recentReportWaterLevels;
-
-  /// Rainfall over the last hour (mm) — from the nearest JPS/DID InfoBanjir
-  /// rain gauge, or the Open-Meteo forecast model as a fallback.
   final double? rainfallMm;
-
-  /// InfoBanjir's own intensity label for that gauge, if it's from a gauge.
   final String? rainfallIntensityLabel;
-
-  /// Nearest InfoBanjir river gauge status ("Normal" / "Alert" / "Warning" /
-  /// "Danger"), if one is in range — takes priority over [riverFloodLevel].
   final String? riverGaugeStatus;
   final bool riverGaugeRising;
-
-  /// GloFAS forecast level (Open-Meteo Flood API) — the fallback when no
-  /// InfoBanjir river gauge is in range.
   final RiverFloodLevel riverFloodLevel;
 
   final double? propertyElevationMeters;
@@ -61,23 +45,6 @@ class RiskAssessmentResult {
     required this.recommendations,
   });
 }
-
-/// Pure risk-scoring engine — no Supabase/network I/O, just arithmetic over
-/// already-gathered inputs. [RiskAssessmentController] fetches those inputs
-/// (historical records, community reports, InfoBanjir gauges, terrain) first.
-///
-/// The six hazard/vulnerability factor caps add up to exactly 100:
-///   - Historical flood frequency nearby — +5 each, capped 25 (JPS/DID)
-///   - Recent community flood reports — Low 10 / Medium 15 / High 20 each,
-///     capped 20 (same weighting as the Home tab)
-///   - Rainfall over the last hour — Light 4 / Moderate 7 / Heavy 10, on
-///     JPS's own intensity bands (InfoBanjir gauge, Open-Meteo fallback)
-///   - Nearby river level — InfoBanjir gauge status (Danger 15 / Warning 11 /
-///     Alert 6 / rising 2), or the GloFAS forecast (elevated 6 / high 11)
-///   - Property elevation relative to its district's baseline — capped 20
-///   - Structure type (vulnerability) — 3 to 10
-/// Flood barriers and a raised foundation each subtract 10 (mitigation), so
-/// the final score is `(hazards + vulnerability - mitigation)` clamped 0-100.
 class RiskAssessmentService {
   static const Map<String, double> structureVulnerability = {
     'Single-storey house': 10,
@@ -99,7 +66,6 @@ class RiskAssessmentService {
   RiskAssessmentResult assess(RiskAssessmentInput input) {
     final factors = <SimulationFactor>[];
 
-    // Hazard: historical flood frequency nearby (0-25 points, +5 each).
     final historyPoints = (input.nearbyFloodCount * 5).clamp(0, 25).toDouble();
     factors.add(
       SimulationFactor(
@@ -111,8 +77,6 @@ class RiskAssessmentService {
       ),
     );
 
-    // Hazard: recent nearby community flood reports (0-20 points), scored by
-    // severity the same way the Home tab does.
     final reportPoints = input.recentReportWaterLevels
         .fold<double>(
           0,
@@ -131,7 +95,6 @@ class RiskAssessmentService {
       ),
     );
 
-    // Hazard: rainfall over the last hour (0-10 points), on JPS's own bands.
     final rainfallMm = input.rainfallMm;
     final rainLabel = input.rainfallIntensityLabel?.trim().toLowerCase();
     final mmText = rainfallMm == null
@@ -178,8 +141,6 @@ class RiskAssessmentService {
       ),
     );
 
-    // Hazard: nearby river level (0-15 points). InfoBanjir gauge status
-    // first, GloFAS forecast as the fallback.
     double riverPoints = 0;
     String riverDescription;
     final gaugeStatus = input.riverGaugeStatus;
@@ -228,7 +189,6 @@ class RiskAssessmentService {
       ),
     );
 
-    // Hazard: elevation relative to the district baseline (0-20 points).
     double elevationPoints = 0;
     String elevationDescription = 'Elevation data unavailable';
     if (input.propertyElevationMeters != null &&
@@ -248,7 +208,6 @@ class RiskAssessmentService {
       ),
     );
 
-    // Vulnerability: structure type (3-10 points).
     final structurePoints = structureVulnerability[input.structureType] ?? 6;
     factors.add(
       SimulationFactor(
@@ -258,7 +217,6 @@ class RiskAssessmentService {
       ),
     );
 
-    // Mitigation: flood barriers (-10 if present).
     factors.add(
       SimulationFactor(
         factorName: 'Flood barriers',
@@ -267,7 +225,6 @@ class RiskAssessmentService {
       ),
     );
 
-    // Mitigation: raised foundation (-10 if present).
     factors.add(
       SimulationFactor(
         factorName: 'Raised foundation',

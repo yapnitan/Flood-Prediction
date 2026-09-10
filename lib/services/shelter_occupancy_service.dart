@@ -34,9 +34,6 @@ class ShelterOccupancyService {
     }
   }
 
-  /// Newest-first across all shelters — callers reduce this to "latest row
-  /// per facility" themselves (matches the project's existing convention of
-  /// aggregating flat rows client-side rather than via a Postgres view).
   Future<List<ShelterOccupancyReport>> getAll() async {
     final data = await _supabase.from(_table).select().order('recorded_at', ascending: false);
     return (data as List).map((e) => ShelterOccupancyReport.fromJson(e)).toList();

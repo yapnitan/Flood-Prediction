@@ -14,8 +14,6 @@ import 'services/notification_service.dart';
 import 'services/offline_sync_service.dart';
 import 'views/auth/auth_gate_view.dart';
 
-/// Lets the passwordRecovery listener below push a new screen without a
-/// BuildContext of its own (it fires from a top-level stream listener).
 final navigatorKey = GlobalKey<NavigatorState>();
 final _appLinks = AppLinks();
 
@@ -33,19 +31,13 @@ Future<void> main() async {
   await ConnectivityService.instance.initialize();
   await OfflineSyncService.instance.initialize();
 
-  // App was cold-started BY tapping the reset link — grab it directly.
   final initialUri = await _appLinks.getInitialLink();
   if (initialUri != null) {
     await _handleIncomingLink(initialUri);
   }
 
-  // App was already running when the link was tapped.
   _appLinks.uriLinkStream.listen(_handleIncomingLink);
 
-  // Tapping the "reset password" email link deep-links back into the app
-  // (see kPasswordResetRedirect in auth_service.dart) and Supabase fires
-  // this event once it has exchanged the link for a temporary recovery
-  // session. That's the cue to show the "set new password" screen.
   Supabase.instance.client.auth.onAuthStateChange.listen((data) {
     if (data.event == AuthChangeEvent.passwordRecovery) {
       navigatorKey.currentState?.pushNamed(AppRoutes.resetPassword);

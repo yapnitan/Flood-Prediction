@@ -1,16 +1,4 @@
-/// Approximate lat/lng lookup for Malaysian states and districts.
-///
-/// The official JPS/DID historical flood dataset has no coordinates, only
-/// State/District names. This table lets [HistoricalFloodService] derive an
-/// approximate coordinate for each imported record so "nearby records"
-/// search is possible.
-///
-/// Coordinates are bounding-box centers of Malaysia's administrative
-/// district boundaries (source: mptwaktusolat/jakim.geojson, itself derived
-/// from JAKIM prayer-zone boundaries, which align with official district
-/// boundaries). They are centroids of a district/state, not precise flood
-/// locations — good enough for "which historical floods happened near here"
-/// ranking, not for pinpoint mapping.
+
 class _Coord {
   final double lat;
   final double lng;
@@ -20,8 +8,6 @@ class _Coord {
 class MalaysiaGeocoder {
   MalaysiaGeocoder._();
 
-  /// Malaysia's 13 states + 3 federal territories, in the naming used
-  /// throughout this app (matches the DID dataset's "WP ..." style).
   static const List<String> states = [
     'Johor',
     'Kedah',
@@ -41,9 +27,6 @@ class MalaysiaGeocoder {
     'WP Putrajaya',
   ];
 
-  /// Best-effort centroid for [district] within [state]. Tries an exact
-  /// district match first, then falls back to the state centroid, then
-  /// null if neither is recognized.
   static (double lat, double lng)? centroidFor({
     required String state,
     String? district,
@@ -61,11 +44,6 @@ class MalaysiaGeocoder {
 
   static String _normalize(String s) =>
       s.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
-
-  /// Common aliases a free-text/reverse-geocoded state name shows up as
-  /// (e.g. Nominatim's "Penang"/"Kuala Lumpur" vs. this app's DID-dataset-
-  /// style "Pulau Pinang"/"WP Kuala Lumpur") mapped to their canonical
-  /// [states] entry.
   static const Map<String, String> _stateAliases = {
     'penang': 'Pulau Pinang',
     'malacca': 'Melaka',
@@ -74,12 +52,6 @@ class MalaysiaGeocoder {
     'putrajaya': 'WP Putrajaya',
   };
 
-  /// Resolves [raw] (a free-text or reverse-geocoded state name) to its
-  /// exact entry in [states], or null if it doesn't recognize it — callers
-  /// binding this to a `DropdownButtonFormField<String>` constrained to
-  /// [states] must check for null rather than assign an unrecognized value,
-  /// which would otherwise throw (the dropdown's value must be one of its
-  /// own `items`).
   static String? canonicalStateName(String raw) {
     final normalized = _normalize(raw);
     final alias = _stateAliases[normalized];
@@ -90,13 +62,6 @@ class MalaysiaGeocoder {
     return null;
   }
 
-  /// ISO 3166-2:MY subdivision codes, in the same order as [states]' index
-  /// would suggest but kept as an explicit map since the two lists aren't
-  /// defined in the same order. Nominatim's `ISO3166-2-lvl4` address field
-  /// carries one of these — unlike the free-text `state` field, it's present
-  /// even for the three Federal Territories (Kuala Lumpur/Labuan/Putrajaya),
-  /// which Nominatim otherwise tags with no `state` component at all, so
-  /// prefer this over [canonicalStateName] when it's available.
   static const Map<String, String> _isoCodeToState = {
     'MY-01': 'Johor',
     'MY-02': 'Kedah',
@@ -116,14 +81,11 @@ class MalaysiaGeocoder {
     'MY-16': 'WP Putrajaya',
   };
 
-  /// Resolves a Nominatim `ISO3166-2-lvl4` value (e.g. "MY-14") to its
-  /// [states] entry, or null if it's missing/not a recognized MY code.
   static String? stateFromIsoCode(String? isoCode) {
     if (isoCode == null) return null;
     return _isoCodeToState[isoCode.trim().toUpperCase()];
   }
 
-  // District centroids (bounding-box center of JAKIM district boundaries).
   static const Map<String, _Coord> _districtCentroids = {
     'alor gajah': _Coord(2.383510, 102.106500),
     'asajaya': _Coord(1.531625, 110.610110),
@@ -282,8 +244,6 @@ class MalaysiaGeocoder {
     'ulu langat': _Coord(3.074900, 101.845620),
     'ulu selangor': _Coord(3.564190, 101.567090),
     'yan': _Coord(5.847800, 100.370420),
-
-    // Aliases for common alternate spellings used in the DID dataset.
     'hulu langat': _Coord(3.074900, 101.845620),
     'hulu selangor': _Coord(3.564190, 101.567090),
     'kuala lumpur': _Coord(3.142075, 101.686095),
@@ -299,7 +259,6 @@ class MalaysiaGeocoder {
     'timur laut pulau pinang': _Coord(5.393060, 100.290555),
   };
 
-  // State-level fallback centroids, used when a district has no match above.
   static const Map<String, _Coord> _stateCentroids = {
     'johor': _Coord(2.047250, 103.508140),
     'kedah': _Coord(5.809340, 100.383260),

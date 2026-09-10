@@ -14,10 +14,6 @@ import '../../widgets/review_card.dart';
 import '../../widgets/selectable_chip.dart';
 import '../../widgets/status_badge.dart';
 
-/// Helper's on-site verification form for one district-matched asset loss
-/// report (Task/asset report §29). Supports partial verification (§31) —
-/// the helper's verified quantity/value can differ from what the resident
-/// reported; the admin makes the final approval call afterward.
 class AssetLossHelperVerifyView extends StatefulWidget {
   const AssetLossHelperVerifyView({
     super.key,
@@ -47,8 +43,6 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
 
   String get _status => widget.data['status'] as String? ?? 'pending_review';
 
-  /// A helper may only verify a report that is still pending review and has
-  /// not been verified by anyone yet — matches migration 0036/0038's RLS.
   bool get _alreadyVerified =>
       (widget.data['verification_result'] as String?) != null ||
       _status == 'helper_verified';
@@ -193,8 +187,7 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
       return;
     }
     if (!mounted) return;
-    // Back to the helper dashboard — it shows the confirmation snackbar and
-    // refreshes the list so this report moves to the "Reviewed" section.
+
     Navigator.of(context).pop(true);
   }
 
@@ -537,8 +530,6 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
   }
 }
 
-/// Resolves the private evidence photos as one group so the same signed URLs
-/// can be used for both thumbnails and the full-screen swipe/zoom gallery.
 class _EvidencePhotoGrid extends StatelessWidget {
   const _EvidencePhotoGrid({required this.paths, required this.controller});
 
@@ -608,8 +599,6 @@ class _EvidencePhotoGrid extends StatelessWidget {
   }
 }
 
-/// Shown in place of the verification form when the report can no longer be
-/// verified by a helper.
 class _ClosedNotice extends StatelessWidget {
   const _ClosedNotice({required this.settled, required this.status});
 

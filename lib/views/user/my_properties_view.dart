@@ -7,10 +7,6 @@ import '../../utils/responsive.dart';
 import '../../widgets/empty_state.dart';
 import 'property_form_view.dart';
 
-/// Reached from Profile > Saved Locations — lets a resident add and view
-/// the properties they own, independent of the repair-request wizard's
-/// inline "Add new property" shortcut (both write through the same
-/// [PropertyController]).
 class MyPropertiesView extends StatefulWidget {
   const MyPropertiesView({super.key});
 

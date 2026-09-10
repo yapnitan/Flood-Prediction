@@ -11,9 +11,6 @@ import '../../widgets/network_photo_thumbnail.dart';
 import '../../widgets/photo_preview.dart';
 import '../../widgets/selectable_chip.dart';
 
-/// Edit one of the resident's own asset loss reports while it's still
-/// `pending_review`. Single item, property fixed (RLS forbids changing it),
-/// existing photos kept and shown, any new photos appended.
 class EditAssetLossReportView extends StatefulWidget {
   const EditAssetLossReportView({super.key, required this.report});
 

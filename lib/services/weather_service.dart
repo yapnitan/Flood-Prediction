@@ -3,13 +3,9 @@ import 'package:flutter/foundation.dart';
 import '../models/weather_data.dart';
 import '../utils/http_retry.dart';
 
-/// Current weather/rainfall/temperature/humidity via the Open-Meteo
-/// Forecast API (https://open-meteo.com/en/docs) — free, keyless.
 class WeatherService {
   static const String _baseUrl = 'https://api.open-meteo.com/v1/forecast';
 
-  /// Cap each call so one slow/hung Open-Meteo response can't stall a whole
-  /// risk assessment — a timeout just degrades this factor to "unavailable".
   static const Duration _timeout = Duration(seconds: 8);
 
   Future<WeatherData?> getCurrentWeather({

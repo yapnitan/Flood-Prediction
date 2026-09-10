@@ -52,9 +52,7 @@ class _LoginViewState extends State<LoginView> {
     if (!mounted) return;
 
     if (result.account == null) {
-      // Not attributable to one field (wrong password vs. disabled/pending
-      // account are all auth-level failures) — shown under password since
-      // it's the field closest to the submit action.
+
       setState(() {
         _isSubmitting = false;
         passwordError = result.error ?? "Invalid email or password";
@@ -67,10 +65,7 @@ class _LoginViewState extends State<LoginView> {
     });
 
     final account = result.account!;
-    // Clears Login (and anything else) out of the nav stack — a plain
-    // pushNamed would leave Login sitting underneath Home, so the device
-    // back button from Home would pop back to Login instead of exiting/
-    // switching tabs.
+
     final destination = switch (account.role) {
       "admin" => AppRoutes.adminHome,
       "helper" => AppRoutes.helperHome,

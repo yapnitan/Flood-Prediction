@@ -32,10 +32,6 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
   void initState() {
     super.initState();
     _data = Map<String, dynamic>.from(widget.data);
-
-    // Default the approval figure to the helper's verified figure if one
-    // exists, otherwise the resident's originally reported figure (§30 —
-    // the admin can approve directly even with no helper verification yet).
     final quantity = _data['verified_quantity'] ?? _data['quantity'];
     final value = (_data['verified_value_per_item'] ??
         _data['estimated_value_per_item']) as num?;
@@ -455,9 +451,6 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
       '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 }
 
-/// Grid of evidence/verification photos — batch-signs the whole group in
-/// one round-trip, then taps open the full-screen swipe/zoom gallery, the
-/// same as the admin's flood-report photo view.
 class _PhotoGrid extends StatelessWidget {
   const _PhotoGrid({required this.paths, required this.controller});
 

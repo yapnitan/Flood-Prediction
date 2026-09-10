@@ -12,12 +12,6 @@ import '../../utils/currency_input.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/mini_map.dart';
 
-/// "Nearby PPS" + "Navigation to PPS" (CLAUDE.md Task 8) — PPS (Pusat
-/// Pemindahan Sementara) are Malaysia's temporary evacuation shelters,
-/// modeled here as [Facility] rows with `facilityType == 'shelter'` (see
-/// facility.dart). Reuses the same [FacilityController]/[MiniMap]/
-/// [openDirections] the repair-request assignment flow already uses,
-/// rather than a parallel evacuation-center stack.
 class PpsMapView extends StatefulWidget {
   const PpsMapView({super.key});
 

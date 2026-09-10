@@ -11,8 +11,6 @@ class HelperAssignmentService {
 
   final SupabaseClient _supabase;
 
-  /// Admin overview, joined with the helper's account so the assignment
-  /// list can show a name instead of a raw id.
   Future<List<Map<String, dynamic>>> getAllWithHelperInfo() async {
     final data = await _supabase
         .from(_table)
@@ -35,10 +33,6 @@ class HelperAssignmentService {
         .toList();
   }
 
-  /// Returns a user-facing error message on failure, or null on success.
-  /// A place can have many active helpers, but a helper only one active
-  /// place — a 23505 conflict here always means that helper is already
-  /// assigned (uq_helper_district_assignment_active_helper, migration 0042).
   Future<String?> assign(HelperDistrictAssignment assignment) async {
     try {
       await _supabase.from(_table).insert(assignment.toJson());
@@ -56,7 +50,6 @@ class HelperAssignmentService {
     }
   }
 
-  /// Returns a user-facing error message on failure, or null on success.
   Future<String?> setStatus(String id, String status) async {
     try {
       await _supabase
@@ -79,11 +72,6 @@ class HelperAssignmentService {
     }
   }
 
-  /// The admin-facing "change place" action: updates the helper's existing
-  /// assignment row in place (state + district), rather than deactivating it
-  /// and inserting a new one — so a helper keeps exactly one row and no
-  /// stale inactive history piles up. Falls back to a fresh insert only if
-  /// there's no existing row to update.
   Future<String?> reassign({
     required String? existingAssignmentId,
     required String helperId,

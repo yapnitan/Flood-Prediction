@@ -13,15 +13,6 @@ class AssetLossReportService {
 
   final SupabaseClient _supabase;
 
-  /// Two-phase so each report's photos land in their *own* folder, keyed by
-  /// the report's UUID: insert the row, then upload to
-  /// `{userId}/{reportId}/photo_N.jpg`, then set `photo_paths`.
-  ///
-  /// The old scheme keyed the folder on `DateTime.now().microsecondsSinceEpoch`,
-  /// which collided when several items in one report were submitted back-to-back
-  /// in a loop — so one item's photos leaked onto another. It also didn't match
-  /// the `{ownerId}/{reportId}/...` path the assigned-helper storage policy
-  /// (0025) checks, so helpers couldn't see any evidence photos.
   Future<bool> submit(AssetLossReport report, List<XFile> photos) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) {
@@ -65,8 +56,7 @@ class AssetLossReportService {
             .update({'photo_paths': paths}).eq('id', reportId);
       }
     } catch (error) {
-      // The report itself is saved — don't fail the whole submission (and
-      // don't have the caller re-submit, which would duplicate the row).
+
       debugPrint(
         'AssetLossReportService.submit: report $reportId saved without photos: $error',
       );
@@ -74,10 +64,6 @@ class AssetLossReportService {
     return true;
   }
 
-  /// Edits an editable report's fields (own report, still `pending_review` —
-  /// enforced by RLS + the column trigger). [existingPhotoPaths] carries
-  /// forward the photos already attached; [newPhotos] are uploaded into the
-  /// same `{userId}/{reportId}/` folder and appended.
   Future<bool> updateReport(
     String id,
     AssetLossReport report,
@@ -117,9 +103,7 @@ class AssetLossReportService {
 
   Future<bool> deleteReport(String id, {List<String> photoPaths = const []}) async {
     try {
-      // `.select()` returns the deleted rows — an empty result means RLS
-      // blocked it (e.g. the delete policy isn't deployed), which otherwise
-      // looks like success.
+
       final deleted = await _supabase.from(_table).delete().eq('id', id).select();
       if ((deleted as List).isEmpty) {
         debugPrint(
@@ -129,7 +113,7 @@ class AssetLossReportService {
         return false;
       }
       if (photoPaths.isNotEmpty) {
-        // Best-effort — storage isn't cascade-linked to the row.
+
         try {
           await _supabase.storage.from(_photoBucket).remove(photoPaths);
         } catch (error) {
@@ -171,10 +155,6 @@ class AssetLossReportService {
     return paths;
   }
 
-  /// Verification photos live under the report's own folder (so the
-  /// district-assigned-helper storage policy can match on it), in a
-  /// `verification/` subfolder so they're distinguishable from the
-  /// resident's own evidence photos in the same bucket.
   Future<List<String>> uploadVerificationPhotos({
     required String reportOwnerId,
     required String reportId,
@@ -195,10 +175,6 @@ class AssetLossReportService {
     return paths;
   }
 
-  /// Batch-signs a group of photo paths in one round-trip, for the
-  /// full-screen gallery viewer. Paths the caller can't read under storage
-  /// RLS are dropped rather than failing the whole batch (same shape as
-  /// FloodReportService.getPhotoUrls).
   Future<List<String>> getSignedPhotoUrls(
     List<String> paths, {
     int expiresInSeconds = 3600,
@@ -224,10 +200,7 @@ class AssetLossReportService {
           .from(_photoBucket)
           .createSignedUrl(path, expiresInSeconds);
     } catch (error) {
-      // Usually a storage-RLS denial: the caller lacks `select` on this
-      // object. Admins need the "Admins can view all asset loss photos"
-      // policy on storage.objects (migration 0023); assigned helpers need
-      // the district-scoped one (migration 0025).
+
       debugPrint('AssetLossReportService.getSignedPhotoUrl($path) failed: $error');
       rethrow;
     }
@@ -247,10 +220,6 @@ class AssetLossReportService {
     return data == null ? null : AssetLossReport.fromJson(data);
   }
 
-  /// Admin overview — joined with the reporter's account, the property/
-  /// address, and the flood incident (if any) so the admin list/filter view
-  /// doesn't need N+1 lookups. Rows are plain maps (not [AssetLossReport])
-  /// since they carry joined fields the model doesn't have.
   Future<List<Map<String, dynamic>>> getAdminOverview() async {
     final data = await _supabase
         .from(_table)
@@ -263,10 +232,6 @@ class AssetLossReportService {
     return List<Map<String, dynamic>>.from(data);
   }
 
-  /// A helper only ever gets back rows RLS lets them see — i.e. reports
-  /// whose address falls in one of their active district assignments
-  /// (0025_asset_loss_helper_district_scoping.sql) — no client-side
-  /// district filtering needed on top of this.
   Future<List<Map<String, dynamic>>> getHelperDistrictReports() async {
     final data = await _supabase
         .from(_table)
@@ -275,11 +240,6 @@ class AssetLossReportService {
     return List<Map<String, dynamic>>.from(data);
   }
 
-  /// The verify-once / district-match rules are enforced by RLS (0036/0038)
-  /// and by the verify screen only opening its form for still-verifiable
-  /// reports. Moves the report to `helper_verified` so it enters the admin's
-  /// approval queue and starts counting toward the Economic Loss Dashboard
-  /// at its verified figure.
   Future<void> submitHelperVerification({
     required String reportId,
     required int verifiedQuantity,

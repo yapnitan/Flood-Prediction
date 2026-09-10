@@ -44,9 +44,6 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
   }
 
   Future<void> _refresh() async {
-    // Block body, not `=> expr` — an arrow body would make the assignment's
-    // *value* (a Future) the closure's return value, and setState() only
-    // accepts callbacks returning void.
     setState(() {
       _facilitiesFuture = _controller.getAllFacilities();
     });
@@ -88,12 +85,6 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
                 desktop: 1100,
               ),
             ),
-            // CustomScrollView (not Column+Expanded) so that if the header
-            // — search field + filter chips/button — ever needs more height
-            // than is available (e.g. landscape with the keyboard open,
-            // where viewport height is already tight), the whole page
-            // scrolls to fit it instead of overflowing. Same fix as
-            // UserManagementView.
             child: CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(

@@ -9,9 +9,6 @@ import '../../widgets/adaptive_search_filter_header.dart';
 import '../../widgets/empty_state.dart';
 import 'report_detail_view.dart';
 
-/// Lists the currently authenticated user's own flood report submissions,
-/// most recent first — opened from the "Report History" tile on the
-/// Profile page.
 class ReportHistoryView extends StatefulWidget {
   const ReportHistoryView({super.key});
 
@@ -29,8 +26,7 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
   String _floodTypeFilter = 'All';
   String _stateFilter = 'All';
   static const _waterLevelOptions = ['All', 'Low', 'Medium', 'High'];
-  // Same options offered on the submission form (submit_report.dart), so
-  // the filter values always line up with what a report can actually have.
+
   static const _floodTypeOptions = [
     'All',
     'Street Flooding',
@@ -57,9 +53,7 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
   }
 
   Future<void> _refresh() async {
-    // Block body, not `=> expr` — an arrow body would make the assignment's
-    // *value* (a Future) the closure's return value, and setState() only
-    // accepts callbacks returning void.
+
     setState(() {
       _reportsFuture = _controller.getMyReports();
     });

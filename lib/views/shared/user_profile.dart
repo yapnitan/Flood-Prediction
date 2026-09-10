@@ -152,7 +152,6 @@ class _ProfileState extends State<ProfilePage> {
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
-          // ---- Header with wave background + avatar ----
           _ProfileHeader(
             name: name,
             email: email,
@@ -163,7 +162,6 @@ class _ProfileState extends State<ProfilePage> {
 
           const SizedBox(height: 20),
 
-          // ---- Settings list ----
           Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -220,10 +218,6 @@ class _ProfileState extends State<ProfilePage> {
                         }
                       },
                     ),
-                    // Saved Locations (properties) and Report History are
-                    // resident-only concepts — a Helper/Admin doesn't submit
-                    // flood reports or own a property in this app, so their
-                    // Profile doesn't offer these.
                     if (_account?.role == 'user') ...[
                       _ProfileTile(
                         icon: Icons.location_on_outlined,
@@ -274,7 +268,6 @@ class _ProfileState extends State<ProfilePage> {
   }
 }
 
-/// Wave-style header with avatar, name, and email.
 class _ProfileHeader extends StatelessWidget {
   final String name;
   final String email;
@@ -298,7 +291,6 @@ class _ProfileHeader extends StatelessWidget {
         alignment: Alignment.center,
         clipBehavior: Clip.none,
         children: [
-          // Layered wave background
           ClipPath(
             clipper: _WaveClipper(),
             child: Container(
@@ -319,7 +311,6 @@ class _ProfileHeader extends StatelessWidget {
             ),
           ),
 
-          // Avatar + text, anchored to bottom of the stack
           Positioned(
             bottom: 0,
             child: Column(

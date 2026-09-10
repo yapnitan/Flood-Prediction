@@ -20,8 +20,7 @@ import '../../services/notification_service.dart';
 import 'property_form_view.dart';
 
 class CreateSimulationView extends StatefulWidget {
-  /// When set, the form opens pre-filled to edit this simulation instead
-  /// of starting a fresh assessment.
+
   final FloodSimulation? existing;
 
   const CreateSimulationView({super.key, this.existing});
@@ -70,8 +69,7 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
   Future<void> _loadProperties() async {
     final properties = await _propertyController.getMyProperties();
     if (!mounted) return;
-    // Edit: keep the assessment on its own address. New: default to the
-    // first saved address.
+
     final existingPropertyId = widget.existing?.propertyId;
     Property? selected;
     for (final p in properties) {
@@ -174,8 +172,6 @@ class _CreateSimulationViewState extends State<CreateSimulationView> {
       return;
     }
 
-    // Task 12 "simulation completion" notification — fired here rather
-    // than waited-on, so it doesn't delay navigating to the result.
     unawaited(
       NotificationService.instance.showNow(
         id: NotificationService.idSimulationCompletion,

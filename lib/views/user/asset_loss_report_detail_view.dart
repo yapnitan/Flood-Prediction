@@ -10,10 +10,6 @@ import '../../widgets/review_card.dart';
 import '../../widgets/status_badge.dart';
 import 'edit_asset_loss_report_view.dart';
 
-/// Read-only view of one of the resident's own asset loss reports —
-/// mirrors the info they submitted, plus the helper/admin review outcome
-/// once available. While it's still `pending_review` the resident can edit
-/// or delete it.
 class AssetLossReportDetailView extends StatefulWidget {
   const AssetLossReportDetailView({super.key, required this.reportId});
 

@@ -87,9 +87,6 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
   bool _isAnalyzing = false;
   bool _allowPop = false;
 
-  /// How many reports were actually submitted — the current-entry asset is
-  /// combined with [_pendingAssets] only at submit time, so this is captured
-  /// then for the success screen.
   int _submittedCount = 0;
 
   @override
@@ -171,9 +168,6 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
     return quantity * value;
   }
 
-  /// The asset currently being filled in on the form. Defensive parsing so
-  /// it's safe to call from [_allAssets] on any rebuild — by the time it
-  /// matters (step 3+) step 2's validators have already run.
   _PendingAsset _captureCurrentAsset() {
     return _PendingAsset(
       category: _selectedCategory ?? assetCategories.first,
@@ -188,10 +182,6 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
     );
   }
 
-  /// Every asset that will be submitted: the ones explicitly queued with
-  /// "Add Another Asset", plus the current entry. The current entry is
-  /// never stored in [_pendingAssets] — combining it here means going Back
-  /// from Review and forward again can't queue a duplicate.
   List<_PendingAsset> get _allAssets => [..._pendingAssets, _captureCurrentAsset()];
 
   void _resetCurrentAssetFields() {
@@ -277,8 +267,6 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
     if (!mounted || photo == null) return;
     setState(() => _photos.add(photo));
   }
-
-  // ---- AI photo assist (Task/asset report §"implement AI") ----
 
   void _showAiSourcePicker() {
     showModalBottomSheet<void>(
@@ -534,10 +522,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
           maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900),
         ),
         child: CustomScrollView(
-          // Stable keys so removing the chrome slivers when the keyboard
-          // opens can't make Flutter match the form-content sliver against a
-          // keyless sibling SliverPadding and rebuild it — that tears down the
-          // focused TextField and drops the keyboard as it opens.
+
           slivers: [
             if (!keyboardVisible && !_isSubmitted)
               SliverAppBar(
@@ -1073,8 +1058,7 @@ class _CreateAssetLossReportViewState extends State<CreateAssetLossReportView> {
         ),
         const SizedBox(height: 12),
         ...assets.asMap().entries.map((entry) {
-          // The last card is the current form entry — edit it by going Back,
-          // not by removing it here. Only queued assets get a remove button.
+
           final isQueued = entry.key < _pendingAssets.length;
           return _PendingAssetCard(
             asset: entry.value,

@@ -7,9 +7,6 @@ import 'package:image_picker/image_picker.dart';
 
 import '../constants/asset_categories.dart';
 
-/// Gemini's best-effort read of an asset-loss evidence photo. Every field is
-/// a suggestion the resident can override on the form. The loss amount is
-/// deliberately NOT estimated here — the resident always enters that.
 class AssetAiSuggestion {
   const AssetAiSuggestion({
     this.category,
@@ -23,33 +20,17 @@ class AssetAiSuggestion {
   final String? category;
   final String? assetName;
 
-  /// A key from [assetConditions] (e.g. `severely_damaged`), already mapped
-  /// back from whatever label the model returned.
   final String? condition;
   final int? quantity;
   final String? description;
 
-  /// Model's note about anything uncertain — shown to the user, not stored.
   final String? note;
 }
 
-/// Vision-assisted prefill for the "Report Asset Loss" wizard. Sends the
-/// evidence photo to Google's Gemini API (`generateContent` over raw HTTP —
-/// there is no official Dart SDK) and asks it to identify the item, count how
-/// many are shown, judge the flood-damage condition, and describe it. The
-/// resident then enters the loss amount and can edit every AI-filled field.
-///
-/// The API key lives in `.env` as `GEMINI_API_KEY` (gitignored). Get one for
-/// free at https://aistudio.google.com/apikey. It ships in the app binary —
-/// acceptable for this coursework build; a production app would proxy the
-/// call through a server so the key stays secret.
 class AssetAiService {
   AssetAiService({http.Client? client}) : _http = client ?? http.Client();
 
   final http.Client _http;
-
-  /// Vision-capable and cheap; swap to `gemini-3.6-pro` for a harder read.
-  /// (Older 2.x models are no longer offered to new API keys.)
   static const _model = 'gemini-3.6-flash';
 
   static const _endpoint =
@@ -67,11 +48,8 @@ class AssetAiService {
     }
   }
 
-  /// Whether an API key is present — the wizard hides the AI button when not.
   bool get isConfigured => _apiKey != null;
 
-  /// Returns null on any failure (no key, network error, unparseable reply) —
-  /// the caller falls back to manual entry.
   Future<AssetAiSuggestion?> analysePhotos(List<XFile> photos) async {
     final key = _apiKey;
     if (key == null || photos.isEmpty) return null;
@@ -195,8 +173,6 @@ class AssetAiService {
     return 'image/jpeg';
   }
 
-  /// Gemini structured-output schema (a subset of OpenAPI 3.0). No monetary
-  /// value field — the resident enters the loss amount themselves.
   static final Map<String, dynamic> _responseSchema = {
     'type': 'object',
     'properties': {

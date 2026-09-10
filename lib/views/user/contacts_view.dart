@@ -8,7 +8,6 @@ import '../../utils/responsive.dart';
 import '../../utils/validators.dart';
 import '../../widgets/empty_state.dart';
 
-/// Emergency Contacts CRUD (CLAUDE.md Task 8).
 class ContactsView extends StatefulWidget {
   const ContactsView({super.key});
 

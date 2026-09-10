@@ -8,17 +8,6 @@ import '../../utils/responsive.dart';
 import '../../widgets/adaptive_search_filter_header.dart';
 import '../user/report_detail_view.dart';
 
-/// Admin-facing list of every flood report submitted by residents, with
-/// filtering by flood type/water level. Reuses [FloodReport],
-/// [FloodReportController], and [ReportDetailView] — the
-/// same model, controller, and detail page the resident-facing Report
-/// History flow already uses — rather than duplicating them for admin.
-///
-/// Deliberately has no [Scaffold]/[AppBar] of its own — like
-/// `RepairRequestAdminView`, it's swapped in as the body of [AdminHome]'s
-/// existing shell (`admin_view.dart`), so the "Recovery"/"Flood Reports"
-/// screen shares the exact same app bar styling and bottom navigation bar
-/// as the rest of the admin section instead of a separate, pushed page.
 class FloodReportAdminView extends StatefulWidget {
   const FloodReportAdminView({super.key});
 
@@ -35,9 +24,6 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
   String _waterLevelFilter = 'all';
   String _stateFilter = 'all';
   String _searchQuery = '';
-
-  // Same options offered on the submission form (submit_report.dart), so
-  // the filter values always line up with what a report can actually have.
   final List<String> _floodTypeOptions = [
     'all',
     'Street Flooding',
@@ -66,9 +52,6 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
 
   Future<void> _refresh() async {
     if (!mounted) return;
-    // Block body, not `=> expr` — an arrow body would make the assignment's
-    // *value* (a Future) the closure's return value, and setState() only
-    // accepts callbacks returning void.
     setState(() {
       _reportsFuture = _controller.getAdminOverview();
     });
@@ -89,12 +72,6 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
                 desktop: 1100,
               ),
             ),
-            // CustomScrollView (not Column+Expanded) so that if the header
-            // — search field + filter chips/button — ever needs more height
-            // than is available (e.g. landscape with the keyboard open,
-            // where viewport height is already tight), the whole page
-            // scrolls to fit it instead of overflowing. Same fix as
-            // UserManagementView/FacilityManagementView/HelperAssignmentAdminView.
             child: CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(

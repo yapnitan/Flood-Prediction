@@ -15,13 +15,6 @@ import '../../utils/responsive.dart';
 import '../../widgets/adaptive_search_filter_header.dart';
 import '../../widgets/empty_state.dart';
 
-/// Admin's Helper Assignment page (Task/asset report §32-§34): assigns
-/// each approved helper to exactly one state/district ("their place") so
-/// they can verify Potential Asset Loss reports and log shelter occupancy
-/// there. A place can have many helpers, but a helper has only one active
-/// place (uq_helper_district_assignment_active_helper, migration 0042; the
-/// one-helper-per-district rule was dropped in 0044) — so the admin can
-/// only ever *change* a helper's place, never stack a second one on them.
 class HelperAssignmentAdminView extends StatefulWidget {
   const HelperAssignmentAdminView({super.key});
 
@@ -45,14 +38,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
   List<Map<String, dynamic>> _assignments = [];
   List<Account> _helpers = [];
 
-  /// Helper ids that already have an active place — they can only be
-  /// *reassigned*, never given a second place, so they're kept out of the
-  /// "assign a helper" dropdown.
   Set<String> _assignedHelperIds = {};
-
-  /// Districts that actually exist on a saved property or facility, grouped
-  /// by state — the source for the assign dialog's district dropdown, so the
-  /// admin can't typo a district that won't match anything.
   Map<String, List<String>> _districtsByState = {};
 
   String _searchQuery = '';
@@ -120,8 +106,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
     for (final f in facilities) {
       addPair(f.state, f.district);
     }
-    // Keep every already-assigned district selectable even if its property
-    // was since removed.
+
     for (final a in assignments) {
       addPair(a['state'] as String?, a['district'] as String?);
     }
@@ -148,7 +133,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
     final existingAccount = existing?['account'] as Map<String, dynamic>?;
     final existingHelperName =
         existingAccount?['name'] as String? ?? 'Unknown helper';
-    // States that actually have a district to pick from.
+
     final knownStates = _districtsByState.keys.toList()..sort();
     String state =
         existing?['state'] as String? ??
@@ -157,8 +142,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
             : MalaysiaGeocoder.states.first);
     String? districtValue = existing?['district'] as String?;
 
-    // Only helpers without an active place can be freshly assigned — an
-    // already-assigned helper is changed via the card's "Change place".
+
     final assignableHelpers = _helpers
         .where((h) => !_assignedHelperIds.contains(h.id))
         .toList();
@@ -485,13 +469,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                       desktop: 900,
                     ),
                   ),
-                  // CustomScrollView (not Column+Expanded) so that if the
-                  // header — search field + filter chips/button — ever
-                  // needs more height than is available (e.g. landscape
-                  // with the keyboard open, where viewport height is
-                  // already tight), the whole page scrolls to fit it
-                  // instead of overflowing. Same fix as
-                  // UserManagementView/FacilityManagementView.
+
                   child: CustomScrollView(
                     slivers: [
                       SliverToBoxAdapter(child: _buildFilterHeader()),

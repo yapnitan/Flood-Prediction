@@ -39,18 +39,10 @@ class _FacilityFormViewState extends State<FacilityFormView> {
 
   double? _latitude;
   double? _longitude;
-
-  /// Prefilled from the picked location's reverse geocode (state matched
-  /// against known Malaysian names, district taken as-is) — both display-only,
-  /// never directly editable.
   String? _locationError;
   bool _isActive = true;
   bool _isLocating = false;
   bool _isSaving = false;
-
-  // Malaysian states/federal territories, plus common aliases as they show
-  // up in free-text place names (e.g. Nominatim's "Penang" vs. the official
-  // "Pulau Pinang").
   static const _stateAliases = <String, String>{
     'Selangor': 'Selangor',
     'Johor': 'Johor',
@@ -80,9 +72,6 @@ class _FacilityFormViewState extends State<FacilityFormView> {
     }
     return null;
   }
-
-  /// Fills the State (prefers a canonical reverse-geocoded value, falls back
-  /// to matching known names against [fallbackText]) and District fields.
   void _applyGeocodedArea({
     String? state,
     String? district,
@@ -211,8 +200,6 @@ class _FacilityFormViewState extends State<FacilityFormView> {
     final facility = Facility(
       id: widget.existing?.id,
       name: _nameController.text.trim(),
-      // Admin-managed evacuation centers are always shelters. Keeping this
-      // fixed here also converts any legacy facility when it is edited.
       facilityType: 'shelter',
       latitude: _latitude!,
       longitude: _longitude!,

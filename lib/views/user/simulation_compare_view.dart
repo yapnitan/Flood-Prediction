@@ -12,9 +12,6 @@ import '../../services/risk_assessment_service.dart';
 import '../../services/flood_simulation_service.dart';
 import '../../utils/responsive.dart';
 
-/// Lets a user pick 2+ of their saved assessments and see risk scores and
-/// contributing factors side by side (CLAUDE.md Task 5 — "compare multiple
-/// simulations").
 class SimulationCompareView extends StatefulWidget {
   const SimulationCompareView({super.key});
 

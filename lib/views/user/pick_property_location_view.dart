@@ -5,10 +5,6 @@ import 'package:latlong2/latlong.dart';
 import '../../constants/map_config.dart';
 import '../../services/location_service.dart';
 
-/// Result of picking a point on [PickPropertyLocationView] — the coordinate
-/// plus, when reverse geocoding succeeded, the resolved Malaysian
-/// state/district/postcode so the calling form can fill those in too rather
-/// than only latitude/longitude.
 class PickedLocation {
   const PickedLocation({required this.point, this.geocode});
 
@@ -16,14 +12,6 @@ class PickedLocation {
   final GeocodeResult? geocode;
 }
 
-/// Full-screen map for picking a location: tap anywhere to drop (or move) a
-/// marker, or use the FAB to center on the device's current GPS position.
-/// Each drop reverse-geocodes the point so the confirm result carries the
-/// state/district as well. Pops a [PickedLocation] on confirm, or null if
-/// the user backs out without picking anything.
-///
-/// Used by the risk simulator, property form, flood-report wizard, and
-/// facility form — anywhere a location is chosen.
 class PickPropertyLocationView extends StatefulWidget {
   const PickPropertyLocationView({super.key, this.initialLocation});
 
@@ -59,8 +47,6 @@ class _PickPropertyLocationViewState extends State<PickPropertyLocationView> {
     _resolveArea(point);
   }
 
-  /// Reverse-geocodes [point], ignoring responses from an earlier pick if
-  /// the marker was moved again before this one came back.
   void _resolveArea(LatLng point) {
     final seq = ++_pickSeq;
     setState(() {

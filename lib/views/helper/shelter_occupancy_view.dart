@@ -18,13 +18,8 @@ String _formatDate(DateTime date) =>
     '${date.day.toString().padLeft(2, '0')}/'
     '${date.month.toString().padLeft(2, '0')}/${date.year}';
 
-/// Whole number with a thousands separator, e.g. 5000 -> "5,000".
 String _n(int value) => groupThousands(value.toString());
 
-/// Resource Consumption Cost entry point (Task/asset report §23/§39): a
-/// helper picks an active shelter and logs the demographic headcount for a
-/// chosen date; the app calculates a resource cost from a fixed per-person
-/// per-day rate table and feeds it into the admin's Economic Loss Dashboard.
 class ShelterOccupancyView extends StatefulWidget {
   const ShelterOccupancyView({super.key});
 
@@ -66,9 +61,6 @@ class _ShelterOccupancyViewState extends State<ShelterOccupancyView> {
         .toList();
     final dailyLog = results[3] as List<ShelterOccupancyReport>;
 
-    // A helper only handles shelters that sit in one of their active
-    // state/district assignments — the RLS on shelter_occupancy_report
-    // (0040) enforces the same rule server-side.
     final areas = assignments
         .map((a) => '${a.state.trim().toLowerCase()}|${a.district.trim().toLowerCase()}')
         .toSet();
@@ -269,9 +261,6 @@ class _OccupancySummary extends StatelessWidget {
   }
 }
 
-/// Live "total headcount vs shelter capacity" readout on the entry sheet.
-/// A warning only — a shelter can legitimately be over capacity in a
-/// disaster, so saving is never blocked.
 class _CapacityIndicator extends StatelessWidget {
   const _CapacityIndicator({required this.headcount, required this.capacity});
 
@@ -333,8 +322,6 @@ class _OccupancyEntrySheet extends StatefulWidget {
 
   final Facility shelter;
 
-  /// This shelter's daily log, latest-per-date — used to prefill the form
-  /// when the helper picks a date that already has a figure.
   final List<ShelterOccupancyReport> history;
   final ShelterOccupancyController controller;
 
@@ -395,7 +382,6 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
   int get _headcount =>
       _value(_adults) + _value(_children) + _value(_elderly) + _value(_infants) + _value(_pwd);
 
-  /// A shelter with a set capacity cannot be logged over that capacity.
   bool get _overCapacity {
     final capacity = widget.shelter.capacity;
     return capacity != null && _headcount > capacity;
@@ -404,8 +390,7 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    // Occupancy can only be logged for the last 3 days (today and the two
-    // days before) — a helper records what's current, not old history.
+
     final picked = await showDatePicker(
       context: context,
       initialDate: _date,

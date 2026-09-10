@@ -5,9 +5,6 @@ import '../../utils/responsive.dart';
 import '../../widgets/password_field.dart';
 import 'dart:async';
 
-/// Whole "forgot password" flow lives on this one screen — request a
-/// 6-digit code, then enter it plus a new password. No browser hand-off,
-/// no deep link, nothing that can strand the user on a blank page.
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
 
@@ -87,11 +84,6 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
     }
   }
 
-  /// Parses Supabase's rate-limit message (e.g. "...after 47 seconds...")
-  /// to show a friendly countdown instead of the raw exception text. Keyed
-  /// off the "after N seconds" phrasing itself rather than the exception's
-  /// `over_email_send_rate_limit` code, since AuthService now passes through
-  /// the clean `e.message` (no code embedded) for this case.
   int? _extractRateLimitSeconds(String message) {
     final match = RegExp(r'after (\d+) seconds').firstMatch(message);
     if (match == null) return null;
@@ -132,8 +124,6 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
       );
       Navigator.of(context).popUntil((route) => route.isFirst);
     } else {
-      // verifyResetCode fails only for a bad/expired code — attribute the
-      // error there rather than to the new-password fields.
       setState(() {
         _isSubmitting = false;
         _codeError = result['message'] ?? 'Failed to update password';

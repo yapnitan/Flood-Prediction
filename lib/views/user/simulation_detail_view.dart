@@ -21,9 +21,6 @@ import '../../utils/responsive.dart';
 class SimulationDetailView extends StatefulWidget {
   final FloodSimulation simulation;
 
-  /// Pre-computed factors/recommendations, available right after running a
-  /// new assessment. When opened from the list instead, these are null and
-  /// get fetched from Supabase in [initState].
   final List<SimulationFactor>? factors;
   final List<String>? recommendations;
 
@@ -49,9 +46,6 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
     FloodSimulationService(),
   );
 
-  /// The simulation being shown. Starts as [widget.simulation]; replaced
-  /// with the re-scored result whenever the risk is recomputed against
-  /// current data (on open and on pull-to-refresh).
   late FloodSimulation _sim;
   List<SimulationFactor> _factors = [];
   List<String> _recommendations = const [];
@@ -60,15 +54,9 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
   Map<int, int> _floodsPerYear = {};
   bool _isLoading = true;
 
-  /// When the last successful re-score happened, and whether the most
-  /// recent attempt failed — drives the small status line under the score.
   DateTime? _refreshedAt;
   bool _refreshFailed = false;
 
-  /// "Simulate preventive improvements" — starts from the simulation's
-  /// actual saved protections, but toggling here only recomputes a local
-  /// preview score (via [RiskAssessmentService], no network calls, nothing
-  /// saved) so the user can see the what-if effect immediately.
   late bool _previewBarriers = widget.simulation.hasFloodBarriers;
   late bool _previewFoundation = widget.simulation.hasRaisedFoundation;
 
@@ -82,8 +70,7 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
 
   Future<void> _load() async {
     if (widget.factors != null) {
-      // Opened straight from running an assessment — inputs are already
-      // fresh, no need to re-score.
+
       _factors = widget.factors!;
     } else {
       await _refreshScore();
@@ -93,9 +80,6 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
     setState(() => _isLoading = false);
   }
 
-  /// Re-runs the assessment against current data and persists the new
-  /// score. On failure or when offline, the stored score is kept and the
-  /// factor breakdown is loaded from Supabase instead.
   Future<void> _refreshScore() async {
     final outcome = await _riskController.refreshSimulation(_sim);
     if (!mounted) return;
@@ -122,10 +106,6 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
     });
   }
 
-  /// Loads the supporting context shown below the score — nearby historical
-  /// floods, the district trend, and recent community reports. Uses the
-  /// same 10km / 7-day window the score counts reports over (see
-  /// [RiskAssessmentController]).
   Future<void> _loadContext() async {
     final sim = _sim;
     final results = await Future.wait([
@@ -167,10 +147,6 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
     await _loadContext();
   }
 
-  /// "What if I added barriers / a raised foundation?" — every other factor
-  /// is fixed at what was scored, so start from the saved factor breakdown's
-  /// hazard subtotal and re-apply just the two mitigation deltas. No re-run
-  /// of the assessment pipeline (and no dependency on every raw input).
   static const _mitigationFactorNames = {'Flood barriers', 'Raised foundation'};
 
   ({double score, String level}) get _previewResult {
@@ -410,7 +386,6 @@ class _SimulationDetailViewState extends State<SimulationDetailView> {
   }
 }
 
-/// Small line under the score card explaining how current the score is.
 class _RefreshStatus extends StatelessWidget {
   const _RefreshStatus({required this.refreshedAt, required this.failed});
 
@@ -655,9 +630,7 @@ class _RecentReportRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Every nearby report is weighted the same in the risk score (by water
-    // level, regardless of admin verification), so they all show identically
-    // here.
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(

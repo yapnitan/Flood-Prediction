@@ -4,8 +4,6 @@ import '../../services/auth_service.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/password_field.dart';
 
-/// Lets an already-logged-in user change their password from Profile,
-/// without going through the email-code "forgot password" flow.
 class ChangePasswordView extends StatefulWidget {
   const ChangePasswordView({super.key});
 
@@ -66,9 +64,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
           result['message'] as String? ?? 'Failed to update password';
       setState(() {
         _isSubmitting = false;
-        // changePassword only fails by rejecting the current password or a
-        // generic update error — the former belongs on that field, the
-        // latter is shown on the new-password field next to it.
+
         if (message.toLowerCase().contains('current password')) {
           _currentError = message;
         } else {

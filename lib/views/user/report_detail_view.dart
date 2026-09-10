@@ -9,11 +9,6 @@ import '../../widgets/photo_gallery_viewer.dart';
 import '../../widgets/review_card.dart';
 import 'submit_report.dart';
 
-/// Full detail view for a single flood report, opened by tapping a card in
-/// [ReportHistoryView] (the reporting user) or the admin flood report list
-/// (`FloodReportAdminView`). Mostly a read-only layout plus the uploaded
-/// evidence photos, but also hosts edit/delete for the report's own
-/// reporter (while still `submitted`).
 class ReportDetailView extends StatefulWidget {
   const ReportDetailView({
     super.key,
@@ -23,9 +18,6 @@ class ReportDetailView extends StatefulWidget {
 
   final FloodReport report;
 
-  /// Only passed by the admin view, which already has it from the
-  /// reporter-account join — the reporting user obviously knows it's their
-  /// own report, so [ReportHistoryView] never needs to pass this.
   final String? reporterName;
 
   @override
@@ -45,9 +37,6 @@ class _ReportDetailViewState extends State<ReportDetailView> {
       _report.reporterId != null &&
       _report.reporterId == Supabase.instance.client.auth.currentUser?.id;
 
-  /// A report can no longer be edited (or deleted) once it's more than 3
-  /// days past its submit date — an old report is treated as settled
-  /// history rather than something still open to correction.
   bool get _withinEditWindow {
     final submittedAt = _report.createdAt;
     if (submittedAt == null) return true;

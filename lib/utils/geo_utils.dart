@@ -1,6 +1,5 @@
 import 'dart:math';
 
-/// Great-circle distance between two coordinates, in kilometres.
 double haversineDistanceKm({
   required double lat1,
   required double lon1,
@@ -25,9 +24,6 @@ double haversineDistanceKm({
 
 double _degToRad(double deg) => deg * pi / 180;
 
-/// Approximate degrees-of-latitude/longitude span for a given radius in km,
-/// used to narrow a query with a bounding box before ranking by exact
-/// distance (cheap index-friendly filter step).
 class GeoBoundingBox {
   final double minLat;
   final double maxLat;

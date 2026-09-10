@@ -21,14 +21,11 @@ class _UserHomeState extends State<UserHome> {
   final GlobalKey<HomeFloodOverviewState> _homeOverviewKey =
       GlobalKey<HomeFloodOverviewState>();
 
-  // Titles corresponding to each tab, in the same order as `pages`
   final List<String> titles = ["Flood Watch", "Submit Report", "Profile"];
 
   @override
   void initState() {
     super.initState();
-    // Task 12 "aid assignment updates" — notifies this resident when one
-    // of their own asset loss reports changes status.
     final accountId = Supabase.instance.client.auth.currentUser?.id;
     if (accountId != null) {
       RealtimeAlertService.instance.watchOwnAssetLossReports(accountId);
@@ -50,10 +47,6 @@ class _UserHomeState extends State<UserHome> {
   }
 
   void _showReportChooser() {
-    // Navigate with the State's own `context` (stable while UserHome is
-    // mounted), never the sheet builder's context — that one is defunct the
-    // moment the sheet is popped, so a callback captured from it (e.g.
-    // SubmitReportPage.onSubmissionComplete) could no longer pop.
     showModalBottomSheet<void>(
       context: context,
       builder: (sheetContext) => SafeArea(
@@ -68,9 +61,6 @@ class _UserHomeState extends State<UserHome> {
               subtitle: const Text('Share live flood conditions in your area'),
               onTap: () {
                 Navigator.pop(sheetContext);
-                // Pushed as a full page (with its own back button) so it
-                // matches "Report Asset Loss", rather than swapping the
-                // bottom-nav tab underneath.
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -210,8 +200,6 @@ class _UserHomeState extends State<UserHome> {
 
                   const SizedBox(height: 20),
 
-                  // ---- Flood status + alert icon + current-location map +
-                  //      rainfall / water level / nearby report count ----
                   HomeFloodOverview(key: _homeOverviewKey),
                 ],
               ),
@@ -226,21 +214,15 @@ class _UserHomeState extends State<UserHome> {
   Widget build(BuildContext context) {
     final pages = [
       _buildHomePage(),
-      // The "Report" nav item opens a chooser and pushes a full page (see
-      // _showReportChooser) — this slot is never shown as a tab.
+
       const SizedBox.shrink(),
       const ProfilePage(),
     ];
 
-    // On tablet/desktop widths a side NavigationRail makes better use of
-    // the horizontal space than a bottom bar.
     final bool useRail = !context.isMobile;
 
     return PopScope(
-      // Only let the system/back gesture actually leave this screen when
-      // already on the Home tab — otherwise it pops the whole UserHome
-      // route (landing on whatever's beneath it in the nav stack) instead
-      // of just returning to Home like a bottom-nav app should.
+
       canPop: currentIndex == 0,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
@@ -249,20 +231,11 @@ class _UserHomeState extends State<UserHome> {
       child: Scaffold(
       appBar: AppBar(title: Text(titles[currentIndex])),
 
-      // Both orientations keep an identical body element tree —
-      // LayoutBuilder > Row > Expanded(keyed) > IndexedStack — and only
-      // add/remove the leading NavigationRail. Without this, crossing the
-      // `useRail` width breakpoint on rotation swapped the whole body subtree,
-      // remounting the IndexedStack and wiping each tab's state.
       body: LayoutBuilder(
         builder: (context, constraints) {
           return Row(
             children: [
               if (useRail) ...[
-                // NavigationRail isn't internally scrollable, so on a short
-                // (e.g. landscape) screen it can overflow vertically. Let it
-                // scroll while still stretching to fill the available
-                // height so the VerticalDivider spans the full body.
                 SingleChildScrollView(
                   child: ConstrainedBox(
                     constraints: BoxConstraints(

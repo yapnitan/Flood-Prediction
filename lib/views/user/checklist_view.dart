@@ -8,10 +8,6 @@ import '../../services/planner_service.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/empty_state.dart';
 
-/// Emergency Checklist CRUD (CLAUDE.md Task 8) — a user can keep several
-/// named checklists (e.g. "Home go-bag"), each with its own checked-off
-/// items. Preparation progress on [PlannerDashboardView] is computed from
-/// every item across every checklist here.
 class ChecklistView extends StatefulWidget {
   const ChecklistView({super.key});
 
@@ -75,9 +71,6 @@ class _ChecklistViewState extends State<ChecklistView> {
     _refresh();
   }
 
-  /// Task 9 "export checklist" — builds a plain-text summary of every
-  /// checklist and its items, and hands it to the OS share sheet (so it can
-  /// go to Notes, email, WhatsApp, etc. — no bespoke file format needed).
   Future<void> _exportChecklists() async {
     final checklists = await _checklistsFuture;
     if (checklists.isEmpty) return;
@@ -207,10 +200,7 @@ class _ChecklistCard extends StatefulWidget {
 }
 
 class _ChecklistCardState extends State<_ChecklistCard> {
-  /// Held as a mutable list (not a re-assigned Future) so checking an item
-  /// updates it in place — no refetch, no FutureBuilder spinner flash, and
-  /// the ExpansionTile stays open. The DB write happens in the background
-  /// and only a failure triggers a revert.
+
   List<ChecklistItem>? _items;
   bool _loadFailed = false;
   final _newItemController = TextEditingController();
@@ -281,8 +271,7 @@ class _ChecklistCardState extends State<_ChecklistCard> {
     final ok = await widget.controller.addItem(widget.checklist.id!, label);
     if (!mounted) return;
     if (ok) {
-      // One refetch here (add is infrequent) so the new row picks up its
-      // server-assigned id and sort order.
+
       await _loadItems();
     } else {
       _showError('Could not add that item.');

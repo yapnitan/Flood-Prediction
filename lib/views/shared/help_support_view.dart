@@ -20,7 +20,6 @@ class HelpSupportView extends StatelessWidget {
   }
 
   void _callSupport(BuildContext context) {
-    // tel: URIs don't tolerate spaces/dashes in the number.
     final digits = _supportPhone.replaceAll(RegExp(r'[^0-9+]'), '');
     _launch(context, Uri(scheme: 'tel', path: digits), 'Could not start a call.');
   }

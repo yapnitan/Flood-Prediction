@@ -45,10 +45,6 @@ class _AdminHomeState extends State<AdminHome> {
   );
   int _pendingHelperCount = 0;
 
-  /// Which report type the "Report" tab (index 2) currently shows — chosen
-  /// via [_showReportChooser]. Kept as tab state (rather than pushing a
-  /// separate page) so the flood report list shares this same [Scaffold]'s
-  /// app bar and bottom navigation bar, exactly like the Asset Loss view.
   bool _showFloodReports = false;
 
   String get _reportTitle => _showFloodReports ? 'Flood Reports' : 'Asset Loss Reports';
@@ -95,14 +91,10 @@ class _AdminHomeState extends State<AdminHome> {
     _loadPendingHelperCount();
   }
 
-  /// "Report" doesn't navigate directly — same interaction pattern as
-  /// the User view's "Submit Report" chooser — it opens a sheet to pick
-  /// which report to view first.
   Future<void> _showReportChooser() async {
     try {
       await _loadPendingCount();
     } catch (_) {
-      // Keep the chooser available with the last successfully loaded counts.
     }
     if (!mounted) return;
 
@@ -201,21 +193,13 @@ class _AdminHomeState extends State<AdminHome> {
       },
       child: Scaffold(
       appBar: AppBar(title: Text(currentIndex == 2 ? _reportTitle : titles[currentIndex])),
-      // Both orientations keep an identical body element tree —
-      // LayoutBuilder > Row > Expanded(keyed) > IndexedStack — and only
-      // add/remove the leading NavigationRail. Without this, crossing the
-      // `useRail` width breakpoint on rotation swapped the whole body subtree,
-      // remounting each tab body and wiping its filter/search/scroll state.
+
       body: LayoutBuilder(
         builder: (context, constraints) {
           return Row(
             children: [
               if (useRail) ...[
-                // NavigationRail isn't internally scrollable, so with 5
-                // labelled destinations it can overflow vertically on
-                // short/landscape screens. Let it scroll while still
-                // stretching to fill the available height so the
-                // VerticalDivider spans the full body.
+
                 SingleChildScrollView(
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
@@ -296,7 +280,6 @@ class _AdminHomeState extends State<AdminHome> {
   }
 }
 
-/// Quick at-a-glance counts of registered accounts by role.
 class _AdminDashboardTab extends StatefulWidget {
   const _AdminDashboardTab({
     required this.onRefresh,
@@ -367,7 +350,6 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                // ---- Stat Cards Section ----
                 FutureBuilder<List<Account>>(
                   future: _usersFuture,
                   builder: (context, snapshot) {
@@ -428,7 +410,6 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
 
                 const SizedBox(height: 32),
 
-                // ---- Evacuation Center Demographics Section ----
                 _EvacuationDemographicSection(
                   sheltersFuture: _sheltersFuture,
                   onManageTap: widget.onManageEvacuationCenters,
@@ -436,7 +417,6 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
 
                 const SizedBox(height: 24),
 
-                // ---- Asset Loss / Economic Loss quick links ----
                 _QuickLinksSection(
                   onManageEconomicLoss: widget.onManageEconomicLoss,
                   onManageHelperAssignments: widget.onManageHelperAssignments,
@@ -452,9 +432,6 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
   }
 }
 
-/// Horizontal bar chart showing each evacuation center (shelter) with its
-/// capacity, sourced live from the `facilities` table in Supabase, plus a
-/// "Manage Evacuation Center" button.
 class _EvacuationDemographicSection extends StatelessWidget {
   const _EvacuationDemographicSection({
     required this.sheltersFuture,
@@ -612,8 +589,6 @@ class _EvacuationDemographicChart extends StatelessWidget {
 
           const Divider(height: 28),
 
-          // Bar chart rows — one per state, bar length proportional to how
-          // many evacuation centers are in that state.
           ...List.generate(sorted.length, (index) {
             final entry = sorted[index];
             final fraction = entry.value / maxValue;
@@ -713,10 +688,6 @@ class _EvacuationDemographicChart extends StatelessWidget {
   }
 }
 
-/// Quick-link cards to the Economic Loss Dashboard, Helper Assignments, and
-/// Flood Incidents admin pages — kept off the persistent bottom-nav/rail
-/// (already at 5 destinations) and surfaced here instead, same pattern as
-/// the "Manage Evacuation Centers" button above.
 class _QuickLinksSection extends StatelessWidget {
   const _QuickLinksSection({
     required this.onManageEconomicLoss,

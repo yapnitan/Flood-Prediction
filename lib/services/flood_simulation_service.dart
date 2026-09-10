@@ -5,8 +5,6 @@ import '../models/simulation_factor.dart';
 import 'connectivity_service.dart';
 import 'offline_sync_service.dart';
 
-/// All Supabase access for the `flood_simulation` / `simulation_factor`
-/// tables (Task 3: Flood Risk Assessment).
 class FloodSimulationService {
   final supabase = Supabase.instance.client;
 
@@ -43,10 +41,6 @@ class FloodSimulationService {
     }
   }
 
-  /// Task 14 offline support — cached for offline viewing. Simulations
-  /// themselves can't be *created* offline (running a fresh assessment
-  /// needs live terrain/weather/historical-flood API calls), so unlike
-  /// PlannerService there's no write queue here, only a read cache.
   Future<List<FloodSimulation>> getSimulations(String accountId) async {
     final cacheKey = 'flood_simulation_$accountId';
     if (!ConnectivityService.instance.isOnline) {
@@ -106,19 +100,12 @@ class FloodSimulationService {
     }
   }
 
-  /// Overwrites an existing simulation's saved property/inputs/result and
-  /// replaces its factor breakdown (delete + re-insert, same shape as a
-  /// fresh [createSimulation] — factors have no independent identity worth
-  /// preserving across an edit).
   Future<bool> updateSimulation(
     String id,
     FloodSimulation simulation,
     List<SimulationFactor> factors,
   ) async {
     try {
-      // Never send the primary key in an UPDATE body, and use `.select()` so
-      // a row that RLS silently refused to touch comes back empty instead of
-      // looking like success (which then "reverts" on the next read).
       final payload = simulation.toJson()..remove('id');
       final updated = await supabase
           .from(_simulationTable)

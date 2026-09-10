@@ -7,27 +7,6 @@ import 'package:sqflite/sqflite.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'connectivity_service.dart';
-
-/// Task 14 offline support — a small local SQLite-backed layer that
-/// individual services opt into for two things:
-///
-/// 1. **Read caching**: the last-fetched rows for a given key, so a list
-///    screen still has something to show when offline instead of an empty
-///    "could not load" state.
-/// 2. **Write queueing**: writes made while offline are recorded here and
-///    replayed against Supabase once [ConnectivityService] reports back
-///    online, in the order they were queued. Conflict resolution is
-///    last-write-wins by `updated_at`: if the server's row changed more
-///    recently than the snapshot an offline edit was based on, the queued
-///    write is dropped rather than silently overwriting someone else's
-///    change.
-///
-/// Deliberately generic (keyed by string, storing/replaying raw JSON maps)
-/// rather than one bespoke table per model — the offline behavior is the
-/// same shape for every entity that uses it (see PlannerService,
-/// FloodReportService, FloodSimulationService for callers), so this is one
-/// reusable layer other services call into instead of each reimplementing
-/// their own cache/queue.
 class OfflineSyncService {
   OfflineSyncService._();
   static final OfflineSyncService instance = OfflineSyncService._();
@@ -80,8 +59,6 @@ class OfflineSyncService {
     }
   }
 
-  // ---- Read cache ----
-
   Future<void> cacheList(String key, List<Map<String, dynamic>> rows) async {
     final db = await _database;
     await db.insert(
@@ -103,9 +80,6 @@ class OfflineSyncService {
     return decoded.cast<Map<String, dynamic>>();
   }
 
-  /// Applies an offline write directly to the cached list too, so a screen
-  /// reading from cache while still offline reflects the change
-  /// immediately instead of only after the next successful sync.
   Future<void> applyOptimisticChange(
     String cacheKey, {
     required String opType,
@@ -128,7 +102,6 @@ class OfflineSyncService {
     await cacheList(cacheKey, current);
   }
 
-  // ---- Write queue ----
 
   Future<void> queueOperation({
     required String table,
@@ -154,10 +127,6 @@ class OfflineSyncService {
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
-  /// Replays queued writes in order against Supabase. Stops at the first
-  /// failure (rather than skipping it) so a later op can't land out of
-  /// order ahead of one still stuck — it'll pick back up from there on the
-  /// next connectivity transition.
   Future<void> replayPendingOperations() async {
     if (_isReplaying || !ConnectivityService.instance.isOnline) return;
     _isReplaying = true;
@@ -216,7 +185,6 @@ class OfflineSyncService {
       if (serverUpdatedAt == null) return false;
       return DateTime.parse(serverUpdatedAt).isAfter(DateTime.parse(baseUpdatedAt));
     } catch (_) {
-      // If we can't tell, don't block the write on it.
       return false;
     }
   }

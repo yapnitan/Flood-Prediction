@@ -35,10 +35,6 @@ class _SimulationListViewState extends State<SimulationListView> {
     _refresh();
   }
 
-  /// Just reads the saved assessments — the list always shows each one's
-  /// last stored score. Re-scoring against current data only happens when
-  /// the user opens a simulation (see [SimulationDetailView]); returning
-  /// from there calls [_refresh] again, so an updated score shows up then.
   void _refresh() {
     setState(() {
       _simulationsFuture = _riskAssessmentController.listSimulations();

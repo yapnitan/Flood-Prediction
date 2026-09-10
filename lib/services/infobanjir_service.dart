@@ -6,16 +6,6 @@ import '../models/infobanjir_station.dart';
 import '../utils/geo_utils.dart';
 import '../utils/http_retry.dart';
 
-/// Reads live rainfall and river water level from JPS/DID Public InfoBanjir —
-/// the official government telemetry network behind
-/// https://publicinfobanjir.water.gov.my.
-///
-/// Used as the primary source for the Home tab's "rainfall" and "nearby
-/// river level" signals, with Open-Meteo (forecast model / GloFAS) as the
-/// fallback when there's no fresh station within range.
-///
-/// The feed is one ~1.3 MB JSON document covering every station, so it's
-/// fetched at most once every [_cacheTtl] and shared process-wide.
 class InfoBanjirService {
   static const _feedUrl =
       'https://publicinfobanjir.water.gov.my/wp-content/themes/enlighten/data/latestreadingstrendabc.json';
@@ -61,8 +51,6 @@ class InfoBanjirService {
     }
   }
 
-  /// The nearest rain gauge with a fresh 1-hour reading, within
-  /// [maxRadiusKm], or null (the caller then falls back to the model).
   Future<InfoBanjirStation?> getNearestRainfallStation({
     required double latitude,
     required double longitude,
@@ -76,8 +64,6 @@ class InfoBanjirService {
     );
   }
 
-  /// The nearest river gauge with a fresh water-level reading and a real
-  /// status, within [maxRadiusKm], or null.
   Future<InfoBanjirStation?> getNearestRiverLevelStation({
     required double latitude,
     required double longitude,

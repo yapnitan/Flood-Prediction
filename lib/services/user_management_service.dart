@@ -1,17 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/account.dart';
-
-/// Admin-only operations over the `account` table: listing every user,
-/// changing roles, enabling/disabling accounts, and approving/rejecting
-/// (or reconsidering) sign-ups. Deliberately no delete — disabling
-/// (`setActive`) is the moderation tool; deleting would orphan any
-/// repair requests/flood reports the account left behind and can't be
-/// undone.
-///
-/// This assumes Supabase row-level security restricts these write
-/// operations to admins server-side — this service does not itself
-/// check the caller's role.
 class UserManagementService {
   final supabase = Supabase.instance.client;
   static const String _table = 'account';
@@ -28,9 +17,6 @@ class UserManagementService {
     }
   }
 
-  /// [activate] also clears a `pending`/`rejected` status to `active` — an
-  /// admin deliberately assigning a role is an act of approval, and leaving
-  /// a demoted-to-`user` account stuck at `pending` would lock it out.
   Future<bool> updateRole(String id, String role, {bool activate = false}) async {
     try {
       final rows = await supabase
@@ -59,8 +45,6 @@ class UserManagementService {
     }
   }
 
-  /// Approval workflow — separate from [setActive]. Pass 'active' to
-  /// approve a pending sign-up, or 'rejected' to reject it.
   Future<bool> updateStatus(String id, String status) async {
     try {
       final rows = await supabase
@@ -75,8 +59,6 @@ class UserManagementService {
     }
   }
 
-  /// `.update()` succeeds silently even when RLS matched 0 rows — `.select()`
-  /// lets us tell a real change from a no-op (missing admin policy / trigger).
   bool _changed(Object? rows, String op, String id) {
     final list = rows as List;
     if (list.isEmpty) {

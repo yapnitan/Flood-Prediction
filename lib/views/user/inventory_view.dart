@@ -7,7 +7,6 @@ import '../../utils/responsive.dart';
 import '../../widgets/adaptive_search_filter_header.dart';
 import '../../widgets/empty_state.dart';
 
-/// Inventory CRUD (CLAUDE.md Task 8), plus Task 9's search + categories.
 class InventoryView extends StatefulWidget {
   const InventoryView({super.key});
 

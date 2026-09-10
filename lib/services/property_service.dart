@@ -11,8 +11,6 @@ class PropertyService {
 
   final SupabaseClient _supabase;
 
-  /// Archived properties ("deleted" but kept for their linked asset-loss
-  /// reports) are excluded unless [includeArchived] is set.
   Future<List<Property>> getMyProperties({bool includeArchived = false}) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return [];
@@ -29,9 +27,6 @@ class PropertyService {
     return data == null ? null : Property.fromJson(data);
   }
 
-  /// Every (state, district) pair that appears on a saved property. Admins
-  /// and helpers can read all properties (migration 0014), so this drives
-  /// the helper-assignment district picker without a full Property fetch.
   Future<List<Map<String, dynamic>>> getStateDistrictPairs() async {
     try {
       final data = await _supabase.from(_table).select('state, district');
@@ -42,9 +37,6 @@ class PropertyService {
     }
   }
 
-  /// Un-archives a property the user previously "deleted" — clears
-  /// `archived_at` so it reappears in their Saved Locations and the address
-  /// pickers. Returns false if nothing was updated (e.g. RLS / wrong owner).
   Future<bool> restoreProperty(int propertyId) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return false;
@@ -95,9 +87,7 @@ class PropertyService {
 
   Future<Property?> updateProperty(int propertyId, Property property) async {
     try {
-      // Only the form-editable fields — never `account_id` (immutable; sending
-      // it as null would orphan the row and fail the RLS `with check`),
-      // `id`, `created_at`, or `risk_level` (owned by the risk simulator).
+
       final payload = <String, dynamic>{
         'label': property.label,
         'address': property.address,
@@ -131,16 +121,6 @@ class PropertyService {
     }
   }
 
-  /// Removes a saved property. `changed` is true when the list should
-  /// refresh (deleted, or archived); `message` is a note to show the user
-  /// (an error, or the "archived instead" explanation), or null on a clean
-  /// delete.
-  ///
-  /// A property still referenced by an asset-loss report can't be deleted
-  /// (FK ON DELETE RESTRICT, 0028_restrict_property_deletion.sql) — those
-  /// records, especially verified ones in the Economic Loss Dashboard, must
-  /// not vanish. Such a property is archived instead: kept in the table so
-  /// its reports keep their location, hidden from the user's list.
   Future<({bool changed, String? message})> deleteProperty(int propertyId) async {
     try {
       final rows =
