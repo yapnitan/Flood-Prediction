@@ -34,7 +34,7 @@ class WeatherData {
       observedAt: DateTime.parse(current['time'] as String),
     );
   }
-  
+
   String get description => _wmoDescriptions[weatherCode] ?? 'Unknown';
 
   static const Map<int, String> _wmoDescriptions = {
