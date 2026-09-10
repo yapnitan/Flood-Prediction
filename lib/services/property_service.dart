@@ -29,6 +29,19 @@ class PropertyService {
     return data == null ? null : Property.fromJson(data);
   }
 
+  /// Every (state, district) pair that appears on a saved property. Admins
+  /// and helpers can read all properties (migration 0014), so this drives
+  /// the helper-assignment district picker without a full Property fetch.
+  Future<List<Map<String, dynamic>>> getStateDistrictPairs() async {
+    try {
+      final data = await _supabase.from(_table).select('state, district');
+      return List<Map<String, dynamic>>.from(data as List);
+    } catch (error) {
+      debugPrint('PropertyService.getStateDistrictPairs error: $error');
+      return [];
+    }
+  }
+
   /// Un-archives a property the user previously "deleted" — clears
   /// `archived_at` so it reappears in their Saved Locations and the address
   /// pickers. Returns false if nothing was updated (e.g. RLS / wrong owner).

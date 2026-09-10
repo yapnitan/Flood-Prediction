@@ -31,9 +31,15 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
 
   bool _isLoading = true;
   List<Map<String, dynamic>> _reports = [];
-  Map<String, ShelterOccupancyReport> _latestByFacility = {};
+
+  /// Shelter occupancy daily log, one entry per (shelter, date), newest date
+  /// first. The resource-cost total is the sum of every entry; the breakdown
+  /// card lets the admin filter it by month / date.
+  List<ShelterOccupancyReport> _dailyLog = [];
   Map<String, Facility> _facilitiesById = {};
-  double _resourceCost = 0;
+
+  String _monthFilter = 'all'; // 'YYYY-MM'
+  String _dayFilter = 'all'; // 'YYYY-MM-DD'
 
   @override
   void initState() {
@@ -43,23 +49,30 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
 
   Future<void> _load() async {
     final reports = await _assetLossController.getAdminOverview();
-    final latestByFacility = await _shelterController.getLatestPerFacility();
+    final dailyLog = await _shelterController.getDailyLog();
     final facilities = await _facilityController.getAllFacilities();
     if (!mounted) return;
     setState(() {
       _reports = reports;
-      _latestByFacility = latestByFacility;
+      _dailyLog = dailyLog;
       _facilitiesById = {
         for (final f in facilities)
           if (f.id != null) f.id!: f,
       };
-      _resourceCost = latestByFacility.values.fold(
-        0.0,
-        (sum, r) => sum + (r.resourceCost ?? r.calculatedResourceCost),
-      );
       _isLoading = false;
     });
   }
+
+  String _monthKey(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}';
+
+  List<ShelterOccupancyReport> get _filteredLog => _dailyLog.where((r) {
+        if (_monthFilter != 'all' && _monthKey(r.occupancyDate) != _monthFilter) {
+          return false;
+        }
+        if (_dayFilter != 'all' && r.dateKey != _dayFilter) return false;
+        return true;
+      }).toList();
 
   double _sum(Iterable<Map<String, dynamic>> rows, String field) =>
       rows.fold(0.0, (sum, r) => sum + ((r[field] as num?)?.toDouble() ?? 0));
@@ -79,17 +92,146 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
     }
   }
 
-  /// One entry per shelter with a logged occupancy — its latest snapshot and
-  /// resolved facility name — sorted by cost, largest first.
-  List<_ShelterCostEntry> _resourceCostEntries() {
-    final entries = [
-      for (final e in _latestByFacility.entries)
-        _ShelterCostEntry(
-          name: _facilitiesById[e.key]?.name ?? 'Unknown shelter',
-          report: e.value,
-        ),
-    ]..sort((a, b) => b.cost.compareTo(a.cost));
-    return entries;
+  String _monthLabel(String key) {
+    if (key == 'all') return 'All months';
+    const names = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final parts = key.split('-');
+    return '${names[int.parse(parts[1]) - 1]} ${parts[0]}';
+  }
+
+  String _dayLabel(String key) {
+    if (key == 'all') return 'All dates';
+    final p = key.split('-');
+    return '${p[2]}/${p[1]}/${p[0]}';
+  }
+
+  Widget _buildResourceCostCard(double allTimeTotal) {
+    final months = _dailyLog
+        .map((r) => _monthKey(r.occupancyDate))
+        .toSet()
+        .toList()
+      ..sort((a, b) => b.compareTo(a));
+    final days = _monthFilter == 'all'
+        ? <String>[]
+        : (_dailyLog
+            .where((r) => _monthKey(r.occupancyDate) == _monthFilter)
+            .map((r) => r.dateKey)
+            .toSet()
+            .toList()
+          ..sort((a, b) => b.compareTo(a)));
+
+    final filtered = _filteredLog;
+    final byDate = <String, List<ShelterOccupancyReport>>{};
+    for (final r in filtered) {
+      byDate.putIfAbsent(r.dateKey, () => []).add(r);
+    }
+    final orderedDates = byDate.keys.toList()..sort((a, b) => b.compareTo(a));
+    final filteredTotal = filtered.fold<double>(0, (s, r) => s + r.cost);
+    final filtering = _monthFilter != 'all' || _dayFilter != 'all';
+
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Resource Consumption Cost by Date',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: months.contains(_monthFilter) ? _monthFilter : 'all',
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Month', isDense: true, border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    const DropdownMenuItem(value: 'all', child: Text('All months')),
+                    for (final m in months)
+                      DropdownMenuItem(value: m, child: Text(_monthLabel(m))),
+                  ],
+                  onChanged: (v) => setState(() {
+                    _monthFilter = v ?? 'all';
+                    _dayFilter = 'all';
+                  }),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: days.contains(_dayFilter) ? _dayFilter : 'all',
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Date', isDense: true, border: OutlineInputBorder(),
+                  ),
+                  items: [
+                    const DropdownMenuItem(value: 'all', child: Text('All dates')),
+                    for (final d in days)
+                      DropdownMenuItem(value: d, child: Text(_dayLabel(d))),
+                  ],
+                  onChanged: _monthFilter == 'all'
+                      ? null
+                      : (v) => setState(() => _dayFilter = v ?? 'all'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (orderedDates.isEmpty)
+            Text(
+              _dailyLog.isEmpty
+                  ? 'No shelter occupancy logged yet.'
+                  : 'No occupancy in the selected period.',
+              style: const TextStyle(color: Colors.grey),
+            )
+          else
+            for (final date in orderedDates)
+              _DateCostTile(
+                date: date,
+                label: _dayLabel(date),
+                reports: byDate[date]!,
+                facilitiesById: _facilitiesById,
+              ),
+          const Divider(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                filtering ? 'Selected period' : 'All-time total',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              Text(
+                formatRinggit(filtering ? filteredTotal : allTimeTotal),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold, fontSize: 14, color: Colors.teal,
+                ),
+              ),
+            ],
+          ),
+          if (filtering) ...[
+            const SizedBox(height: 2),
+            Text(
+              'All-time total: ${formatRinggit(allTimeTotal)}',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Text(
+            'Priced per person per day: adult ${formatRinggit(ResourceCostRates.perAdult)}, '
+            'child ${formatRinggit(ResourceCostRates.perChild)}, '
+            'elderly ${formatRinggit(ResourceCostRates.perElderly)}, '
+            'infant ${formatRinggit(ResourceCostRates.perInfant)}, '
+            'person with disability ${formatRinggit(ResourceCostRates.perPersonWithDisability)}.',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -116,7 +258,9 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
     );
     final countedAssetLoss = adminApprovedLoss + helperVerifiedLoss;
     final potentialPending = _sum(pendingReports, 'estimated_total_loss');
-    final totalEconomicLoss = countedAssetLoss + _resourceCost;
+    final resourceCostTotal =
+        _dailyLog.fold<double>(0, (sum, r) => sum + r.cost);
+    final totalEconomicLoss = countedAssetLoss + resourceCostTotal;
 
     final byState = <String, double>{};
     final byDistrict = <String, double>{};
@@ -151,7 +295,7 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _TotalCard(total: totalEconomicLoss, assetLoss: countedAssetLoss, resourceCost: _resourceCost),
+                  _TotalCard(total: totalEconomicLoss, assetLoss: countedAssetLoss, resourceCost: resourceCostTotal),
                   const SizedBox(height: 16),
                   _PotentialVsVerifiedCard(
                     potential: potentialPending,
@@ -169,10 +313,7 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
                     _BreakdownCard(title: 'Counted Asset Loss by Flood Incident', amounts: byIncident),
                   ],
                   const SizedBox(height: 16),
-                  _ResourceCostCard(
-                    entries: _resourceCostEntries(),
-                    total: _resourceCost,
-                  ),
+                  _buildResourceCostCard(resourceCostTotal),
                 ],
               ),
             ),
@@ -314,110 +455,74 @@ class _PotentialVsVerifiedCard extends StatelessWidget {
   }
 }
 
-class _ShelterCostEntry {
-  _ShelterCostEntry({required this.name, required this.report});
+/// One date in the resource-cost breakdown — the day's total across every
+/// shelter in the title, expanding to the per-shelter figures.
+class _DateCostTile extends StatelessWidget {
+  const _DateCostTile({
+    required this.date,
+    required this.label,
+    required this.reports,
+    required this.facilitiesById,
+  });
 
-  final String name;
-  final ShelterOccupancyReport report;
-
-  double get cost => report.resourceCost ?? report.calculatedResourceCost;
-  int get people => report.totalVictims ?? report.headcount;
-}
-
-/// Breaks the single "Resource Cost" figure on the total card into its
-/// parts — one row per shelter (current headcount × days) plus the flat
-/// per-person/day rates it's priced on, so the number is auditable (§17).
-class _ResourceCostCard extends StatelessWidget {
-  const _ResourceCostCard({required this.entries, required this.total});
-
-  final List<_ShelterCostEntry> entries;
-  final double total;
+  final String date;
+  final String label;
+  final List<ShelterOccupancyReport> reports;
+  final Map<String, Facility> facilitiesById;
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Resource Consumption Cost by Shelter',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-          ),
-          const SizedBox(height: 16),
-          if (entries.isEmpty)
-            const Text(
-              'No shelter occupancy logged yet.',
-              style: TextStyle(color: Colors.grey),
-            )
-          else ...[
-            for (final e in entries)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            e.name,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            '${e.people} ${e.people == 1 ? 'person' : 'people'} · '
-                            '${e.report.days} ${e.report.days == 1 ? 'day' : 'days'}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      formatRinggit(e.cost),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            const Divider(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Total resource cost',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                Text(
-                  formatRinggit(total),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: Colors.teal,
-                  ),
-                ),
-              ],
+    final dayTotal = reports.fold<double>(0, (s, r) => s + r.cost);
+    final sorted = [...reports]..sort((a, b) => b.cost.compareTo(a.cost));
+
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(left: 8, bottom: 8),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            Text(
+              formatRinggit(dayTotal),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.teal),
             ),
           ],
-          const SizedBox(height: 12),
-          Text(
-            'Priced per person per day: adult ${formatRinggit(ResourceCostRates.perAdult)}, '
-            'child ${formatRinggit(ResourceCostRates.perChild)}, '
-            'elderly ${formatRinggit(ResourceCostRates.perElderly)}, '
-            'infant ${formatRinggit(ResourceCostRates.perInfant)}, '
-            'person with disability ${formatRinggit(ResourceCostRates.perPersonWithDisability)}.',
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-          ),
+        ),
+        subtitle: Text(
+          '${reports.length} ${reports.length == 1 ? 'shelter' : 'shelters'}',
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+        ),
+        children: [
+          for (final r in sorted)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          facilitiesById[r.facilityId]?.name ?? 'Unknown shelter',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          '${r.totalVictims ?? r.headcount} '
+                          '${(r.totalVictims ?? r.headcount) == 1 ? 'person' : 'people'}',
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    formatRinggit(r.cost),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.teal),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

@@ -21,4 +21,7 @@ class PropertyController {
 
   Future<bool> restoreProperty(int propertyId) =>
       propertyService.restoreProperty(propertyId);
+
+  Future<List<Map<String, dynamic>>> getStateDistrictPairs() =>
+      propertyService.getStateDistrictPairs();
 }

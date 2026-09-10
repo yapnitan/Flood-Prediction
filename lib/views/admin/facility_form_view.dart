@@ -436,9 +436,17 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                         controller: _capacityController,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
-                          labelText: 'Capacity (optional)',
+                          labelText: 'Capacity',
+                          hintText: 'Maximum number of people this shelter holds',
                           border: OutlineInputBorder(),
                         ),
+                        validator: (value) {
+                          final n = int.tryParse((value ?? '').trim());
+                          if (n == null || n <= 0) {
+                            return 'Enter the shelter capacity (a whole number).';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 16),
                       TextFormField(

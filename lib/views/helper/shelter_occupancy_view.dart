@@ -9,13 +9,18 @@ import '../../models/shelter_occupancy_report.dart';
 import '../../services/facility_service.dart';
 import '../../services/helper_assignment_service.dart';
 import '../../services/shelter_occupancy_service.dart';
+import '../../utils/currency_input.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/empty_state.dart';
 
+String _formatDate(DateTime date) =>
+    '${date.day.toString().padLeft(2, '0')}/'
+    '${date.month.toString().padLeft(2, '0')}/${date.year}';
+
 /// Resource Consumption Cost entry point (Task/asset report §23/§39): a
-/// helper picks an active shelter and logs current demographic headcounts;
-/// the app calculates a resource cost from a fixed per-person rate table
-/// and feeds it into the admin's Economic Loss Dashboard.
+/// helper picks an active shelter and logs the demographic headcount for a
+/// chosen date; the app calculates a resource cost from a fixed per-person
+/// per-day rate table and feeds it into the admin's Economic Loss Dashboard.
 class ShelterOccupancyView extends StatefulWidget {
   const ShelterOccupancyView({super.key});
 
@@ -32,6 +37,7 @@ class _ShelterOccupancyViewState extends State<ShelterOccupancyView> {
   bool _isLoading = true;
   List<Facility> _shelters = [];
   Map<String, ShelterOccupancyReport> _latestByFacility = {};
+  List<ShelterOccupancyReport> _dailyLog = [];
   bool _hasActiveAssignment = false;
 
   @override
@@ -45,6 +51,7 @@ class _ShelterOccupancyViewState extends State<ShelterOccupancyView> {
       _facilityController.getAssignableFacilities('shelter'),
       _occupancyController.getLatestPerFacility(),
       _assignmentController.getMyAssignments(),
+      _occupancyController.getDailyLog(),
     ]);
     if (!mounted) return;
 
@@ -53,6 +60,7 @@ class _ShelterOccupancyViewState extends State<ShelterOccupancyView> {
     final assignments = (results[2] as List<HelperDistrictAssignment>)
         .where((a) => a.isActive)
         .toList();
+    final dailyLog = results[3] as List<ShelterOccupancyReport>;
 
     // A helper only handles shelters that sit in one of their active
     // state/district assignments — the RLS on shelter_occupancy_report
@@ -70,18 +78,21 @@ class _ShelterOccupancyViewState extends State<ShelterOccupancyView> {
       _hasActiveAssignment = assignments.isNotEmpty;
       _shelters = scopedShelters;
       _latestByFacility = latest;
+      _dailyLog = dailyLog;
       _isLoading = false;
     });
   }
 
   Future<void> _openEntryForm(Facility shelter) async {
-    final existing = _latestByFacility[shelter.id];
+    final history = _dailyLog
+        .where((r) => r.facilityId == shelter.id)
+        .toList();
     final recorded = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       builder: (context) => _OccupancyEntrySheet(
         shelter: shelter,
-        existing: existing,
+        history: history,
         controller: _occupancyController,
       ),
     );
@@ -242,8 +253,7 @@ class _OccupancySummary extends StatelessWidget {
         ],
         const SizedBox(height: 6),
         Text(
-          'Resource cost: RM ${(latest.resourceCost ?? latest.calculatedResourceCost).toStringAsFixed(2)}'
-          ' · ${latest.days} day${latest.days == 1 ? '' : 's'} stay',
+          'Resource cost: ${formatRinggit(latest.cost)} · for ${_formatDate(latest.occupancyDate)}',
           style: const TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
@@ -311,10 +321,17 @@ class _CapacityIndicator extends StatelessWidget {
 }
 
 class _OccupancyEntrySheet extends StatefulWidget {
-  const _OccupancyEntrySheet({required this.shelter, required this.existing, required this.controller});
+  const _OccupancyEntrySheet({
+    required this.shelter,
+    required this.history,
+    required this.controller,
+  });
 
   final Facility shelter;
-  final ShelterOccupancyReport? existing;
+
+  /// This shelter's daily log, latest-per-date — used to prefill the form
+  /// when the helper picks a date that already has a figure.
+  final List<ShelterOccupancyReport> history;
   final ShelterOccupancyController controller;
 
   @override
@@ -322,24 +339,21 @@ class _OccupancyEntrySheet extends StatefulWidget {
 }
 
 class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
-  late final TextEditingController _adults;
-  late final TextEditingController _children;
-  late final TextEditingController _elderly;
-  late final TextEditingController _infants;
-  late final TextEditingController _pwd;
-  late final TextEditingController _days;
+  final _adults = TextEditingController();
+  final _children = TextEditingController();
+  final _elderly = TextEditingController();
+  final _infants = TextEditingController();
+  final _pwd = TextEditingController();
+
+  late DateTime _date;
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    final e = widget.existing;
-    _adults = TextEditingController(text: '${e?.adults ?? 0}');
-    _children = TextEditingController(text: '${e?.children ?? 0}');
-    _elderly = TextEditingController(text: '${e?.elderly ?? 0}');
-    _infants = TextEditingController(text: '${e?.infants ?? 0}');
-    _pwd = TextEditingController(text: '${e?.personsWithDisabilities ?? 0}');
-    _days = TextEditingController(text: '${e?.days ?? 1}');
+    final now = DateTime.now();
+    _date = DateTime(now.year, now.month, now.day);
+    _fillFromHistory();
   }
 
   @override
@@ -349,8 +363,26 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
     _elderly.dispose();
     _infants.dispose();
     _pwd.dispose();
-    _days.dispose();
     super.dispose();
+  }
+
+  ShelterOccupancyReport? _entryFor(DateTime date) {
+    final key = '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+    for (final r in widget.history) {
+      if (r.dateKey == key) return r;
+    }
+    return null;
+  }
+
+  void _fillFromHistory() {
+    final e = _entryFor(_date);
+    _adults.text = '${e?.adults ?? 0}';
+    _children.text = '${e?.children ?? 0}';
+    _elderly.text = '${e?.elderly ?? 0}';
+    _infants.text = '${e?.infants ?? 0}';
+    _pwd.text = '${e?.personsWithDisabilities ?? 0}';
   }
 
   int _value(TextEditingController c) => int.tryParse(c.text.trim()) ?? 0;
@@ -358,16 +390,34 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
   int get _headcount =>
       _value(_adults) + _value(_children) + _value(_elderly) + _value(_infants) + _value(_pwd);
 
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    // Occupancy can only be logged for the last 3 days (today and the two
+    // days before) — a helper records what's current, not old history.
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: today.subtract(const Duration(days: 2)),
+      lastDate: today,
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _date = DateTime(picked.year, picked.month, picked.day);
+      _fillFromHistory();
+    });
+  }
+
   Future<void> _save() async {
     setState(() => _isSaving = true);
     final ok = await widget.controller.record(ShelterOccupancyReport(
       facilityId: widget.shelter.id!,
+      occupancyDate: _date,
       adults: _value(_adults),
       children: _value(_children),
       elderly: _value(_elderly),
       infants: _value(_infants),
       personsWithDisabilities: _value(_pwd),
-      days: _value(_days) < 1 ? 1 : _value(_days),
     ));
     if (!mounted) return;
     setState(() => _isSaving = false);
@@ -399,6 +449,7 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
 
   @override
   Widget build(BuildContext context) {
+    final existingForDate = _entryFor(_date) != null;
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
       child: SingleChildScrollView(
@@ -409,16 +460,39 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
             Text(widget.shelter.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 4),
             const Text(
-              'Enter current headcounts — this replaces the shelter\'s last logged snapshot.',
+              'Enter the current headcount for the selected date (today or the '
+              'last 2 days). Saving a date that was already logged replaces its '
+              'figure.',
               style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
+            const SizedBox(height: 16),
+            InkWell(
+              onTap: _isSaving ? null : _pickDate,
+              borderRadius: BorderRadius.circular(8),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Date',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  suffixIcon: Icon(Icons.calendar_today, size: 18),
+                ),
+                child: Text(_formatDate(_date)),
+              ),
+            ),
+            if (existingForDate)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'This date already has a figure — saving overwrites it.',
+                  style: TextStyle(fontSize: 11, color: Colors.orange.shade800),
+                ),
+              ),
             const SizedBox(height: 16),
             _countField('Adults', _adults),
             _countField('Children', _children),
             _countField('Elderly', _elderly),
             _countField('Infants', _infants),
             _countField('Persons with disabilities', _pwd),
-            _countField('Days of stay (for resource cost)', _days),
             _CapacityIndicator(headcount: _headcount, capacity: widget.shelter.capacity),
             const SizedBox(height: 16),
             SizedBox(

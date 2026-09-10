@@ -24,4 +24,19 @@ class ShelterOccupancyController {
     }
     return latest;
   }
+
+  /// The daily log with "latest replaces" applied — one entry per
+  /// (facility, occupancyDate), the one with the newest `recordedAt`.
+  /// Newest date first. Drives the admin's per-date resource-cost view.
+  Future<List<ShelterOccupancyReport>> getDailyLog() async {
+    final all = await getAll(); // newest recorded_at first
+    final seen = <String>{};
+    final result = <ShelterOccupancyReport>[];
+    for (final report in all) {
+      final key = '${report.facilityId}|${report.dateKey}';
+      if (seen.add(key)) result.add(report);
+    }
+    result.sort((a, b) => b.occupancyDate.compareTo(a.occupancyDate));
+    return result;
+  }
 }
