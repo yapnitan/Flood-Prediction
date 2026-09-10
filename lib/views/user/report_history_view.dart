@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import '../../controllers/flood_report_controller.dart';
 import '../../models/flood_report.dart';
 import '../../services/flood_report_service.dart';
+import '../../utils/malaysia_geocoding.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/adaptive_search_filter_header.dart';
 import '../../widgets/empty_state.dart';
-import '../../widgets/status_badge.dart';
 import 'report_detail_view.dart';
 
 /// Lists the currently authenticated user's own flood report submissions,
@@ -26,7 +26,18 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
 
   String _searchQuery = '';
   String _waterLevelFilter = 'All';
+  String _floodTypeFilter = 'All';
+  String _stateFilter = 'All';
   static const _waterLevelOptions = ['All', 'Low', 'Medium', 'High'];
+  // Same options offered on the submission form (submit_report.dart), so
+  // the filter values always line up with what a report can actually have.
+  static const _floodTypeOptions = [
+    'All',
+    'Street Flooding',
+    'River Overflow',
+    'Drainage Issue',
+    'Other',
+  ];
 
   @override
   void initState() {
@@ -59,12 +70,17 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
     return reports.where((r) {
       if (_waterLevelFilter != 'All' && r.waterLevel != _waterLevelFilter)
         return false;
+      if (_floodTypeFilter != 'All' && r.floodType != _floodTypeFilter)
+        return false;
+      if (_stateFilter != 'All' && r.state != _stateFilter) return false;
       if (_searchQuery.isEmpty) return true;
       return r.locationName.toLowerCase().contains(_searchQuery) ||
           r.description.toLowerCase().contains(_searchQuery) ||
           r.floodType.toLowerCase().contains(_searchQuery);
     }).toList();
   }
+
+  List<String> get _stateOptions => ['All', ...MalaysiaGeocoder.states];
 
   @override
   Widget build(BuildContext context) {
@@ -109,6 +125,26 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
                         child: ListView.separated(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           scrollDirection: Axis.horizontal,
+                          itemCount: _floodTypeOptions.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(width: 8),
+                          itemBuilder: (context, index) {
+                            final type = _floodTypeOptions[index];
+                            final selected = _floodTypeFilter == type;
+                            return ChoiceChip(
+                              label: Text(type == 'All' ? 'All types' : type),
+                              selected: selected,
+                              onSelected: (_) =>
+                                  setState(() => _floodTypeFilter = type),
+                            );
+                          },
+                        ),
+                      ),
+                      SizedBox(
+                        height: 48,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          scrollDirection: Axis.horizontal,
                           itemCount: _waterLevelOptions.length,
                           separatorBuilder: (context, index) =>
                               const SizedBox(width: 8),
@@ -126,12 +162,37 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
                           },
                         ),
                       ),
+                      _buildStateFilterDropdown(),
                     ],
                     sheetTitle: 'Filter report history',
-                    activeFilterCount: _waterLevelFilter == 'All' ? 0 : 1,
+                    activeFilterCount:
+                        (_floodTypeFilter == 'All' ? 0 : 1) +
+                        (_waterLevelFilter == 'All' ? 0 : 1) +
+                        (_stateFilter == 'All' ? 0 : 1),
                     sheetBuilder: (context, setSheetState) => Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Text(
+                          'Flood type',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final type in _floodTypeOptions)
+                              ChoiceChip(
+                                label: Text(type == 'All' ? 'All types' : type),
+                                selected: _floodTypeFilter == type,
+                                onSelected: (_) {
+                                  setState(() => _floodTypeFilter = type);
+                                  setSheetState(() {});
+                                },
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
                         Text(
                           'Water level',
                           style: Theme.of(context).textTheme.labelLarge,
@@ -153,6 +214,36 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
                                 },
                               ),
                           ],
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'State',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          key: ValueKey('sheet-state-$_stateFilter'),
+                          initialValue: _stateFilter,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          items: _stateOptions
+                              .map(
+                                (state) => DropdownMenuItem(
+                                  value: state,
+                                  child: Text(
+                                    state == 'All' ? 'All states' : state,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (state) {
+                            if (state == null) return;
+                            setState(() => _stateFilter = state);
+                            setSheetState(() {});
+                          },
                         ),
                       ],
                     ),
@@ -216,6 +307,33 @@ class _ReportHistoryViewState extends State<ReportHistoryView> {
       ),
     );
   }
+
+  Widget _buildStateFilterDropdown() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('page-state-$_stateFilter'),
+        initialValue: _stateFilter,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'State',
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        items: _stateOptions
+            .map(
+              (state) => DropdownMenuItem(
+                value: state,
+                child: Text(state == 'All' ? 'All states' : state),
+              ),
+            )
+            .toList(),
+        onChanged: (state) {
+          if (state != null) setState(() => _stateFilter = state);
+        },
+      ),
+    );
+  }
 }
 
 class _ReportCard extends StatelessWidget {
@@ -238,21 +356,10 @@ class _ReportCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    report.floodType,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                StatusBadge(status: report.status),
-              ],
+            Text(
+              report.floodType,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 8),
             Row(

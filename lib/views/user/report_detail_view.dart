@@ -7,7 +7,6 @@ import '../../services/flood_report_service.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/photo_gallery_viewer.dart';
 import '../../widgets/review_card.dart';
-import '../../widgets/status_badge.dart';
 import 'submit_report.dart';
 
 /// Full detail view for a single flood report, opened by tapping a card in
@@ -37,7 +36,6 @@ class _ReportDetailViewState extends State<ReportDetailView> {
   late FloodReport _report;
   bool _isBusy = false;
 
-  bool get _isAdminViewer => widget.reporterName != null;
   bool get _isOwner =>
       _report.reporterId != null &&
       _report.reporterId == Supabase.instance.client.auth.currentUser?.id;
@@ -138,21 +136,12 @@ class _ReportDetailViewState extends State<ReportDetailView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          report.floodType,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      if (!_isAdminViewer)
-                        StatusBadge(status: report.status),
-                    ],
+                  Text(
+                    report.floodType,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 20),
                   if (widget.reporterName != null && widget.reporterName!.isNotEmpty)
