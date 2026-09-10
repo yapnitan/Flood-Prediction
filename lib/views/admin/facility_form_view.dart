@@ -30,10 +30,10 @@ class _FacilityFormViewState extends State<FacilityFormView> {
   final LocationService _locationService = LocationService();
 
   late final TextEditingController _nameController;
-  late final TextEditingController _addressController;
   late final TextEditingController _capacityController;
   late final TextEditingController _contactController;
   final TextEditingController _locationNameController = TextEditingController();
+  final TextEditingController _stateController = TextEditingController();
   final TextEditingController _districtController = TextEditingController();
   final FocusNode _locationFocusNode = FocusNode();
 
@@ -41,8 +41,8 @@ class _FacilityFormViewState extends State<FacilityFormView> {
   double? _longitude;
 
   /// Prefilled from the picked location's reverse geocode (state matched
-  /// against known Malaysian names, district taken as-is), both editable.
-  String? _state;
+  /// against known Malaysian names, district taken as-is) — both display-only,
+  /// never directly editable.
   String? _locationError;
   bool _isActive = true;
   bool _isLocating = false;
@@ -92,7 +92,7 @@ class _FacilityFormViewState extends State<FacilityFormView> {
         (state != null && MalaysiaGeocoder.states.contains(state))
         ? state
         : _deriveStateFromLocationText(fallbackText);
-    if (resolvedState != null) _state = resolvedState;
+    if (resolvedState != null) _stateController.text = resolvedState;
     if (district != null && district.trim().isNotEmpty) {
       _districtController.text = district.trim();
     }
@@ -105,7 +105,6 @@ class _FacilityFormViewState extends State<FacilityFormView> {
     super.initState();
     final existing = widget.existing;
     _nameController = TextEditingController(text: existing?.name ?? '');
-    _addressController = TextEditingController(text: existing?.address ?? '');
     _capacityController = TextEditingController(
       text: existing?.capacity == null
           ? ''
@@ -116,7 +115,7 @@ class _FacilityFormViewState extends State<FacilityFormView> {
     );
     _latitude = existing?.latitude;
     _longitude = existing?.longitude;
-    _state = existing?.state;
+    _stateController.text = existing?.state ?? '';
     _districtController.text = existing?.district ?? '';
     _isActive = existing?.isActive ?? true;
     if (existing?.address != null) {
@@ -127,10 +126,10 @@ class _FacilityFormViewState extends State<FacilityFormView> {
   @override
   void dispose() {
     _nameController.dispose();
-    _addressController.dispose();
     _capacityController.dispose();
     _contactController.dispose();
     _locationNameController.dispose();
+    _stateController.dispose();
     _districtController.dispose();
     _locationFocusNode.dispose();
     super.dispose();
@@ -158,9 +157,6 @@ class _FacilityFormViewState extends State<FacilityFormView> {
       final readable = details.address?.trim();
       if (readable != null && readable.isNotEmpty) {
         _locationNameController.text = readable;
-        if (_addressController.text.trim().isEmpty) {
-          _addressController.text = readable;
-        }
       }
       _applyGeocodedArea(
         state: details.state,
@@ -188,9 +184,6 @@ class _FacilityFormViewState extends State<FacilityFormView> {
       final address = picked.geocode?.address?.trim();
       if (address != null && address.isNotEmpty) {
         _locationNameController.text = address;
-        if (_addressController.text.trim().isEmpty) {
-          _addressController.text = address;
-        }
       }
       _applyGeocodedArea(
         state: picked.geocode?.state,
@@ -223,10 +216,12 @@ class _FacilityFormViewState extends State<FacilityFormView> {
       facilityType: 'shelter',
       latitude: _latitude!,
       longitude: _longitude!,
-      address: _addressController.text.trim().isEmpty
+      address: _locationNameController.text.trim().isEmpty
           ? null
-          : _addressController.text.trim(),
-      state: _state,
+          : _locationNameController.text.trim(),
+      state: _stateController.text.trim().isEmpty
+          ? null
+          : _stateController.text.trim(),
       district: _districtController.text.trim().isEmpty
           ? null
           : _districtController.text.trim(),
@@ -297,15 +292,24 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                     children: [
                       TextFormField(
                         controller: _nameController,
+                        inputFormatters: const [WordCountInputFormatter(20)],
                         decoration: const InputDecoration(
                           labelText: 'Facility name',
-                          hintText: 'e.g. Dewan Komuniti Cyberjaya',
+                          hintText: 'e.g. Dewan Komuniti Cyberjaya (max 20 words)',
                           border: OutlineInputBorder(),
                         ),
-                        validator: (value) =>
-                            value == null || value.trim().isEmpty
-                            ? 'Enter a facility name.'
-                            : null,
+                        validator: (value) {
+                          final trimmed = value?.trim() ?? '';
+                          if (trimmed.isEmpty) return 'Enter a facility name.';
+                          final wordCount = trimmed
+                              .split(RegExp(r'\s+'))
+                              .where((w) => w.isNotEmpty)
+                              .length;
+                          if (wordCount > 20) {
+                            return 'Facility name cannot exceed 20 words.';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 20),
                       const Text(
@@ -335,10 +339,6 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                           _latitude = lat;
                           _longitude = lng;
                           _locationError = null;
-                          if (_addressController.text.trim().isEmpty) {
-                            _addressController.text =
-                                _locationNameController.text;
-                          }
                         }),
                         onArea: ({state, district, postcode}) => setState(
                           () => _applyGeocodedArea(
@@ -414,40 +414,25 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                         ),
                       ],
                       const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        // Re-seed when a picked location changes _state from code.
-                        key: ValueKey(_state),
-                        initialValue: _state,
-                        isExpanded: true,
+                      TextField(
+                        controller: _stateController,
+                        enabled: false,
                         decoration: const InputDecoration(
                           labelText: 'State',
+                          hintText: 'e.g. Selangor',
                           border: OutlineInputBorder(),
                           isDense: true,
                         ),
-                        items: MalaysiaGeocoder.states
-                            .map(
-                              (s) => DropdownMenuItem(value: s, child: Text(s)),
-                            )
-                            .toList(),
-                        onChanged: (value) => setState(() => _state = value),
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
+                      TextField(
                         controller: _districtController,
+                        enabled: false,
                         decoration: const InputDecoration(
-                          labelText: 'District (optional)',
+                          labelText: 'District',
                           hintText: 'e.g. Petaling',
                           border: OutlineInputBorder(),
                           isDense: true,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      TextFormField(
-                        controller: _addressController,
-                        decoration: const InputDecoration(
-                          labelText:
-                              'Address (optional, shown to residents/helpers)',
-                          border: OutlineInputBorder(),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -457,6 +442,7 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                           const CurrencyInputFormatter(decimalDigits: 0),
+                          const MaxValueInputFormatter(10000),
                         ],
                         decoration: const InputDecoration(
                           labelText: 'Capacity',
@@ -480,8 +466,11 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                       TextFormField(
                         controller: _contactController,
                         keyboardType: TextInputType.phone,
+                        maxLength: 11,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         decoration: const InputDecoration(
                           labelText: 'Contact number (optional)',
+                          hintText: '10 to 11 digits',
                           prefixIcon: Icon(Icons.phone),
                           border: OutlineInputBorder(),
                         ),

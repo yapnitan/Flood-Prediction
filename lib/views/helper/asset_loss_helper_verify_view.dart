@@ -8,7 +8,7 @@ import '../../utils/currency_input.dart';
 import '../../utils/maps_launcher.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/mini_map.dart';
-import '../../widgets/network_photo_thumbnail.dart';
+import '../../widgets/photo_gallery_viewer.dart';
 import '../../widgets/photo_preview.dart';
 import '../../widgets/review_card.dart';
 import '../../widgets/selectable_chip.dart';
@@ -294,20 +294,9 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
                         style: TextStyle(color: Colors.grey),
                       )
                     else
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: photoPaths.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 3,
-                              crossAxisSpacing: 10,
-                              mainAxisSpacing: 10,
-                            ),
-                        itemBuilder: (context, index) => NetworkPhotoThumbnail(
-                          storagePath: photoPaths[index],
-                          urlResolver: widget.controller.getSignedPhotoUrl,
-                        ),
+                      _EvidencePhotoGrid(
+                        paths: photoPaths,
+                        controller: widget.controller,
                       ),
 
                     if (!_canVerify) ...[
@@ -509,6 +498,79 @@ class _AssetLossHelperVerifyViewState extends State<AssetLossHelperVerifyView> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Resolves the private evidence photos as one group so the same signed URLs
+/// can be used for both thumbnails and the full-screen swipe/zoom gallery.
+class _EvidencePhotoGrid extends StatelessWidget {
+  const _EvidencePhotoGrid({required this.paths, required this.controller});
+
+  final List<String> paths;
+  final AssetLossReportController controller;
+
+  static const _brokenImage = ColoredBox(
+    color: Color(0xFFF2F2F2),
+    child: Icon(Icons.broken_image_outlined, color: Colors.grey),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<String>>(
+      future: controller.getSignedPhotoUrls(paths),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        final urls = snapshot.data ?? const [];
+        if (urls.isEmpty) {
+          return const Text(
+            'Photos unavailable',
+            style: TextStyle(color: Colors.grey),
+          );
+        }
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: urls.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: context.responsive(
+              mobile: 3,
+              tablet: 4,
+              desktop: 5,
+            ),
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+          ),
+          itemBuilder: (context, index) => ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  fullscreenDialog: true,
+                  builder: (_) => PhotoGalleryViewer(
+                    urls: urls,
+                    initialIndex: index,
+                  ),
+                ),
+              ),
+              child: Image.network(
+                urls[index],
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => _brokenImage,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

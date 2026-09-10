@@ -3,6 +3,38 @@
 /// instead of every form re-deriving its own regex.
 library;
 
+import 'package:flutter/services.dart';
+
+/// Caps a field at [maxWords] words. Once the field already holds that many
+/// words, no further typing/pasting is accepted at all (any edit that grows
+/// the text is rejected outright, kept at [oldValue]) — not just edits that
+/// would add a 21st word. Deleting (shrinking the text) is always allowed,
+/// so the user can never get stuck unable to backspace. Pair with a
+/// `validator` that re-checks the same limit as a submit-time safety net
+/// (e.g. against an over-limit value set programmatically via
+/// `controller.text = ...`, which this formatter never sees).
+class WordCountInputFormatter extends TextInputFormatter {
+  const WordCountInputFormatter(this.maxWords);
+
+  final int maxWords;
+
+  static int _wordCount(String text) {
+    final trimmed = text.trim();
+    return trimmed.isEmpty ? 0 : trimmed.split(RegExp(r'\s+')).length;
+  }
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final isGrowing = newValue.text.length > oldValue.text.length;
+    if (isGrowing && _wordCount(oldValue.text) >= maxWords) return oldValue;
+    if (_wordCount(newValue.text) > maxWords) return oldValue;
+    return newValue;
+  }
+}
+
 /// No spaces, dashes, or country-code symbols — 10 or 11 digits.
 final RegExp phoneNumberPattern = RegExp(r'^\d{10,11}$');
 

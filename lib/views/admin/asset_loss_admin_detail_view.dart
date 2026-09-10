@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../constants/asset_categories.dart';
 import '../../controllers/asset_loss_report_controller.dart';
@@ -349,8 +350,13 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
                                 child: TextField(
                                   controller: _approvedQuantityController,
                                   keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    const MaxValueInputFormatter(100),
+                                  ],
                                   decoration: const InputDecoration(
                                     labelText: 'Approved quantity',
+                                    hintText: 'Maximum 100',
                                     border: OutlineInputBorder(),
                                   ),
                                 ),
@@ -365,9 +371,14 @@ class _AssetLossAdminDetailViewState extends State<AssetLossAdminDetailView> {
                                       ),
                                   inputFormatters: const [
                                     CurrencyInputFormatter(),
+                                    MaxValueInputFormatter(
+                                      1000000,
+                                      decimalDigits: 2,
+                                    ),
                                   ],
                                   decoration: const InputDecoration(
                                     labelText: 'Approved value/item',
+                                    hintText: 'Maximum 1,000,000',
                                     prefixText: 'RM ',
                                     border: OutlineInputBorder(),
                                   ),

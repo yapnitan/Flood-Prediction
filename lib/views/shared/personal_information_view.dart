@@ -3,6 +3,7 @@ import '../../models/account.dart';
 import '../../controllers/auth_controller.dart';
 import '../../services/auth_service.dart';
 import '../../utils/responsive.dart';
+import '../../utils/validators.dart';
 
 class PersonalInformationView extends StatefulWidget {
   final Account account;
@@ -33,6 +34,11 @@ class _PersonalInformationViewState extends State<PersonalInformationView> {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       setState(() => _errorMessage = 'Name cannot be empty');
+      return;
+    }
+    final wordCount = name.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    if (wordCount > 20) {
+      setState(() => _errorMessage = 'Name cannot exceed 20 words');
       return;
     }
 
@@ -94,8 +100,10 @@ class _PersonalInformationViewState extends State<PersonalInformationView> {
 
                     TextField(
                       controller: _nameController,
+                      inputFormatters: const [WordCountInputFormatter(20)],
                       decoration: InputDecoration(
                         labelText: 'Full name',
+                        hintText: 'Maximum 20 words',
                         prefixIcon: const Icon(
                           Icons.person,
                           color: Colors.blue,

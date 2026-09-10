@@ -46,6 +46,12 @@ class _SubmitReportState extends State<SubmitReportPage> {
   final TextEditingController _contactController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
   final List<XFile> _photos = [];
+
+  static const _maxPhotos = 3;
+
+  /// Existing (already-uploaded) photos plus newly picked ones — the cap
+  /// applies to the report's total attachment count either way.
+  int get _totalPhotoCount => _existingPhotoPaths.length + _photos.length;
   final FloodReportController _controller = FloodReportController(
     FloodReportService(),
   );
@@ -386,12 +392,24 @@ class _SubmitReportState extends State<SubmitReportPage> {
   }
 
   Future<void> _pickPhotos(ImageSource source) async {
+    final remaining = _maxPhotos - _totalPhotoCount;
+    if (remaining <= 0) {
+      _showSnack('You can attach at most $_maxPhotos photos.');
+      return;
+    }
+
     if (source == ImageSource.gallery) {
       final selectedPhotos = await _imagePicker.pickMultiImage(
         imageQuality: 85,
       );
       if (!mounted || selectedPhotos.isEmpty) return;
-      setState(() => _photos.addAll(selectedPhotos));
+      final toAdd = selectedPhotos.take(remaining).toList();
+      setState(() => _photos.addAll(toAdd));
+      if (toAdd.length < selectedPhotos.length) {
+        _showSnack(
+          'Only added ${toAdd.length} photo(s) — the limit is $_maxPhotos photos per report.',
+        );
+      }
       return;
     }
 
@@ -404,6 +422,10 @@ class _SubmitReportState extends State<SubmitReportPage> {
   }
 
   void _showPhotoSourcePicker() {
+    if (_totalPhotoCount >= _maxPhotos) {
+      _showSnack('You can attach at most $_maxPhotos photos.');
+      return;
+    }
     showModalBottomSheet<void>(
       context: context,
       builder: (context) => SafeArea(
@@ -857,8 +879,10 @@ class _SubmitReportState extends State<SubmitReportPage> {
         const SizedBox(height: 8),
         Text(
           _isEditing
-              ? 'Remove any existing photo you no longer want, or add more below.'
-              : 'Photos help responders verify the report. They are optional.',
+              ? 'Remove any existing photo you no longer want, or add more below. '
+                    'Up to $_maxPhotos photos in total.'
+              : 'Photos help responders verify the report. They are optional, '
+                    'up to $_maxPhotos.',
           style: const TextStyle(color: Colors.grey),
         ),
         const SizedBox(height: 20),
