@@ -211,6 +211,25 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
     return parts.isEmpty ? null : Text(parts.join(', '));
   }
 
+  Widget _resultTile(PlaceSearchResult place) {
+    final subtitle = _areaSubtitle(place);
+    return ListTile(
+      dense: true,
+      // An address can occupy two lines, so a subtitle makes this a
+      // three-line tile. Reserving that height prevents the exact 1px
+      // overflow seen at larger text scales.
+      isThreeLine: subtitle != null,
+      leading: const Icon(Icons.location_on_outlined, color: Colors.grey),
+      title: Text(
+        place.displayName,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: subtitle,
+      onTap: () => _select(place),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -225,14 +244,16 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
         ),
         if (_panelOpen) ...[
           const SizedBox(height: 4),
-          Container(
-            constraints: const BoxConstraints(maxHeight: 260),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              border: Border.all(color: Colors.grey.shade300),
+          Material(
+            color: Theme.of(context).colorScheme.surface,
+            shape: RoundedRectangleBorder(
+              side: BorderSide(color: Colors.grey.shade300),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: _searching
+            clipBehavior: Clip.antiAlias,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 260),
+              child: _searching
                 ? const Padding(
                     padding: EdgeInsets.all(14),
                     child: Row(
@@ -262,20 +283,7 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
                         shrinkWrap: true,
                         children: [
                           for (final place in _results)
-                            ListTile(
-                              dense: true,
-                              leading: const Icon(
-                                Icons.location_on_outlined,
-                                color: Colors.grey,
-                              ),
-                              title: Text(
-                                place.displayName,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              subtitle: _areaSubtitle(place),
-                              onTap: () => _select(place),
-                            ),
+                            _resultTile(place),
                           if (_hasMore)
                             ListTile(
                               dense: true,
@@ -295,6 +303,7 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
                             ),
                         ],
                       ),
+            ),
           ),
         ],
       ],
