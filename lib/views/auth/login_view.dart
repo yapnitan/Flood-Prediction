@@ -221,7 +221,7 @@ class _LoginViewState extends State<LoginView> {
                       children: [
                         TextButton(
                           onPressed: verifyEmail,
-                          child: const Text("Confirm email"),
+                          child: const Text("Confirm Email"),
                         ),
                         TextButton(
                           onPressed: forgotPassword,
