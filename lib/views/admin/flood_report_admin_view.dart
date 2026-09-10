@@ -89,134 +89,143 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
                 desktop: 1100,
               ),
             ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: AdaptiveSearchFilterHeader(
-                    searchField: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText:
-                            'Search by location, area, type, or description',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _searchQuery.isEmpty
-                            ? null
-                            : IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: _searchController.clear,
-                              ),
-                        isDense: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                    portraitFilters: [
-                      _buildFilterBar(
-                        options: _floodTypeOptions,
-                        selected: _floodTypeFilter,
-                        onSelected: (value) =>
-                            setState(() => _floodTypeFilter = value),
-                        labelBuilder: (value) =>
-                            value == 'all' ? 'All types' : value,
-                      ),
-                      _buildFilterBar(
-                        options: _waterLevelOptions,
-                        selected: _waterLevelFilter,
-                        onSelected: (value) =>
-                            setState(() => _waterLevelFilter = value),
-                        labelBuilder: (value) =>
-                            value == 'all' ? 'All water levels' : value,
-                      ),
-                      _buildStateFilterDropdown(),
-                    ],
-                    sheetTitle: 'Filter flood reports',
-                    activeFilterCount:
-                        (_floodTypeFilter == 'all' ? 0 : 1) +
-                        (_waterLevelFilter == 'all' ? 0 : 1) +
-                        (_stateFilter == 'all' ? 0 : 1),
-                    sheetBuilder: (context, setSheetState) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Flood type',
-                          style: Theme.of(context).textTheme.labelLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final value in _floodTypeOptions)
-                              ChoiceChip(
-                                label: Text(
-                                  value == 'all' ? 'All types' : value,
+            // CustomScrollView (not Column+Expanded) so that if the header
+            // — search field + filter chips/button — ever needs more height
+            // than is available (e.g. landscape with the keyboard open,
+            // where viewport height is already tight), the whole page
+            // scrolls to fit it instead of overflowing. Same fix as
+            // UserManagementView/FacilityManagementView/HelperAssignmentAdminView.
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: AdaptiveSearchFilterHeader(
+                      searchField: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText:
+                              'Search by location, area, type, or description',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _searchQuery.isEmpty
+                              ? null
+                              : IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: _searchController.clear,
                                 ),
-                                selected: _floodTypeFilter == value,
-                                onSelected: (_) {
-                                  setState(() => _floodTypeFilter = value);
-                                  setSheetState(() {});
-                                },
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          'Water level',
-                          style: Theme.of(context).textTheme.labelLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final value in _waterLevelOptions)
-                              ChoiceChip(
-                                label: Text(
-                                  value == 'all' ? 'All water levels' : value,
-                                ),
-                                selected: _waterLevelFilter == value,
-                                onSelected: (_) {
-                                  setState(() => _waterLevelFilter = value);
-                                  setSheetState(() {});
-                                },
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          'State',
-                          style: Theme.of(context).textTheme.labelLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          key: ValueKey('sheet-state-$_stateFilter'),
-                          initialValue: _stateFilter,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            isDense: true,
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          items: _stateOptions
-                              .map(
-                                (state) => DropdownMenuItem(
-                                  value: state,
-                                  child: Text(_stateLabel(state)),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (state) {
-                            if (state == null) return;
-                            setState(() => _stateFilter = state);
-                            setSheetState(() {});
-                          },
                         ),
+                      ),
+                      portraitFilters: [
+                        _buildFilterBar(
+                          options: _floodTypeOptions,
+                          selected: _floodTypeFilter,
+                          onSelected: (value) =>
+                              setState(() => _floodTypeFilter = value),
+                          labelBuilder: (value) =>
+                              value == 'all' ? 'All types' : value,
+                        ),
+                        _buildFilterBar(
+                          options: _waterLevelOptions,
+                          selected: _waterLevelFilter,
+                          onSelected: (value) =>
+                              setState(() => _waterLevelFilter = value),
+                          labelBuilder: (value) =>
+                              value == 'all' ? 'All water levels' : value,
+                        ),
+                        _buildStateFilterDropdown(),
                       ],
+                      sheetTitle: 'Filter flood reports',
+                      activeFilterCount:
+                          (_floodTypeFilter == 'all' ? 0 : 1) +
+                          (_waterLevelFilter == 'all' ? 0 : 1) +
+                          (_stateFilter == 'all' ? 0 : 1),
+                      sheetBuilder: (context, setSheetState) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Flood type',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final value in _floodTypeOptions)
+                                ChoiceChip(
+                                  label: Text(
+                                    value == 'all' ? 'All types' : value,
+                                  ),
+                                  selected: _floodTypeFilter == value,
+                                  onSelected: (_) {
+                                    setState(() => _floodTypeFilter = value);
+                                    setSheetState(() {});
+                                  },
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'Water level',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final value in _waterLevelOptions)
+                                ChoiceChip(
+                                  label: Text(
+                                    value == 'all' ? 'All water levels' : value,
+                                  ),
+                                  selected: _waterLevelFilter == value,
+                                  onSelected: (_) {
+                                    setState(() => _waterLevelFilter = value);
+                                    setSheetState(() {});
+                                  },
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'State',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            key: ValueKey('sheet-state-$_stateFilter'),
+                            initialValue: _stateFilter,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            items: _stateOptions
+                                .map(
+                                  (state) => DropdownMenuItem(
+                                    value: state,
+                                    child: Text(_stateLabel(state)),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (state) {
+                              if (state == null) return;
+                              setState(() => _stateFilter = state);
+                              setSheetState(() {});
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                Expanded(
+                SliverFillRemaining(
+                  hasScrollBody: true,
                   child: RefreshIndicator(
                     onRefresh: _refresh,
                     child: FutureBuilder<List<Map<String, dynamic>>>(
@@ -299,7 +308,6 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
                                     builder: (_) => ReportDetailView(
                                       report: report,
                                       reporterName: reporterName,
-                                      isAdminView: true,
                                     ),
                                   ),
                                 );
@@ -407,35 +415,10 @@ class _AdminReportSummaryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    report.floodType,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Icon(
-                  report.isVerified ? Icons.verified : Icons.schedule_outlined,
-                  size: 16,
-                  color: report.isVerified ? Colors.teal : Colors.orange,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  report.isVerified ? 'Verified' : 'Unverified',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: report.isVerified
-                        ? Colors.teal
-                        : Colors.orange.shade800,
-                  ),
-                ),
-              ],
+            Text(
+              report.floodType,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              overflow: TextOverflow.ellipsis,
             ),
             if (reporterName != null && reporterName!.isNotEmpty) ...[
               const SizedBox(height: 4),

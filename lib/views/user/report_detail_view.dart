@@ -13,13 +13,12 @@ import 'submit_report.dart';
 /// [ReportHistoryView] (the reporting user) or the admin flood report list
 /// (`FloodReportAdminView`). Mostly a read-only layout plus the uploaded
 /// evidence photos, but also hosts edit/delete for the report's own
-/// reporter (while still `submitted`) and verify/unverify for admins.
+/// reporter (while still `submitted`).
 class ReportDetailView extends StatefulWidget {
   const ReportDetailView({
     super.key,
     required this.report,
     this.reporterName,
-    this.isAdminView = false,
   });
 
   final FloodReport report;
@@ -28,10 +27,6 @@ class ReportDetailView extends StatefulWidget {
   /// reporter-account join — the reporting user obviously knows it's their
   /// own report, so [ReportHistoryView] never needs to pass this.
   final String? reporterName;
-
-  /// Set by the admin flood-report list — enables the verify / unverify
-  /// control. RLS still enforces admin-only regardless.
-  final bool isAdminView;
 
   @override
   State<ReportDetailView> createState() => _ReportDetailViewState();
@@ -82,30 +77,6 @@ class _ReportDetailViewState extends State<ReportDetailView> {
     });
   }
 
-  Future<void> _toggleVerified() async {
-    final makeVerified = !_report.isVerified;
-    setState(() => _isBusy = true);
-    final ok = await _controller.setVerified(_report.id!, makeVerified);
-    if (!mounted) return;
-    setState(() {
-      _isBusy = false;
-      if (ok) {
-        _report = _report.copyWith(status: makeVerified ? 'verified' : 'submitted');
-      }
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? (makeVerified
-                  ? 'Report marked as verified.'
-                  : 'Verification removed.')
-              : 'Could not update the report. Please try again.',
-        ),
-      ),
-    );
-  }
-
   Future<void> _delete() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -148,21 +119,6 @@ class _ReportDetailViewState extends State<ReportDetailView> {
         title: const Text('Report Details'),
         centerTitle: true,
         actions: [
-          if (widget.isAdminView)
-            TextButton.icon(
-              onPressed: _isBusy ? null : _toggleVerified,
-              icon: Icon(
-                _report.isVerified ? Icons.undo : Icons.verified_outlined,
-                size: 18,
-                color: _report.isVerified ? Colors.grey : Colors.teal,
-              ),
-              label: Text(
-                _report.isVerified ? 'Unverify' : 'Verify',
-                style: TextStyle(
-                  color: _report.isVerified ? Colors.grey : Colors.teal,
-                ),
-              ),
-            ),
           if (_canEditOrDelete) ...[
             IconButton(
               tooltip: 'Edit report',

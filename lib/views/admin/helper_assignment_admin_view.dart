@@ -26,12 +26,17 @@ class HelperAssignmentAdminView extends StatefulWidget {
   const HelperAssignmentAdminView({super.key});
 
   @override
-  State<HelperAssignmentAdminView> createState() => _HelperAssignmentAdminViewState();
+  State<HelperAssignmentAdminView> createState() =>
+      _HelperAssignmentAdminViewState();
 }
 
 class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
-  final _assignmentController = HelperAssignmentController(HelperAssignmentService());
-  final _userManagementController = UserManagementController(UserManagementService());
+  final _assignmentController = HelperAssignmentController(
+    HelperAssignmentService(),
+  );
+  final _userManagementController = UserManagementController(
+    UserManagementService(),
+  );
   final _propertyController = PropertyController(PropertyService());
   final _facilityController = FacilityController(FacilityService());
   final _searchController = TextEditingController();
@@ -108,6 +113,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
       if (s == null || s.isEmpty || d == null || d.isEmpty) return;
       districtsByState.putIfAbsent(s, () => <String>{}).add(d);
     }
+
     for (final p in propertyPairs) {
       addPair(p['state'] as String?, p['district'] as String?);
     }
@@ -122,7 +128,9 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
 
     setState(() {
       _assignments = assignments;
-      _helpers = accounts.where((a) => a.role == 'helper' && a.status == 'active').toList();
+      _helpers = accounts
+          .where((a) => a.role == 'helper' && a.status == 'active')
+          .toList();
       _assignedHelperIds = {
         for (final a in assignments)
           if (a['status'] == 'active') a['helper_id'] as String,
@@ -142,8 +150,11 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
         existingAccount?['name'] as String? ?? 'Unknown helper';
     // States that actually have a district to pick from.
     final knownStates = _districtsByState.keys.toList()..sort();
-    String state = existing?['state'] as String? ??
-        (knownStates.isNotEmpty ? knownStates.first : MalaysiaGeocoder.states.first);
+    String state =
+        existing?['state'] as String? ??
+        (knownStates.isNotEmpty
+            ? knownStates.first
+            : MalaysiaGeocoder.states.first);
     String? districtValue = existing?['district'] as String?;
 
     // Only helpers without an active place can be freshly assigned — an
@@ -157,9 +168,11 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           scrollable: true,
-          title: Text(existing == null
-              ? 'Assign Helper to a Place'
-              : "Change Helper's Place"),
+          title: Text(
+            existing == null
+                ? 'Assign Helper to a Place'
+                : "Change Helper's Place",
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,8 +191,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                         ),
                       )
                       .toList(),
-                  onChanged: (value) =>
-                      setDialogState(() => helperId = value),
+                  onChanged: (value) => setDialogState(() => helperId = value),
                   hint: Text(
                     assignableHelpers.isEmpty
                         ? 'Every active helper already has a place'
@@ -202,7 +214,9 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                 ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: MalaysiaGeocoder.states.contains(state) ? state : null,
+                initialValue: MalaysiaGeocoder.states.contains(state)
+                    ? state
+                    : null,
                 decoration: const InputDecoration(labelText: 'State'),
                 items: MalaysiaGeocoder.states
                     .map((s) => DropdownMenuItem(value: s, child: Text(s)))
@@ -216,11 +230,13 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
               const SizedBox(height: 12),
               Builder(
                 builder: (context) {
-                  final districts = _districtsByState[state] ?? const <String>[];
+                  final districts =
+                      _districtsByState[state] ?? const <String>[];
                   return DropdownButtonFormField<String>(
                     key: ValueKey('district-$state'),
-                    initialValue:
-                        districts.contains(districtValue) ? districtValue : null,
+                    initialValue: districts.contains(districtValue)
+                        ? districtValue
+                        : null,
                     decoration: const InputDecoration(labelText: 'District'),
                     isExpanded: true,
                     items: districts
@@ -239,7 +255,10 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
             TextButton(
               onPressed: () async {
                 if (helperId == null ||
@@ -264,7 +283,9 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                       );
                 if (!context.mounted) return;
                 if (error != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(error)));
                   return;
                 }
                 Navigator.pop(context, true);
@@ -282,7 +303,9 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
     final error = await _assignmentController.deactivate(id);
     if (!mounted) return;
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
     _load();
@@ -292,7 +315,9 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
     final error = await _assignmentController.reactivate(id);
     if (!mounted) return;
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
     _load();
@@ -356,9 +381,8 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
       child: AdaptiveSearchFilterHeader(
         searchField: TextField(
           controller: _searchController,
-          onChanged: (value) => setState(
-            () => _searchQuery = value.trim().toLowerCase(),
-          ),
+          onChanged: (value) =>
+              setState(() => _searchQuery = value.trim().toLowerCase()),
           decoration: InputDecoration(
             hintText: 'Search helpers by name',
             prefixIcon: const Icon(Icons.search),
@@ -373,26 +397,17 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                     },
                   ),
             isDense: true,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
           ),
         ),
-        portraitFilters: [
-          _buildStatusFilterBar(),
-          _buildStateFilterDropdown(),
-        ],
+        portraitFilters: [_buildStatusFilterBar(), _buildStateFilterDropdown()],
         sheetTitle: 'Filter helper assignments',
         activeFilterCount:
-            (_statusFilter == 'all' ? 0 : 1) +
-            (_stateFilter == 'all' ? 0 : 1),
+            (_statusFilter == 'all' ? 0 : 1) + (_stateFilter == 'all' ? 0 : 1),
         sheetBuilder: (context, setSheetState) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Status',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            const Text('Status', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -410,10 +425,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
               ],
             ),
             const SizedBox(height: 20),
-            const Text(
-              'State',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            const Text('State', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               key: ValueKey('sheet-state-$_stateFilter'),
@@ -448,7 +460,10 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
     final assignments = _filteredAssignments();
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Helper Assignments'), centerTitle: true),
+      appBar: AppBar(
+        title: const Text('Helper Assignments'),
+        centerTitle: true,
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openAssignDialog(),
         tooltip: 'Assign helper',
@@ -459,11 +474,25 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
             ? const Center(child: CircularProgressIndicator())
             : Center(
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900)),
-                  child: Column(
-                    children: [
-                      _buildFilterHeader(),
-                      Expanded(
+                  constraints: BoxConstraints(
+                    maxWidth: context.responsive(
+                      mobile: 700,
+                      tablet: 800,
+                      desktop: 900,
+                    ),
+                  ),
+                  // CustomScrollView (not Column+Expanded) so that if the
+                  // header — search field + filter chips/button — ever
+                  // needs more height than is available (e.g. landscape
+                  // with the keyboard open, where viewport height is
+                  // already tight), the whole page scrolls to fit it
+                  // instead of overflowing. Same fix as
+                  // UserManagementView/FacilityManagementView.
+                  child: CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(child: _buildFilterHeader()),
+                      SliverFillRemaining(
+                        hasScrollBody: true,
                         child: RefreshIndicator(
                           onRefresh: _load,
                           child: assignments.isEmpty
@@ -485,84 +514,146 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                                       : null,
                                 )
                               : ListView.separated(
-                                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    16,
+                                    16,
+                                    88,
+                                  ),
                                   itemCount: assignments.length,
-                                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                                  separatorBuilder: (context, index) =>
+                                      const SizedBox(height: 12),
                                   itemBuilder: (context, index) {
                                     final a = assignments[index];
-                              final account = a['account'] as Map<String, dynamic>?;
-                              final isActive = a['status'] == 'active';
-                              return Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: isActive ? null : Colors.grey.withValues(alpha: 0.05),
-                                  border: Border.all(color: Colors.grey.shade300),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            account?['name'] as String? ?? 'Unknown helper',
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                          decoration: BoxDecoration(
-                                            color: (isActive ? Colors.green : Colors.grey).withValues(alpha: 0.12),
-                                            borderRadius: BorderRadius.circular(20),
-                                          ),
-                                          child: Text(
-                                            isActive ? 'ACTIVE' : 'INACTIVE',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color: isActive ? Colors.green.shade800 : Colors.grey.shade700,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text('${a['district']}, ${a['state']}', style: const TextStyle(color: Colors.grey, fontSize: 13)),
-                                    const SizedBox(height: 12),
-                                    Row(
-                                      children: [
-                                        if (isActive) ...[
-                                          OutlinedButton(
-                                            onPressed: () => _openAssignDialog(existing: a),
-                                            child: const Text('Change place'),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          OutlinedButton(
-                                            onPressed: () => _deactivate(a['id'] as String),
-                                            style: OutlinedButton.styleFrom(
-                                              foregroundColor: Colors.red,
-                                              side: const BorderSide(color: Colors.red),
-                                            ),
-                                            child: const Text('Deactivate'),
-                                          ),
-                                        ] else
-                                          OutlinedButton(
-                                            onPressed: () => _reactivate(a['id'] as String),
-                                            style: OutlinedButton.styleFrom(
-                                              foregroundColor: Colors.green.shade700,
-                                              side: BorderSide(
-                                                color: Colors.green.shade700,
+                                    final account =
+                                        a['account'] as Map<String, dynamic>?;
+                                    final isActive = a['status'] == 'active';
+                                    return Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: isActive
+                                            ? null
+                                            : Colors.grey.withValues(
+                                                alpha: 0.05,
                                               ),
-                                            ),
-                                            child: const Text('Reactivate'),
+                                        border: Border.all(
+                                          color: Colors.grey.shade300,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  account?['name'] as String? ??
+                                                      'Unknown helper',
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 15,
+                                                  ),
+                                                ),
+                                              ),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 3,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      (isActive
+                                                              ? Colors.green
+                                                              : Colors.grey)
+                                                          .withValues(
+                                                            alpha: 0.12,
+                                                          ),
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                ),
+                                                child: Text(
+                                                  isActive
+                                                      ? 'ACTIVE'
+                                                      : 'INACTIVE',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isActive
+                                                        ? Colors.green.shade800
+                                                        : Colors.grey.shade700,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              );
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '${a['district']}, ${a['state']}',
+                                            style: const TextStyle(
+                                              color: Colors.grey,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Row(
+                                            children: [
+                                              if (isActive) ...[
+                                                OutlinedButton(
+                                                  onPressed: () =>
+                                                      _openAssignDialog(
+                                                        existing: a,
+                                                      ),
+                                                  child: const Text(
+                                                    'Change place',
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                OutlinedButton(
+                                                  onPressed: () => _deactivate(
+                                                    a['id'] as String,
+                                                  ),
+                                                  style:
+                                                      OutlinedButton.styleFrom(
+                                                        foregroundColor:
+                                                            Colors.red,
+                                                        side: const BorderSide(
+                                                          color: Colors.red,
+                                                        ),
+                                                      ),
+                                                  child: const Text(
+                                                    'Deactivate',
+                                                  ),
+                                                ),
+                                              ] else
+                                                OutlinedButton(
+                                                  onPressed: () => _reactivate(
+                                                    a['id'] as String,
+                                                  ),
+                                                  style:
+                                                      OutlinedButton.styleFrom(
+                                                        foregroundColor: Colors
+                                                            .green
+                                                            .shade700,
+                                                        side: BorderSide(
+                                                          color: Colors
+                                                              .green
+                                                              .shade700,
+                                                        ),
+                                                      ),
+                                                  child: const Text(
+                                                    'Reactivate',
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    );
                                   },
                                 ),
                         ),

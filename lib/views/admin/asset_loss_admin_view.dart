@@ -83,8 +83,8 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
   static int _triageOrder(Map<String, dynamic> a, Map<String, dynamic> b) {
     int rank(Map<String, dynamic> r) =>
         (r['status'] == 'pending_review' || r['status'] == 'helper_verified')
-            ? 0
-            : 1;
+        ? 0
+        : 1;
     final byStatus = rank(a).compareTo(rank(b));
     if (byStatus != 0) return byStatus;
     final av = (a['estimated_total_loss'] as num?)?.toDouble() ?? 0;
@@ -156,117 +156,127 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
                 desktop: 1100,
               ),
             ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: AdaptiveSearchFilterHeader(
-                    searchField: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search by asset, address, or category',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _searchQuery.isEmpty
-                            ? null
-                            : IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: _searchController.clear,
-                              ),
-                        isDense: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                    portraitFilters: [
-                      SizedBox(
-                        height: 48,
-                        child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _statusFilters.length,
-                          separatorBuilder: (context, index) =>
-                              const SizedBox(width: 8),
-                          itemBuilder: (context, index) {
-                            final value = _statusFilters[index];
-                            final selected = _statusFilter == value;
-                            return ChoiceChip(
-                              label: Text(value),
-                              selected: selected,
-                              onSelected: (_) =>
-                                  setState(() => _statusFilter = value),
-                              selectedColor: Colors.blue.shade100,
-                              labelStyle: TextStyle(
-                                color: selected
-                                    ? Colors.blue.shade900
-                                    : Colors.black87,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      _buildStateFilterDropdown(),
-                    ],
-                    sheetTitle: 'Filter asset loss reports',
-                    activeFilterCount:
-                        (_statusFilter == 'All' ? 0 : 1) +
-                        (_stateFilter == 'all' ? 0 : 1),
-                    sheetBuilder: (context, setSheetState) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Status',
-                          style: Theme.of(context).textTheme.labelLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final value in _statusFilters)
-                              ChoiceChip(
-                                label: Text(value),
-                                selected: _statusFilter == value,
-                                onSelected: (_) {
-                                  setState(() => _statusFilter = value);
-                                  setSheetState(() {});
-                                },
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          'State',
-                          style: Theme.of(context).textTheme.labelLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          key: ValueKey('sheet-state-$_stateFilter'),
-                          initialValue: _stateFilter,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          items: _stateOptions
-                              .map(
-                                (state) => DropdownMenuItem(
-                                  value: state,
-                                  child: Text(_stateLabel(state)),
+            // CustomScrollView (not Column+Expanded) so that if the header
+            // — search field + filter chips/button — ever needs more height
+            // than is available (e.g. landscape with the keyboard open,
+            // where viewport height is already tight), the whole page
+            // scrolls to fit it instead of overflowing. Same fix as
+            // UserManagementView/FacilityManagementView/HelperAssignmentAdminView/
+            // FloodReportAdminView.
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: AdaptiveSearchFilterHeader(
+                      searchField: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search by asset, address, or category',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _searchQuery.isEmpty
+                              ? null
+                              : IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: _searchController.clear,
                                 ),
-                              )
-                              .toList(),
-                          onChanged: (state) {
-                            if (state == null) return;
-                            setState(() => _stateFilter = state);
-                            setSheetState(() {});
-                          },
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
+                      ),
+                      portraitFilters: [
+                        SizedBox(
+                          height: 48,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _statusFilters.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(width: 8),
+                            itemBuilder: (context, index) {
+                              final value = _statusFilters[index];
+                              final selected = _statusFilter == value;
+                              return ChoiceChip(
+                                label: Text(value),
+                                selected: selected,
+                                onSelected: (_) =>
+                                    setState(() => _statusFilter = value),
+                                selectedColor: Colors.blue.shade100,
+                                labelStyle: TextStyle(
+                                  color: selected
+                                      ? Colors.blue.shade900
+                                      : Colors.black87,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        _buildStateFilterDropdown(),
                       ],
+                      sheetTitle: 'Filter asset loss reports',
+                      activeFilterCount:
+                          (_statusFilter == 'All' ? 0 : 1) +
+                          (_stateFilter == 'all' ? 0 : 1),
+                      sheetBuilder: (context, setSheetState) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Status',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final value in _statusFilters)
+                                ChoiceChip(
+                                  label: Text(value),
+                                  selected: _statusFilter == value,
+                                  onSelected: (_) {
+                                    setState(() => _statusFilter = value);
+                                    setSheetState(() {});
+                                  },
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'State',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            key: ValueKey('sheet-state-$_stateFilter'),
+                            initialValue: _stateFilter,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            items: _stateOptions
+                                .map(
+                                  (state) => DropdownMenuItem(
+                                    value: state,
+                                    child: Text(_stateLabel(state)),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (state) {
+                              if (state == null) return;
+                              setState(() => _stateFilter = state);
+                              setSheetState(() {});
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                Expanded(
+                SliverFillRemaining(
+                  hasScrollBody: true,
                   child: RefreshIndicator(
                     onRefresh: _refresh,
                     child: FutureBuilder<List<Map<String, dynamic>>>(

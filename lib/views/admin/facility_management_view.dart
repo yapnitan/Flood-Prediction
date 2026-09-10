@@ -57,7 +57,8 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
     final saved = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (context) => FacilityFormView(controller: _controller, existing: existing),
+        builder: (context) =>
+            FacilityFormView(controller: _controller, existing: existing),
       ),
     );
     if (saved == true) _refresh();
@@ -81,111 +82,129 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
         child: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: context.responsive(mobile: 700, tablet: 900, desktop: 1100),
+              maxWidth: context.responsive(
+                mobile: 700,
+                tablet: 900,
+                desktop: 1100,
+              ),
             ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: AdaptiveSearchFilterHeader(
-                    searchField: TextField(
-                      controller: _searchController,
-                      onChanged: (value) => setState(
-                        () => _searchQuery = value.trim().toLowerCase(),
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Search shelters by name',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _searchQuery.isEmpty
-                            ? null
-                            : IconButton(
-                                icon: const Icon(Icons.clear),
-                                tooltip: 'Clear search',
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() => _searchQuery = '');
-                                },
-                              ),
-                        isDense: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
+            // CustomScrollView (not Column+Expanded) so that if the header
+            // — search field + filter chips/button — ever needs more height
+            // than is available (e.g. landscape with the keyboard open,
+            // where viewport height is already tight), the whole page
+            // scrolls to fit it instead of overflowing. Same fix as
+            // UserManagementView.
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: AdaptiveSearchFilterHeader(
+                      searchField: TextField(
+                        controller: _searchController,
+                        onChanged: (value) => setState(
+                          () => _searchQuery = value.trim().toLowerCase(),
                         ),
-                      ),
-                    ),
-                    portraitFilters: [
-                      _buildStatusFilterBar(),
-                      _buildStateFilterDropdown(),
-                    ],
-                    sheetTitle: 'Filter facilities',
-                    activeFilterCount:
-                        (_statusFilter == 'all' ? 0 : 1) +
-                        (_stateFilter == 'all' ? 0 : 1),
-                    sheetBuilder: (context, setSheetState) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Status',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final status in _statusOptions)
-                              ChoiceChip(
-                                label: Text(_statusLabel(status)),
-                                selected: _statusFilter == status,
-                                onSelected: (_) {
-                                  setState(() => _statusFilter = status);
-                                  setSheetState(() {});
-                                },
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        const Text(
-                          'State',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          key: ValueKey('sheet-state-$_stateFilter'),
-                          initialValue: _stateFilter,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          items: _stateOptions
-                              .map(
-                                (state) => DropdownMenuItem(
-                                  value: state,
-                                  child: Text(_stateLabel(state)),
+                        decoration: InputDecoration(
+                          hintText: 'Search shelters by name',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _searchQuery.isEmpty
+                              ? null
+                              : IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  tooltip: 'Clear search',
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() => _searchQuery = '');
+                                  },
                                 ),
-                              )
-                              .toList(),
-                          onChanged: (state) {
-                            if (state == null) return;
-                            setState(() => _stateFilter = state);
-                            setSheetState(() {});
-                          },
+                          isDense: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
+                      ),
+                      portraitFilters: [
+                        _buildStatusFilterBar(),
+                        _buildStateFilterDropdown(),
                       ],
+                      sheetTitle: 'Filter facilities',
+                      activeFilterCount:
+                          (_statusFilter == 'all' ? 0 : 1) +
+                          (_stateFilter == 'all' ? 0 : 1),
+                      sheetBuilder: (context, setSheetState) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Status',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final status in _statusOptions)
+                                ChoiceChip(
+                                  label: Text(_statusLabel(status)),
+                                  selected: _statusFilter == status,
+                                  onSelected: (_) {
+                                    setState(() => _statusFilter = status);
+                                    setSheetState(() {});
+                                  },
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          const Text(
+                            'State',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            key: ValueKey('sheet-state-$_stateFilter'),
+                            initialValue: _stateFilter,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            items: _stateOptions
+                                .map(
+                                  (state) => DropdownMenuItem(
+                                    value: state,
+                                    child: Text(_stateLabel(state)),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (state) {
+                              if (state == null) return;
+                              setState(() => _stateFilter = state);
+                              setSheetState(() {});
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                Expanded(
+                SliverFillRemaining(
+                  hasScrollBody: true,
                   child: RefreshIndicator(
                     onRefresh: _refresh,
                     child: FutureBuilder<List<Facility>>(
                       future: _facilitiesFuture,
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
                         }
                         if (snapshot.hasError) {
-                          return const Center(child: Text('Could not load facilities.'));
+                          return const Center(
+                            child: Text('Could not load facilities.'),
+                          );
                         }
 
                         var facilities = snapshot.data ?? [];
@@ -193,8 +212,7 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
                           final showActive = _statusFilter == 'active';
                           facilities = facilities
                               .where(
-                                (facility) =>
-                                    facility.isActive == showActive,
+                                (facility) => facility.isActive == showActive,
                               )
                               .toList();
                         }
@@ -217,34 +235,40 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
 
                         if (facilities.isEmpty) {
                           return LayoutBuilder(
-                            builder: (context, constraints) => SingleChildScrollView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                                child: Center(
-                                  child: Text(
-                                    _searchQuery.isNotEmpty
-                                        ? 'No shelters match your search.'
-                                        : _statusFilter == 'active'
-                                        ? 'No active facilities.'
-                                        : _statusFilter == 'inactive'
-                                        ? 'No inactive facilities.'
-                                        : 'No facilities yet. Tap + to add one.',
+                            builder: (context, constraints) =>
+                                SingleChildScrollView(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      minHeight: constraints.maxHeight,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        _searchQuery.isNotEmpty
+                                            ? 'No shelters match your search.'
+                                            : _statusFilter == 'active'
+                                            ? 'No active facilities.'
+                                            : _statusFilter == 'inactive'
+                                            ? 'No inactive facilities.'
+                                            : 'No facilities yet. Tap + to add one.',
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
                           );
                         }
 
                         return ListView.separated(
                           padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
                           itemCount: facilities.length,
-                          separatorBuilder: (context, index) => const SizedBox(height: 12),
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 12),
                           itemBuilder: (context, index) => _FacilityCard(
                             facility: facilities[index],
                             onTap: () => _openForm(existing: facilities[index]),
-                            onToggleActive: () => _toggleActive(facilities[index]),
+                            onToggleActive: () =>
+                                _toggleActive(facilities[index]),
                           ),
                         );
                       },
@@ -275,7 +299,9 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
             selected: selected,
             onSelected: (_) => setState(() => _statusFilter = status),
             selectedColor: Colors.blue.shade100,
-            labelStyle: TextStyle(color: selected ? Colors.blue.shade900 : Colors.black87),
+            labelStyle: TextStyle(
+              color: selected ? Colors.blue.shade900 : Colors.black87,
+            ),
           );
         },
       ),
@@ -346,25 +372,42 @@ class _FacilityCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     facility.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
                   ),
                 ),
-                Switch(value: facility.isActive, onChanged: (_) => onToggleActive()),
+                Switch(
+                  value: facility.isActive,
+                  onChanged: (_) => onToggleActive(),
+                ),
               ],
             ),
             const SizedBox(height: 4),
             Row(
               children: [
-                Icon(_iconFor(facility.facilityType), size: 14, color: Colors.blueGrey),
+                Icon(
+                  _iconFor(facility.facilityType),
+                  size: 14,
+                  color: Colors.blueGrey,
+                ),
                 const SizedBox(width: 4),
-                Text(facility.typeLabel, style: const TextStyle(color: Colors.blueGrey, fontSize: 12)),
+                Text(
+                  facility.typeLabel,
+                  style: const TextStyle(color: Colors.blueGrey, fontSize: 12),
+                ),
               ],
             ),
             if (facility.address != null) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.location_on_outlined, size: 14, color: Colors.grey),
+                  const Icon(
+                    Icons.location_on_outlined,
+                    size: 14,
+                    color: Colors.grey,
+                  ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(

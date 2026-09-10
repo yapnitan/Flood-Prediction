@@ -170,8 +170,9 @@ class _UserManagementViewState extends State<UserManagementView> {
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _roleLabel(String role) =>
@@ -209,7 +210,9 @@ class _UserManagementViewState extends State<UserManagementView> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Reject this sign-up?'),
-        content: Text("$who won't be able to log in. You can reconsider later."),
+        content: Text(
+          "$who won't be able to log in. You can reconsider later.",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -315,7 +318,10 @@ class _UserManagementViewState extends State<UserManagementView> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: roleColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -480,105 +486,116 @@ class _UserManagementViewState extends State<UserManagementView> {
                 desktop: 900,
               ),
             ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    context.responsive(mobile: 16, tablet: 24, desktop: 32),
-                    16,
-                    context.responsive(mobile: 16, tablet: 24, desktop: 32),
-                    8,
-                  ),
-                  child: AdaptiveSearchFilterHeader(
-                    searchField: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search by name or email',
-                        prefixIcon: const Icon(Icons.search),
-                        suffixIcon: _searchQuery.isEmpty
-                            ? null
-                            : IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: _searchController.clear,
-                              ),
-                        isDense: true,
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
+            // CustomScrollView (not Column+Expanded) so that if the header
+            // — search field + filter chips/button — ever needs more height
+            // than is available (e.g. landscape with the keyboard open,
+            // where viewport height is already tight), the whole page
+            // scrolls to fit it instead of overflowing. A rigid Column
+            // child can't shrink below its natural size, so with a plain
+            // Column that scenario used to overflow right below the search
+            // bar.
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      context.responsive(mobile: 16, tablet: 24, desktop: 32),
+                      16,
+                      context.responsive(mobile: 16, tablet: 24, desktop: 32),
+                      8,
                     ),
-                    portraitFilters: [
-                      _buildFilterBar(
-                        options: _statusFilters,
-                        selected: _statusFilter,
-                        onSelected: (value) =>
-                            setState(() => _statusFilter = value),
-                        labelBuilder: _statusFilterLabel,
+                    child: AdaptiveSearchFilterHeader(
+                      searchField: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search by name or email',
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _searchQuery.isEmpty
+                              ? null
+                              : IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: _searchController.clear,
+                                ),
+                          isDense: true,
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
                       ),
-                      _buildFilterBar(
-                        options: _roleFilters,
-                        selected: _roleFilter,
-                        onSelected: (value) =>
-                            setState(() => _roleFilter = value),
-                        labelBuilder: _roleFilterLabel,
-                      ),
-                    ],
-                    sheetTitle: 'Filter users',
-                    activeFilterCount:
-                        (_statusFilter == 'all' ? 0 : 1) +
-                        (_roleFilter == 'all' ? 0 : 1),
-                    sheetBuilder: (context, setSheetState) => Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Status',
-                          style: Theme.of(context).textTheme.labelLarge,
+                      portraitFilters: [
+                        _buildFilterBar(
+                          options: _statusFilters,
+                          selected: _statusFilter,
+                          onSelected: (value) =>
+                              setState(() => _statusFilter = value),
+                          labelBuilder: _statusFilterLabel,
                         ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final status in _statusFilters)
-                              ChoiceChip(
-                                label: Text(_statusFilterLabel(status)),
-                                selected: _statusFilter == status,
-                                onSelected: (_) {
-                                  setState(() => _statusFilter = status);
-                                  setSheetState(() {});
-                                },
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          'Role',
-                          style: Theme.of(context).textTheme.labelLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final role in _roleFilters)
-                              ChoiceChip(
-                                label: Text(_roleFilterLabel(role)),
-                                selected: _roleFilter == role,
-                                onSelected: (_) {
-                                  setState(() => _roleFilter = role);
-                                  setSheetState(() {});
-                                },
-                              ),
-                          ],
+                        _buildFilterBar(
+                          options: _roleFilters,
+                          selected: _roleFilter,
+                          onSelected: (value) =>
+                              setState(() => _roleFilter = value),
+                          labelBuilder: _roleFilterLabel,
                         ),
                       ],
+                      sheetTitle: 'Filter users',
+                      activeFilterCount:
+                          (_statusFilter == 'all' ? 0 : 1) +
+                          (_roleFilter == 'all' ? 0 : 1),
+                      sheetBuilder: (context, setSheetState) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Status',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final status in _statusFilters)
+                                ChoiceChip(
+                                  label: Text(_statusFilterLabel(status)),
+                                  selected: _statusFilter == status,
+                                  onSelected: (_) {
+                                    setState(() => _statusFilter = status);
+                                    setSheetState(() {});
+                                  },
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'Role',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final role in _roleFilters)
+                                ChoiceChip(
+                                  label: Text(_roleFilterLabel(role)),
+                                  selected: _roleFilter == role,
+                                  onSelected: (_) {
+                                    setState(() => _roleFilter = role);
+                                    setSheetState(() {});
+                                  },
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                Expanded(
+                SliverFillRemaining(
+                  hasScrollBody: true,
                   child: RefreshIndicator(
                     onRefresh: () async => _refresh(),
                     child: FutureBuilder<List<Account>>(
