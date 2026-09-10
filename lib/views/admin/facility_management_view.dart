@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/facility_controller.dart';
 import '../../models/facility.dart';
 import '../../services/facility_service.dart';
+import '../../utils/malaysia_geocoding.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/adaptive_search_filter_header.dart';
 import 'facility_form_view.dart';
@@ -18,9 +19,16 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
   final _searchController = TextEditingController();
   late Future<List<Facility>> _facilitiesFuture;
   String _searchQuery = '';
-  String _typeFilter = 'all';
+  String _statusFilter = 'all';
+  String _stateFilter = 'all';
 
-  static const _typeOptions = ['all', 'shelter', 'distribution_center', 'medical_station'];
+  static const _statusOptions = ['all', 'active', 'inactive'];
+
+  static String _statusLabel(String status) => switch (status) {
+    'active' => 'Active',
+    'inactive' => 'Inactive',
+    _ => 'All',
+  };
 
   @override
   void initState() {
@@ -103,26 +111,65 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
                         ),
                       ),
                     ),
-                    portraitFilters: [_buildFilterBar()],
+                    portraitFilters: [
+                      _buildStatusFilterBar(),
+                      _buildStateFilterDropdown(),
+                    ],
                     sheetTitle: 'Filter facilities',
-                    activeFilterCount: _typeFilter == 'all' ? 0 : 1,
-                    sheetBuilder: (context, setSheetState) => Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                    activeFilterCount:
+                        (_statusFilter == 'all' ? 0 : 1) +
+                        (_stateFilter == 'all' ? 0 : 1),
+                    sheetBuilder: (context, setSheetState) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        for (final type in _typeOptions)
-                          ChoiceChip(
-                            label: Text(
-                              type == 'all'
-                                  ? 'All'
-                                  : Facility.typeLabels[type]!,
-                            ),
-                            selected: _typeFilter == type,
-                            onSelected: (_) {
-                              setState(() => _typeFilter = type);
-                              setSheetState(() {});
-                            },
+                        const Text(
+                          'Status',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final status in _statusOptions)
+                              ChoiceChip(
+                                label: Text(_statusLabel(status)),
+                                selected: _statusFilter == status,
+                                onSelected: (_) {
+                                  setState(() => _statusFilter = status);
+                                  setSheetState(() {});
+                                },
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'State',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          key: ValueKey('sheet-state-$_stateFilter'),
+                          initialValue: _stateFilter,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            isDense: true,
                           ),
+                          items: _stateOptions
+                              .map(
+                                (state) => DropdownMenuItem(
+                                  value: state,
+                                  child: Text(_stateLabel(state)),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (state) {
+                            if (state == null) return;
+                            setState(() => _stateFilter = state);
+                            setSheetState(() {});
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -141,8 +188,21 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
                         }
 
                         var facilities = snapshot.data ?? [];
-                        if (_typeFilter != 'all') {
-                          facilities = facilities.where((f) => f.facilityType == _typeFilter).toList();
+                        if (_statusFilter != 'all') {
+                          final showActive = _statusFilter == 'active';
+                          facilities = facilities
+                              .where(
+                                (facility) =>
+                                    facility.isActive == showActive,
+                              )
+                              .toList();
+                        }
+                        if (_stateFilter != 'all') {
+                          facilities = facilities
+                              .where(
+                                (facility) => facility.state == _stateFilter,
+                              )
+                              .toList();
                         }
                         if (_searchQuery.isNotEmpty) {
                           facilities = facilities
@@ -164,6 +224,10 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
                                   child: Text(
                                     _searchQuery.isNotEmpty
                                         ? 'No shelters match your search.'
+                                        : _statusFilter == 'active'
+                                        ? 'No active facilities.'
+                                        : _statusFilter == 'inactive'
+                                        ? 'No inactive facilities.'
                                         : 'No facilities yet. Tap + to add one.',
                                   ),
                                 ),
@@ -194,25 +258,55 @@ class _FacilityManagementViewState extends State<FacilityManagementView> {
     );
   }
 
-  Widget _buildFilterBar() {
+  Widget _buildStatusFilterBar() {
     return SizedBox(
       height: 48,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(vertical: 8),
         scrollDirection: Axis.horizontal,
-        itemCount: _typeOptions.length,
+        itemCount: _statusOptions.length,
         separatorBuilder: (context, index) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
-          final type = _typeOptions[index];
-          final selected = _typeFilter == type;
-          final label = type == 'all' ? 'All' : Facility.typeLabels[type]!;
+          final status = _statusOptions[index];
+          final selected = _statusFilter == status;
           return ChoiceChip(
-            label: Text(label),
+            label: Text(_statusLabel(status)),
             selected: selected,
-            onSelected: (_) => setState(() => _typeFilter = type),
+            onSelected: (_) => setState(() => _statusFilter = status),
             selectedColor: Colors.blue.shade100,
             labelStyle: TextStyle(color: selected ? Colors.blue.shade900 : Colors.black87),
           );
+        },
+      ),
+    );
+  }
+
+  List<String> get _stateOptions => ['all', ...MalaysiaGeocoder.states];
+
+  String _stateLabel(String state) => state == 'all' ? 'All states' : state;
+
+  Widget _buildStateFilterDropdown() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('page-state-$_stateFilter'),
+        initialValue: _stateFilter,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'State',
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        items: _stateOptions
+            .map(
+              (state) => DropdownMenuItem(
+                value: state,
+                child: Text(_stateLabel(state)),
+              ),
+            )
+            .toList(),
+        onChanged: (state) {
+          if (state != null) setState(() => _stateFilter = state);
         },
       ),
     );

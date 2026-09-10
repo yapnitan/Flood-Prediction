@@ -4,6 +4,7 @@ import '../../constants/asset_categories.dart';
 import '../../controllers/asset_loss_report_controller.dart';
 import '../../services/asset_loss_report_service.dart';
 import '../../utils/currency_input.dart';
+import '../../utils/malaysia_geocoding.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/adaptive_search_filter_header.dart';
 import '../../widgets/empty_state.dart';
@@ -28,6 +29,7 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
 
   late Future<List<Map<String, dynamic>>> _reportsFuture;
   String _statusFilter = 'All';
+  String _stateFilter = 'all';
   String _searchQuery = '';
 
   static const _statusFilters = [
@@ -203,9 +205,12 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
                           },
                         ),
                       ),
+                      _buildStateFilterDropdown(),
                     ],
                     sheetTitle: 'Filter asset loss reports',
-                    activeFilterCount: _statusFilter == 'All' ? 0 : 1,
+                    activeFilterCount:
+                        (_statusFilter == 'All' ? 0 : 1) +
+                        (_stateFilter == 'all' ? 0 : 1),
                     sheetBuilder: (context, setSheetState) => Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -228,6 +233,34 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
                                 },
                               ),
                           ],
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'State',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          key: ValueKey('sheet-state-$_stateFilter'),
+                          initialValue: _stateFilter,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          items: _stateOptions
+                              .map(
+                                (state) => DropdownMenuItem(
+                                  value: state,
+                                  child: Text(_stateLabel(state)),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (state) {
+                            if (state == null) return;
+                            setState(() => _stateFilter = state);
+                            setSheetState(() {});
+                          },
                         ),
                       ],
                     ),
@@ -259,6 +292,13 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
                           rows = rows
                               .where((r) => r['status'] == statusValue)
                               .toList();
+                        }
+                        if (_stateFilter != 'all') {
+                          rows = rows.where((row) {
+                            final property =
+                                row['property'] as Map<String, dynamic>?;
+                            return property?['state'] == _stateFilter;
+                          }).toList();
                         }
                         if (_searchQuery.isNotEmpty) {
                           rows = rows.where((r) {
@@ -297,6 +337,37 @@ class _AssetLossAdminViewState extends State<AssetLossAdminView> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  List<String> get _stateOptions => ['all', ...MalaysiaGeocoder.states];
+
+  String _stateLabel(String state) => state == 'all' ? 'All states' : state;
+
+  Widget _buildStateFilterDropdown() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('page-state-$_stateFilter'),
+        initialValue: _stateFilter,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'State',
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        items: _stateOptions
+            .map(
+              (state) => DropdownMenuItem(
+                value: state,
+                child: Text(_stateLabel(state)),
+              ),
+            )
+            .toList(),
+        onChanged: (state) {
+          if (state != null) setState(() => _stateFilter = state);
+        },
       ),
     );
   }
