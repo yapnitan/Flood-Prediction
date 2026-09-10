@@ -57,4 +57,27 @@ void main() {
       expect(validateLongitude(-50), isNotNull);
     });
   });
+
+  group('validatePassword', () {
+    test('accepts a password meeting every rule', () {
+      expect(validatePassword('Abcdef1!'), isNull);
+      expect(validatePassword('Str0ng#Pass'), isNull);
+    });
+
+    test('rejects an empty password', () {
+      expect(validatePassword(''), 'Please enter a password');
+      expect(validatePassword(null), 'Please enter a password');
+    });
+
+    test('rejects a password that is too short', () {
+      expect(validatePassword('Ab1!'), contains('at least 8 characters'));
+    });
+
+    test('rejects a missing character class', () {
+      expect(validatePassword('abcdef1!'), contains('an uppercase letter'));
+      expect(validatePassword('ABCDEF1!'), contains('a lowercase letter'));
+      expect(validatePassword('Abcdefg!'), contains('a number'));
+      expect(validatePassword('Abcdefg1'), contains('a symbol'));
+    });
+  });
 }

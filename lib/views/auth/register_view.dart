@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/auth_controller.dart';
 import '../../services/auth_service.dart';
 import '../../utils/responsive.dart';
+import '../../utils/validators.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/password_field.dart';
 
@@ -48,11 +49,7 @@ class _RegisterViewState extends State<RegistrationPage> {
       _clearFormErrors();
       if (name.isEmpty) nameError = "Please enter your name";
       if (email.isEmpty) emailError = "Please enter your email";
-      if (password.isEmpty) {
-        passwordError = "Please enter a password";
-      } else if (password.length < 8) {
-        passwordError = "Password must be at least 8 characters";
-      }
+      passwordError = validatePassword(password);
       if (confirmPassword.isEmpty) {
         confirmPasswordError = "Please confirm your password";
       } else if (password != confirmPassword) {
@@ -306,7 +303,15 @@ class _RegisterViewState extends State<RegistrationPage> {
           bold: true,
           errorText: passwordError,
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 6),
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            passwordPolicyHint,
+            style: TextStyle(fontSize: 11, color: Colors.grey),
+          ),
+        ),
+        const SizedBox(height: 14),
 
         PasswordField(
           controller: confirmPasswordController,

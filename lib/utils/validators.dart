@@ -61,3 +61,22 @@ String? validateLongitude(double? value) {
   }
   return null;
 }
+
+const String passwordPolicyHint =
+    'At least 8 characters, with an uppercase letter, a lowercase letter, a '
+    'number, and a symbol.';
+
+String? validatePassword(String? value) {
+  final password = value ?? '';
+  if (password.isEmpty) return 'Please enter a password';
+
+  final missing = <String>[
+    if (password.length < 8) 'at least 8 characters',
+    if (!RegExp(r'[A-Z]').hasMatch(password)) 'an uppercase letter',
+    if (!RegExp(r'[a-z]').hasMatch(password)) 'a lowercase letter',
+    if (!RegExp(r'[0-9]').hasMatch(password)) 'a number',
+    if (!RegExp(r'[^A-Za-z0-9\s]').hasMatch(password)) 'a symbol',
+  ];
+  if (missing.isEmpty) return null;
+  return 'Password needs ${missing.join(', ')}.';
+}

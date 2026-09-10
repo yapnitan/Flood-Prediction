@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/auth_controller.dart';
 import '../../services/auth_service.dart';
 import '../../utils/responsive.dart';
+import '../../utils/validators.dart';
 import '../../widgets/password_field.dart';
 import 'dart:async';
 
@@ -97,9 +98,7 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
 
     setState(() {
       _codeError = code.isEmpty ? 'Enter the code from your email' : null;
-      _passwordError = (password.isEmpty || password.length < 8)
-          ? 'Password must be at least 8 characters'
-          : null;
+      _passwordError = validatePassword(password);
       _confirmError = password != confirm ? 'Passwords do not match' : null;
     });
     if (_codeError != null || _passwordError != null || _confirmError != null) {
@@ -264,7 +263,15 @@ class _ForgotPasswordState extends State<ForgotPasswordPage> {
           labelText: 'New password',
           errorText: _passwordError,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 6),
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            passwordPolicyHint,
+            style: TextStyle(fontSize: 11, color: Colors.grey),
+          ),
+        ),
+        const SizedBox(height: 12),
         PasswordField(
           controller: _confirmController,
           labelText: 'Confirm new password',

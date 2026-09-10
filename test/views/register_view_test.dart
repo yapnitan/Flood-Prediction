@@ -3,9 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flood_prediction/views/auth/register_view.dart';
 
 void main() {
-  // Like login_view_test.dart, these only exercise RegistrationPage's
-  // field-level guard clauses in register(), all of which return before
-  // calling AuthController/Supabase.
   const nameField = 0;
   const emailField = 1;
   const passwordField = 2;
@@ -25,7 +22,7 @@ void main() {
     expect(find.text('Please confirm your password'), findsOneWidget);
   });
 
-  testWidgets('rejects a password shorter than 8 characters', (tester) async {
+  testWidgets('rejects a password that does not meet the policy', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: RegistrationPage()));
 
     await tester.enterText(find.byType(TextField).at(nameField), 'Jane Doe');
@@ -38,7 +35,7 @@ void main() {
     await tester.tap(registerButton);
     await tester.pump();
 
-    expect(find.text('Password must be at least 8 characters'), findsOneWidget);
+    expect(find.textContaining('Password needs'), findsOneWidget);
   });
 
   testWidgets('rejects mismatched password and confirmation', (tester) async {

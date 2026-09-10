@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/auth_controller.dart';
 import '../../services/auth_service.dart';
 import '../../utils/responsive.dart';
+import '../../utils/validators.dart';
 import '../../widgets/password_field.dart';
 
 class ChangePasswordView extends StatefulWidget {
@@ -31,9 +32,7 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
 
     setState(() {
       _currentError = current.isEmpty ? 'Enter your current password' : null;
-      _newError = (newPassword.isEmpty || newPassword.length < 8)
-          ? 'New password must be at least 8 characters'
-          : null;
+      _newError = validatePassword(newPassword);
       _confirmError = newPassword != confirm
           ? 'New passwords do not match'
           : null;
@@ -105,7 +104,12 @@ class _ChangePasswordViewState extends State<ChangePasswordView> {
                       labelText: 'New password',
                       errorText: _newError,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 6),
+                    const Text(
+                      passwordPolicyHint,
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
                     PasswordField(
                       controller: _confirmController,
                       labelText: 'Confirm new password',
