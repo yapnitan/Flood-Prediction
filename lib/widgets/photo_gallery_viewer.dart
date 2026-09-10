@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Full-screen, swipeable, pinch-to-zoom viewer for a list of already
-/// resolved photo URLs. Push with [MaterialPageRoute] (typically
-/// `fullscreenDialog: true`) after resolving storage paths to signed URLs.
 class PhotoGalleryViewer extends StatelessWidget {
   const PhotoGalleryViewer({
     super.key,

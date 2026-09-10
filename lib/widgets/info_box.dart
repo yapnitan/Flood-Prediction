@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Shared white rounded-card container used for the Home tab's stat tiles
-/// (flood status, rainfall, water level, risk level, etc).
 class InfoBox extends StatelessWidget {
   final Widget child;
 

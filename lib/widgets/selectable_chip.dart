@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Selectable rounded-rectangle chip used for picking one option out of a
-/// small fixed set (flood type, water level, assistance type, etc).
 class SelectableChip extends StatelessWidget {
   final String label;
   final String? sublabel;

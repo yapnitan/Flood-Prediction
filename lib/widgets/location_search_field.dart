@@ -5,16 +5,6 @@ import 'package:flutter/material.dart';
 import '../constants/nearby_locations.dart';
 import '../services/location_service.dart';
 
-/// Address search field used on every location-picking form (flood report,
-/// property, facility). Type any Malaysian address to search Nominatim
-/// (debounced), or pick one of the built-in quick-pick locations shown while
-/// the query is short. On selection it reports the coordinate and the
-/// resolved state/district/postcode back to the parent form, reverse-
-/// geocoding to fill the area in when the search hit didn't carry it.
-///
-/// Uses a results panel rendered inline below the field (not a floating
-/// overlay) so its state — searching / results / "no matches" — is always
-/// visible and predictable.
 class LocationSearchField extends StatefulWidget {
   const LocationSearchField({
     super.key,
@@ -31,23 +21,16 @@ class LocationSearchField extends StatefulWidget {
   final TextEditingController controller;
   final InputDecoration decoration;
 
-  /// Fired with the picked place's coordinate.
   final void Function(double latitude, double longitude) onCoordinates;
 
-  /// Fired with the picked place's area — any field may be null when it
-  /// couldn't be resolved.
   final void Function({String? state, String? district, String? postcode}) onArea;
 
   final FocusNode? focusNode;
 
-  /// Fired when the user edits the text by hand (rather than picking a
-  /// suggestion) — the parent typically clears the stored coordinate so a
-  /// half-typed address isn't submitted with a stale pin.
   final VoidCallback? onManualEdit;
 
   final String? Function(String?)? validator;
 
-  /// Overridable for tests.
   final LocationService? locationService;
 
   @override
@@ -215,9 +198,6 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
     final subtitle = _areaSubtitle(place);
     return ListTile(
       dense: true,
-      // An address can occupy two lines, so a subtitle makes this a
-      // three-line tile. Reserving that height prevents the exact 1px
-      // overflow seen at larger text scales.
       isThreeLine: subtitle != null,
       leading: const Icon(Icons.location_on_outlined, color: Colors.grey),
       title: Text(

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Horizontal numbered step indicator with connecting lines, used by
-/// multi-step submission wizards (flood reports, repair requests).
 class StepIndicator extends StatelessWidget {
-  final int currentStep; // 1-based index of active step
+  final int currentStep;
   final List<String> steps;
 
   const StepIndicator({super.key, required this.currentStep, required this.steps});

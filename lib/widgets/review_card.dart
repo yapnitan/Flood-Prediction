@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Read-only "title + value" card used on a submission wizard's final
-/// review step.
 class ReviewCard extends StatelessWidget {
   const ReviewCard({super.key, required this.title, required this.value});
 

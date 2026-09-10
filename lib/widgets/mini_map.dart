@@ -20,9 +20,6 @@ class MapMarkerSpec {
   final VoidCallback? onTap;
 }
 
-/// shows where a request/facility is compared to everything else
-/// interactive: false — small fixed-height preview, pan/zoom disabled, used by user/helper
-/// interactive: true — pan/zoom/tap enabled, used by the admin
 class MiniMap extends StatelessWidget {
   const MiniMap({
     super.key,

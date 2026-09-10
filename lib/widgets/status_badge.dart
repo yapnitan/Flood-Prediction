@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Colored pill showing a repair_request/flood_report status value.
 class StatusBadge extends StatelessWidget {
   const StatusBadge({super.key, required this.status});
 
