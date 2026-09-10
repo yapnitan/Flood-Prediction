@@ -10,6 +10,7 @@ import '../../services/helper_assignment_service.dart';
 import '../../services/user_management_service.dart';
 import '../../utils/malaysia_geocoding.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/adaptive_search_filter_header.dart';
 import '../../widgets/empty_state.dart';
 
 /// Admin's Helper Assignment page (Task/asset report §32-§34): assigns
@@ -29,17 +30,55 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
   final _assignmentController = HelperAssignmentController(HelperAssignmentService());
   final _userManagementController = UserManagementController(UserManagementService());
   final _assetLossController = AssetLossReportController(AssetLossReportService());
+  final _searchController = TextEditingController();
 
   bool _isLoading = true;
   List<Map<String, dynamic>> _assignments = [];
   List<Account> _helpers = [];
   Map<String, int> _pendingByDistrict = {};
   Map<String, int> _completedByDistrict = {};
+  String _searchQuery = '';
+  String _statusFilter = 'all';
+  String _stateFilter = 'all';
+
+  static const _statusOptions = ['all', 'active', 'inactive'];
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  static String _statusLabel(String status) => switch (status) {
+    'active' => 'Active',
+    'inactive' => 'Inactive',
+    _ => 'All',
+  };
+
+  List<String> get _stateOptions => ['all', ...MalaysiaGeocoder.states];
+
+  String _stateLabel(String state) => state == 'all' ? 'All states' : state;
+
+  List<Map<String, dynamic>> _filteredAssignments() {
+    return _assignments.where((assignment) {
+      if (_statusFilter != 'all' && assignment['status'] != _statusFilter) {
+        return false;
+      }
+      if (_stateFilter != 'all' && assignment['state'] != _stateFilter) {
+        return false;
+      }
+      if (_searchQuery.isEmpty) return true;
+
+      final account = assignment['account'] as Map<String, dynamic>?;
+      final helperName = (account?['name'] as String? ?? '').toLowerCase();
+      return helperName.contains(_searchQuery);
+    }).toList();
   }
 
   Future<void> _load() async {
@@ -152,8 +191,154 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
     _load();
   }
 
+  Widget _buildStatusFilterBar() {
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        scrollDirection: Axis.horizontal,
+        itemCount: _statusOptions.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final status = _statusOptions[index];
+          final selected = _statusFilter == status;
+          return ChoiceChip(
+            label: Text(_statusLabel(status)),
+            selected: selected,
+            onSelected: (_) => setState(() => _statusFilter = status),
+            selectedColor: Colors.blue.shade100,
+            labelStyle: TextStyle(
+              color: selected ? Colors.blue.shade900 : Colors.black87,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildStateFilterDropdown() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('page-state-$_stateFilter'),
+        initialValue: _stateFilter,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'State',
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        items: _stateOptions
+            .map(
+              (state) => DropdownMenuItem(
+                value: state,
+                child: Text(_stateLabel(state)),
+              ),
+            )
+            .toList(),
+        onChanged: (state) {
+          if (state != null) setState(() => _stateFilter = state);
+        },
+      ),
+    );
+  }
+
+  Widget _buildFilterHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: AdaptiveSearchFilterHeader(
+        searchField: TextField(
+          controller: _searchController,
+          onChanged: (value) => setState(
+            () => _searchQuery = value.trim().toLowerCase(),
+          ),
+          decoration: InputDecoration(
+            hintText: 'Search helpers by name',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _searchQuery.isEmpty
+                ? null
+                : IconButton(
+                    icon: const Icon(Icons.clear),
+                    tooltip: 'Clear search',
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() => _searchQuery = '');
+                    },
+                  ),
+            isDense: true,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+        portraitFilters: [
+          _buildStatusFilterBar(),
+          _buildStateFilterDropdown(),
+        ],
+        sheetTitle: 'Filter helper assignments',
+        activeFilterCount:
+            (_statusFilter == 'all' ? 0 : 1) +
+            (_stateFilter == 'all' ? 0 : 1),
+        sheetBuilder: (context, setSheetState) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Status',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final status in _statusOptions)
+                  ChoiceChip(
+                    label: Text(_statusLabel(status)),
+                    selected: _statusFilter == status,
+                    onSelected: (_) {
+                      setState(() => _statusFilter = status);
+                      setSheetState(() {});
+                    },
+                  ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'State',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              key: ValueKey('sheet-state-$_stateFilter'),
+              initialValue: _stateFilter,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              items: _stateOptions
+                  .map(
+                    (state) => DropdownMenuItem(
+                      value: state,
+                      child: Text(_stateLabel(state)),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (state) {
+                if (state == null) return;
+                setState(() => _stateFilter = state);
+                setSheetState(() {});
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final assignments = _filteredAssignments();
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(title: const Text('Helper Assignments'), centerTitle: true),
@@ -168,20 +353,36 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
             : Center(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: context.responsive(mobile: 700, tablet: 800, desktop: 900)),
-                  child: RefreshIndicator(
-                    onRefresh: _load,
-                    child: _assignments.isEmpty
-                        ? const EmptyState(
-                            icon: Icons.map_outlined,
-                            title: 'No helper assignments yet',
-                            subtitle: 'Tap + to assign an approved helper to a state/district.',
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
-                            itemCount: _assignments.length,
-                            separatorBuilder: (context, index) => const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              final a = _assignments[index];
+                  child: Column(
+                    children: [
+                      _buildFilterHeader(),
+                      Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: _load,
+                          child: assignments.isEmpty
+                              ? EmptyState(
+                                  icon: Icons.map_outlined,
+                                  title:
+                                      _assignments.isEmpty &&
+                                          _searchQuery.isEmpty &&
+                                          _statusFilter == 'all' &&
+                                          _stateFilter == 'all'
+                                      ? 'No helper assignments yet'
+                                      : 'No helper assignments match these filters',
+                                  subtitle:
+                                      _assignments.isEmpty &&
+                                          _searchQuery.isEmpty &&
+                                          _statusFilter == 'all' &&
+                                          _stateFilter == 'all'
+                                      ? 'Tap + to assign an approved helper to a state/district.'
+                                      : null,
+                                )
+                              : ListView.separated(
+                                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
+                                  itemCount: assignments.length,
+                                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                                  itemBuilder: (context, index) {
+                                    final a = assignments[index];
                               final account = a['account'] as Map<String, dynamic>?;
                               final isActive = a['status'] == 'active';
                               final key = '${a['state']}|${a['district']}';
@@ -254,8 +455,11 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                                   ],
                                 ),
                               );
-                            },
-                          ),
+                                  },
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
