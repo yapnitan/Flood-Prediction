@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/facility_controller.dart';
 import '../../models/facility.dart';
 import '../../services/facility_service.dart';
+import '../../utils/currency_input.dart';
 import '../../utils/malaysia_geocoding.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/adaptive_search_filter_header.dart';
@@ -377,7 +378,10 @@ class _FacilityCard extends StatelessWidget {
             ],
             if (facility.capacity != null) ...[
               const SizedBox(height: 4),
-              Text('Capacity: ${facility.capacity}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+              Text(
+                'Capacity: ${groupThousands(facility.capacity.toString())}',
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
             ],
           ],
         ),

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:latlong2/latlong.dart';
 import '../../controllers/facility_controller.dart';
 import '../../models/facility.dart';
 import '../../services/location_service.dart';
+import '../../utils/currency_input.dart';
 import '../../utils/malaysia_geocoding.dart';
 import '../../utils/responsive.dart';
 import '../../utils/validators.dart';
@@ -41,6 +43,7 @@ class _FacilityFormViewState extends State<FacilityFormView> {
   /// Prefilled from the picked location's reverse geocode (state matched
   /// against known Malaysian names, district taken as-is), both editable.
   String? _state;
+  String? _locationError;
   bool _isActive = true;
   bool _isLocating = false;
   bool _isSaving = false;
@@ -104,7 +107,9 @@ class _FacilityFormViewState extends State<FacilityFormView> {
     _nameController = TextEditingController(text: existing?.name ?? '');
     _addressController = TextEditingController(text: existing?.address ?? '');
     _capacityController = TextEditingController(
-      text: existing?.capacity?.toString() ?? '',
+      text: existing?.capacity == null
+          ? ''
+          : groupThousands(existing!.capacity!.toString()),
     );
     _contactController = TextEditingController(
       text: existing?.contactNumber ?? '',
@@ -149,6 +154,7 @@ class _FacilityFormViewState extends State<FacilityFormView> {
       _isLocating = false;
       _latitude = details.position.latitude;
       _longitude = details.position.longitude;
+      _locationError = null;
       final readable = details.address?.trim();
       if (readable != null && readable.isNotEmpty) {
         _locationNameController.text = readable;
@@ -178,6 +184,7 @@ class _FacilityFormViewState extends State<FacilityFormView> {
     setState(() {
       _latitude = picked.point.latitude;
       _longitude = picked.point.longitude;
+      _locationError = null;
       final address = picked.geocode?.address?.trim();
       if (address != null && address.isNotEmpty) {
         _locationNameController.text = address;
@@ -196,15 +203,14 @@ class _FacilityFormViewState extends State<FacilityFormView> {
   Future<void> _save() async {
     if (_isSaving) return;
 
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    if (_latitude == null || _longitude == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please set a location for this facility.'),
-        ),
-      );
-      return;
-    }
+    final formIsValid = _formKey.currentState?.validate() ?? false;
+    final locationIsValid = _latitude != null && _longitude != null;
+    setState(() {
+      _locationError = locationIsValid
+          ? null
+          : 'Please select a location for this facility.';
+    });
+    if (!formIsValid || !locationIsValid) return;
 
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _isSaving = true);
@@ -224,7 +230,9 @@ class _FacilityFormViewState extends State<FacilityFormView> {
       district: _districtController.text.trim().isEmpty
           ? null
           : _districtController.text.trim(),
-      capacity: int.tryParse(_capacityController.text.trim()),
+      capacity: int.tryParse(
+        _capacityController.text.replaceAll(',', '').trim(),
+      ),
       contactNumber: _contactController.text.trim().isEmpty
           ? null
           : _contactController.text.trim(),
@@ -319,13 +327,14 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                             borderRadius: BorderRadius.all(Radius.circular(10)),
                           ),
                         ),
-                        onManualEdit: () {
+                        onManualEdit: () => setState(() {
                           _latitude = null;
                           _longitude = null;
-                        },
+                        }),
                         onCoordinates: (lat, lng) => setState(() {
                           _latitude = lat;
                           _longitude = lng;
+                          _locationError = null;
                           if (_addressController.text.trim().isEmpty) {
                             _addressController.text =
                                 _locationNameController.text;
@@ -338,6 +347,16 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                           ),
                         ),
                       ),
+                      if (_locationError != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _locationError!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
@@ -435,15 +454,24 @@ class _FacilityFormViewState extends State<FacilityFormView> {
                       TextFormField(
                         controller: _capacityController,
                         keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          const CurrencyInputFormatter(decimalDigits: 0),
+                        ],
                         decoration: const InputDecoration(
                           labelText: 'Capacity',
-                          hintText: 'Maximum number of people this shelter holds',
+                          hintText: 'Maximum 10,000',
                           border: OutlineInputBorder(),
                         ),
                         validator: (value) {
-                          final n = int.tryParse((value ?? '').trim());
+                          final n = int.tryParse(
+                            (value ?? '').replaceAll(',', '').trim(),
+                          );
                           if (n == null || n <= 0) {
                             return 'Enter the shelter capacity (a whole number).';
+                          }
+                          if (n > 10000) {
+                            return 'Capacity cannot exceed 10,000 people.';
                           }
                           return null;
                         },
