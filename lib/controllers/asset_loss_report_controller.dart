@@ -41,6 +41,9 @@ class AssetLossReportController {
 
   Future<String> getSignedPhotoUrl(String path) => service.getSignedPhotoUrl(path);
 
+  Future<List<String>> getSignedPhotoUrls(List<String> paths) =>
+      service.getSignedPhotoUrls(paths);
+
   /// For Admin
 
   Future<List<Map<String, dynamic>>> getAdminOverview() => service.getAdminOverview();

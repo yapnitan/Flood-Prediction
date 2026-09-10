@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../controllers/facility_controller.dart';
+import '../../controllers/helper_assignment_controller.dart';
 import '../../controllers/shelter_occupancy_controller.dart';
 import '../../models/facility.dart';
+import '../../models/helper_district_assignment.dart';
 import '../../models/shelter_occupancy_report.dart';
 import '../../services/facility_service.dart';
+import '../../services/helper_assignment_service.dart';
 import '../../services/shelter_occupancy_service.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/empty_state.dart';
@@ -23,10 +26,13 @@ class ShelterOccupancyView extends StatefulWidget {
 class _ShelterOccupancyViewState extends State<ShelterOccupancyView> {
   final _facilityController = FacilityController(FacilityService());
   final _occupancyController = ShelterOccupancyController(ShelterOccupancyService());
+  final _assignmentController =
+      HelperAssignmentController(HelperAssignmentService());
 
   bool _isLoading = true;
   List<Facility> _shelters = [];
   Map<String, ShelterOccupancyReport> _latestByFacility = {};
+  bool _hasActiveAssignment = false;
 
   @override
   void initState() {
@@ -35,11 +41,34 @@ class _ShelterOccupancyViewState extends State<ShelterOccupancyView> {
   }
 
   Future<void> _load() async {
-    final shelters = await _facilityController.getAssignableFacilities('shelter');
-    final latest = await _occupancyController.getLatestPerFacility();
+    final results = await Future.wait([
+      _facilityController.getAssignableFacilities('shelter'),
+      _occupancyController.getLatestPerFacility(),
+      _assignmentController.getMyAssignments(),
+    ]);
     if (!mounted) return;
+
+    final allShelters = results[0] as List<Facility>;
+    final latest = results[1] as Map<String, ShelterOccupancyReport>;
+    final assignments = (results[2] as List<HelperDistrictAssignment>)
+        .where((a) => a.isActive)
+        .toList();
+
+    // A helper only handles shelters that sit in one of their active
+    // state/district assignments — the RLS on shelter_occupancy_report
+    // (0040) enforces the same rule server-side.
+    final areas = assignments
+        .map((a) => '${a.state.trim().toLowerCase()}|${a.district.trim().toLowerCase()}')
+        .toSet();
+    final scopedShelters = allShelters.where((f) {
+      final state = (f.state ?? '').trim().toLowerCase();
+      final district = (f.district ?? '').trim().toLowerCase();
+      return areas.contains('$state|$district');
+    }).toList();
+
     setState(() {
-      _shelters = shelters;
+      _hasActiveAssignment = assignments.isNotEmpty;
+      _shelters = scopedShelters;
       _latestByFacility = latest;
       _isLoading = false;
     });
@@ -71,11 +100,21 @@ class _ShelterOccupancyViewState extends State<ShelterOccupancyView> {
                 ? const Center(child: CircularProgressIndicator())
                 : RefreshIndicator(
                     onRefresh: _load,
-                    child: _shelters.isEmpty
+                    child: !_hasActiveAssignment
+                        ? const EmptyState(
+                            icon: Icons.location_off_outlined,
+                            title: 'No district assigned',
+                            subtitle:
+                                'An admin needs to assign you to a state/district '
+                                'before you can view or record shelter occupancy.',
+                          )
+                        : _shelters.isEmpty
                         ? const EmptyState(
                             icon: Icons.night_shelter_outlined,
-                            title: 'No active shelters yet',
-                            subtitle: 'An admin needs to add one under Facilities first.',
+                            title: 'No shelters in your area',
+                            subtitle:
+                                'There are no active shelters in your assigned '
+                                'district(s) yet.',
                           )
                         : ListView.separated(
                             padding: const EdgeInsets.all(16),
@@ -332,6 +371,17 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
     ));
     if (!mounted) return;
     setState(() => _isSaving = false);
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not save — you can only record occupancy for shelters in '
+            'your assigned district.',
+          ),
+        ),
+      );
+      return;
+    }
     Navigator.pop(context, ok);
   }
 

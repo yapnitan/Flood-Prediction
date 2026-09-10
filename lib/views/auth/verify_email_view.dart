@@ -29,6 +29,10 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
   String _errorMessage = '';
   bool _codeSent = false;
 
+  /// Set when the entered email was never registered — the email step then
+  /// offers a shortcut to Sign Up instead of a plain error.
+  bool _notRegistered = false;
+
   int _cooldownSeconds = 0;
   Timer? _cooldownTimer;
 
@@ -59,31 +63,47 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     setState(() {
       _isSendingCode = true;
       _errorMessage = '';
+      _notRegistered = false;
     });
 
     final result = await _authController.resendSignupCode(email);
 
     if (!mounted) return;
 
-    if (result['status'] == 'success') {
+    final status = result['status'] as String?;
+    final message = result['message'] as String? ?? '';
+
+    if (status == 'success') {
       setState(() {
         _isSendingCode = false;
         _codeSent = true;
       });
-    } else {
-      final message = result['message'] as String? ?? '';
-      final waitSeconds = _extractRateLimitSeconds(message);
+      return;
+    }
 
+    if (status == 'not_registered') {
       setState(() {
         _isSendingCode = false;
-        if (waitSeconds != null) {
-          _errorMessage = '';
-          _startCooldown(waitSeconds);
-        } else {
-          _errorMessage = 'Something went wrong. Please try again.';
-        }
+        _notRegistered = true;
+        _errorMessage = message;
       });
+      return;
     }
+
+    final waitSeconds = _extractRateLimitSeconds(message);
+    setState(() {
+      _isSendingCode = false;
+      if (waitSeconds != null) {
+        _errorMessage = '';
+        _startCooldown(waitSeconds);
+      } else {
+        // 'already confirmed' etc. carry an actionable message; only the
+        // truly opaque failures fall back to the generic text.
+        _errorMessage = message.isNotEmpty
+            ? message
+            : 'Something went wrong. Please try again.';
+      }
+    });
   }
 
   /// Parses Supabase's rate-limit message (e.g. "...after 47 seconds...")
@@ -209,9 +229,32 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
           const SizedBox(height: 10),
         ],
 
+        if (_notRegistered) ...[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.pushReplacementNamed(
+                context,
+                AppRoutes.register,
+              ),
+              icon: const Icon(Icons.person_add_alt),
+              label: const Text('Go to Sign Up'),
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
+
         TextField(
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
+          onChanged: (_) {
+            if (_notRegistered || _errorMessage.isNotEmpty) {
+              setState(() {
+                _notRegistered = false;
+                _errorMessage = '';
+              });
+            }
+          },
           decoration: InputDecoration(
             labelText: 'Email',
             hintText: 'example@gmail.com',
