@@ -111,6 +111,9 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
 
   Future<void> _openAssignDialog({Map<String, dynamic>? existing}) async {
     String? helperId = existing?['helper_id'] as String?;
+    final existingAccount = existing?['account'] as Map<String, dynamic>?;
+    final existingHelperName =
+        existingAccount?['name'] as String? ?? 'Unknown helper';
     String state = existing?['state'] as String? ?? MalaysiaGeocoder.states.first;
     final districtController = TextEditingController(text: existing?['district'] as String? ?? '');
 
@@ -124,13 +127,42 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              DropdownButtonFormField<String>(
-                initialValue: _helpers.any((h) => h.id == helperId) ? helperId : null,
-                decoration: const InputDecoration(labelText: 'Helper'),
-                items: _helpers.map((h) => DropdownMenuItem(value: h.id, child: Text(h.name))).toList(),
-                onChanged: (value) => setDialogState(() => helperId = value),
-                hint: Text(_helpers.isEmpty ? 'No active helpers available' : 'Select a helper'),
-              ),
+              if (existing == null)
+                DropdownButtonFormField<String>(
+                  initialValue: _helpers.any((h) => h.id == helperId)
+                      ? helperId
+                      : null,
+                  decoration: const InputDecoration(labelText: 'Helper'),
+                  items: _helpers
+                      .map(
+                        (helper) => DropdownMenuItem(
+                          value: helper.id,
+                          child: Text(helper.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) =>
+                      setDialogState(() => helperId = value),
+                  hint: Text(
+                    _helpers.isEmpty
+                        ? 'No active helpers available'
+                        : 'Select a helper',
+                  ),
+                )
+              else
+                InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Helper',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person_outline, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(existingHelperName)),
+                    ],
+                  ),
+                ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: state,
@@ -150,11 +182,21 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
             TextButton(
               onPressed: () async {
                 if (helperId == null || districtController.text.trim().isEmpty) return;
-                final error = await _assignmentController.assign(HelperDistrictAssignment(
-                  helperId: helperId!,
-                  state: state,
-                  district: districtController.text.trim(),
-                ));
+                final district = districtController.text.trim();
+                final error = existing == null
+                    ? await _assignmentController.assign(
+                        HelperDistrictAssignment(
+                          helperId: helperId!,
+                          state: state,
+                          district: district,
+                        ),
+                      )
+                    : await _assignmentController.reassign(
+                        existingAssignmentId: existing!['id'] as String?,
+                        helperId: helperId!,
+                        state: state,
+                        district: district,
+                      );
                 if (!context.mounted) return;
                 if (error != null) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
@@ -436,18 +478,28 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                                     Row(
                                       children: [
                                         if (isActive) ...[
-                                          TextButton(
+                                          OutlinedButton(
                                             onPressed: () => _openAssignDialog(existing: a),
                                             child: const Text('Reassign'),
                                           ),
-                                          TextButton(
+                                          const SizedBox(width: 8),
+                                          OutlinedButton(
                                             onPressed: () => _deactivate(a['id'] as String),
-                                            style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: Colors.red,
+                                              side: const BorderSide(color: Colors.red),
+                                            ),
                                             child: const Text('Deactivate'),
                                           ),
                                         ] else
-                                          TextButton(
+                                          OutlinedButton(
                                             onPressed: () => _reactivate(a['id'] as String),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: Colors.green.shade700,
+                                              side: BorderSide(
+                                                color: Colors.green.shade700,
+                                              ),
+                                            ),
                                             child: const Text('Reactivate'),
                                           ),
                                       ],
