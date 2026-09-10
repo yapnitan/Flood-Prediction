@@ -32,9 +32,9 @@ class HelperAssignmentService {
   }
 
   /// Returns a user-facing error message on failure, or null on success.
-  /// A 23505 unique-index conflict is either "this district already has an
-  /// active helper" (0024) or "this helper is already assigned to a place"
-  /// (0042) — the constraint name tells them apart.
+  /// A place can have many active helpers, but a helper only one active
+  /// place — a 23505 conflict here always means that helper is already
+  /// assigned (uq_helper_district_assignment_active_helper, migration 0042).
   Future<String?> assign(HelperDistrictAssignment assignment) async {
     try {
       await _supabase.from(_table).insert(assignment.toJson());
@@ -42,11 +42,8 @@ class HelperAssignmentService {
     } on PostgrestException catch (e) {
       debugPrint('HelperAssignmentService.assign error: $e');
       if (e.code == '23505') {
-        if (e.message.contains('active_helper')) {
-          return 'This helper is already assigned to a place. Change their '
-              'place instead of adding another.';
-        }
-        return '${assignment.district}, ${assignment.state} already has an active helper assignment.';
+        return 'This helper is already assigned to a place. Change their '
+            'place instead of adding another.';
       }
       return 'Could not create the assignment. Please try again.';
     } catch (error) {
@@ -55,9 +52,7 @@ class HelperAssignmentService {
     }
   }
 
-  /// Returns a user-facing error message on failure (e.g. reactivating
-  /// would collide with another district's now-active assignment), or null
-  /// on success.
+  /// Returns a user-facing error message on failure, or null on success.
   Future<String?> setStatus(String id, String status) async {
     try {
       await _supabase
@@ -68,9 +63,7 @@ class HelperAssignmentService {
     } on PostgrestException catch (e) {
       debugPrint('HelperAssignmentService.setStatus error: $e');
       if (e.code == '23505') {
-        return e.message.contains('active_helper')
-            ? 'This helper already has an active place. Deactivate it first.'
-            : 'That district already has another active helper assignment.';
+        return 'This helper already has an active place. Deactivate it first.';
       }
       return 'Could not update the assignment. Please try again.';
     } catch (error) {
@@ -79,9 +72,9 @@ class HelperAssignmentService {
     }
   }
 
-  /// Deactivates [existingAssignmentId] (if any) and assigns [helperId] to
-  /// the same district in one call — the admin-facing "replace" action for
-  /// the one-active-helper-per-district conflict.
+  /// Deactivates [existingAssignmentId] (if any) and assigns [helperId] to a
+  /// new place in one call — the admin-facing "change place" action (a
+  /// helper may only have one active place).
   Future<String?> reassign({
     required String? existingAssignmentId,
     required String helperId,

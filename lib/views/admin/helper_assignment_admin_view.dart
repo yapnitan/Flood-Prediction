@@ -18,9 +18,10 @@ import '../../widgets/empty_state.dart';
 /// Admin's Helper Assignment page (Task/asset report §32-§34): assigns
 /// each approved helper to exactly one state/district ("their place") so
 /// they can verify Potential Asset Loss reports and log shelter occupancy
-/// there. One active place per helper and one active helper per district
-/// are both enforced at the DB level (migrations 0024 + 0042) — the admin
-/// can only ever *change* a helper's place, never stack a second one.
+/// there. A place can have many helpers, but a helper has only one active
+/// place (uq_helper_district_assignment_active_helper, migration 0042; the
+/// one-helper-per-district rule was dropped in 0044) — so the admin can
+/// only ever *change* a helper's place, never stack a second one on them.
 class HelperAssignmentAdminView extends StatefulWidget {
   const HelperAssignmentAdminView({super.key});
 
@@ -480,7 +481,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                                           _searchQuery.isEmpty &&
                                           _statusFilter == 'all' &&
                                           _stateFilter == 'all'
-                                      ? 'Tap + to assign an approved helper to a place. Each helper covers exactly one place.'
+                                      ? 'Tap + to assign an approved helper to a place. A place can have several helpers; each helper covers one place.'
                                       : null,
                                 )
                               : ListView.separated(

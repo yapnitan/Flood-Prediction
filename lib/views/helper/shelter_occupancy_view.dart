@@ -447,9 +447,11 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Could not save — you can only record occupancy for shelters in '
-            'your assigned district.',
+            'Could not save the occupancy. Check that you are assigned to this '
+            "shelter's district, the date is within the last few days, and the "
+            'count is not over capacity.',
           ),
+          duration: Duration(seconds: 5),
         ),
       );
       return;
