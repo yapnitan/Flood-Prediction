@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../constants/resource_cost_rates.dart';
@@ -38,8 +39,13 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
   List<ShelterOccupancyReport> _dailyLog = [];
   Map<String, Facility> _facilitiesById = {};
 
+  /// Global period filter — applies to the whole dashboard. Asset-loss
+  /// reports are filtered by their `created_at` date; shelter occupancy by
+  /// its `occupancy_date`.
   String _monthFilter = 'all'; // 'YYYY-MM'
   String _dayFilter = 'all'; // 'YYYY-MM-DD'
+
+  bool get _filtering => _monthFilter != 'all' || _dayFilter != 'all';
 
   @override
   void initState() {
@@ -66,13 +72,53 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
   String _monthKey(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}';
 
-  List<ShelterOccupancyReport> get _filteredLog => _dailyLog.where((r) {
-        if (_monthFilter != 'all' && _monthKey(r.occupancyDate) != _monthFilter) {
-          return false;
-        }
-        if (_dayFilter != 'all' && r.dateKey != _dayFilter) return false;
-        return true;
-      }).toList();
+  String _dayKey(DateTime d) =>
+      '${_monthKey(d)}-${d.day.toString().padLeft(2, '0')}';
+
+  bool _inPeriod(DateTime? d) {
+    if (d == null) return !_filtering; // undated rows only show unfiltered
+    if (_monthFilter != 'all' && _monthKey(d) != _monthFilter) return false;
+    if (_dayFilter != 'all' && _dayKey(d) != _dayFilter) return false;
+    return true;
+  }
+
+  DateTime? _reportDate(Map<String, dynamic> r) {
+    final raw = (r['created_at'] ?? r['reviewed_at']) as String?;
+    return raw == null ? null : DateTime.tryParse(raw)?.toLocal();
+  }
+
+  List<Map<String, dynamic>> get _filteredReports =>
+      _reports.where((r) => _inPeriod(_reportDate(r))).toList();
+
+  List<ShelterOccupancyReport> get _filteredLog =>
+      _dailyLog.where((r) => _inPeriod(r.occupancyDate)).toList();
+
+  /// Every YYYY-MM that has asset-loss reports or shelter occupancy, newest
+  /// first.
+  List<String> get _availableMonths {
+    final set = <String>{};
+    for (final r in _reports) {
+      final d = _reportDate(r);
+      if (d != null) set.add(_monthKey(d));
+    }
+    for (final r in _dailyLog) {
+      set.add(_monthKey(r.occupancyDate));
+    }
+    return set.toList()..sort((a, b) => b.compareTo(a));
+  }
+
+  List<String> get _availableDays {
+    if (_monthFilter == 'all') return const [];
+    final set = <String>{};
+    for (final r in _reports) {
+      final d = _reportDate(r);
+      if (d != null && _monthKey(d) == _monthFilter) set.add(_dayKey(d));
+    }
+    for (final r in _dailyLog) {
+      if (_monthKey(r.occupancyDate) == _monthFilter) set.add(r.dateKey);
+    }
+    return set.toList()..sort((a, b) => b.compareTo(a));
+  }
 
   double _sum(Iterable<Map<String, dynamic>> rows, String field) =>
       rows.fold(0.0, (sum, r) => sum + ((r[field] as num?)?.toDouble() ?? 0));
@@ -108,39 +154,34 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
     return '${p[2]}/${p[1]}/${p[0]}';
   }
 
-  Widget _buildResourceCostCard(double allTimeTotal) {
-    final months = _dailyLog
-        .map((r) => _monthKey(r.occupancyDate))
-        .toSet()
-        .toList()
-      ..sort((a, b) => b.compareTo(a));
-    final days = _monthFilter == 'all'
-        ? <String>[]
-        : (_dailyLog
-            .where((r) => _monthKey(r.occupancyDate) == _monthFilter)
-            .map((r) => r.dateKey)
-            .toSet()
-            .toList()
-          ..sort((a, b) => b.compareTo(a)));
-
-    final filtered = _filteredLog;
-    final byDate = <String, List<ShelterOccupancyReport>>{};
-    for (final r in filtered) {
-      byDate.putIfAbsent(r.dateKey, () => []).add(r);
-    }
-    final orderedDates = byDate.keys.toList()..sort((a, b) => b.compareTo(a));
-    final filteredTotal = filtered.fold<double>(0, (s, r) => s + r.cost);
-    final filtering = _monthFilter != 'all' || _dayFilter != 'all';
-
+  /// Global month / date selector — filters the whole dashboard.
+  Widget _buildPeriodFilter() {
+    final months = _availableMonths;
+    final days = _availableDays;
     return _Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Resource Consumption Cost by Date',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          Row(
+            children: [
+              const Icon(Icons.filter_alt_outlined, size: 18, color: Colors.grey),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text('Period',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              ),
+              if (_filtering)
+                TextButton(
+                  onPressed: () => setState(() {
+                    _monthFilter = 'all';
+                    _dayFilter = 'all';
+                  }),
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                  child: const Text('Clear'),
+                ),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
@@ -181,6 +222,28 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResourceCostCard(double allTimeTotal) {
+    final filtered = _filteredLog;
+    final byDate = <String, List<ShelterOccupancyReport>>{};
+    for (final r in filtered) {
+      byDate.putIfAbsent(r.dateKey, () => []).add(r);
+    }
+    final orderedDates = byDate.keys.toList()..sort((a, b) => b.compareTo(a));
+    final filteredTotal = filtered.fold<double>(0, (s, r) => s + r.cost);
+
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Resource Consumption Cost by Date',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          ),
           const SizedBox(height: 12),
           if (orderedDates.isEmpty)
             Text(
@@ -203,18 +266,18 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                filtering ? 'Selected period' : 'All-time total',
+                _filtering ? 'Selected period' : 'All-time total',
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
               Text(
-                formatRinggit(filtering ? filteredTotal : allTimeTotal),
+                formatRinggit(_filtering ? filteredTotal : allTimeTotal),
                 style: const TextStyle(
                   fontWeight: FontWeight.bold, fontSize: 14, color: Colors.teal,
                 ),
               ),
             ],
           ),
-          if (filtering) ...[
+          if (_filtering) ...[
             const SizedBox(height: 2),
             Text(
               'All-time total: ${formatRinggit(allTimeTotal)}',
@@ -241,25 +304,30 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    // Everything below respects the global month / date filter.
+    final reports = _filteredReports;
+    final log = _filteredLog;
+
     // Reports that count toward the official total right now: admin-approved
     // plus helper-verified (the latter drop out again if the admin rejects).
-    final countedReports = _reports
+    final countedReports = reports
         .where((r) =>
             r['status'] == 'verified' || r['status'] == 'helper_verified')
         .toList();
-    final pendingReports = _reports.where((r) => r['status'] == 'pending_review').toList();
+    final pendingReports = reports.where((r) => r['status'] == 'pending_review').toList();
 
     final adminApprovedLoss = _sum(
-      _reports.where((r) => r['status'] == 'verified'),
+      reports.where((r) => r['status'] == 'verified'),
       'approved_total_loss',
     );
     final helperVerifiedLoss = _sum(
-      _reports.where((r) => r['status'] == 'helper_verified'),
+      reports.where((r) => r['status'] == 'helper_verified'),
       'verified_total_loss',
     );
     final countedAssetLoss = adminApprovedLoss + helperVerifiedLoss;
     final potentialPending = _sum(pendingReports, 'estimated_total_loss');
-    final resourceCostTotal =
+    final resourceCostTotal = log.fold<double>(0, (sum, r) => sum + r.cost);
+    final resourceCostAllTime =
         _dailyLog.fold<double>(0, (sum, r) => sum + r.cost);
     final totalEconomicLoss = countedAssetLoss + resourceCostTotal;
 
@@ -284,6 +352,25 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
       }
     }
 
+    // Resource-cost dimensions, from the (filtered) shelter daily log.
+    final resourceByDate = <String, double>{};
+    final resourceByShelter = <String, double>{};
+    for (final r in log) {
+      final d = _dayLabel(r.dateKey);
+      resourceByDate[d] = (resourceByDate[d] ?? 0) + r.cost;
+      final name = _facilitiesById[r.facilityId]?.name ?? 'Unknown shelter';
+      resourceByShelter[name] = (resourceByShelter[name] ?? 0) + r.cost;
+    }
+
+    final dimensions = <String, Map<String, double>>{
+      'Asset loss by state': byState,
+      'Asset loss by district': byDistrict,
+      'Asset loss by category': byCategory,
+      if (byIncident.isNotEmpty) 'Asset loss by flood incident': byIncident,
+      'Resource cost by date': resourceByDate,
+      'Resource cost by shelter': resourceByShelter,
+    };
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FC),
       appBar: AppBar(title: const Text('Economic Loss Dashboard'), centerTitle: true),
@@ -296,7 +383,18 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _TotalCard(total: totalEconomicLoss, assetLoss: countedAssetLoss, resourceCost: resourceCostTotal),
+                  _buildPeriodFilter(),
+                  const SizedBox(height: 16),
+                  _TotalCard(
+                    total: totalEconomicLoss,
+                    assetLoss: countedAssetLoss,
+                    resourceCost: resourceCostTotal,
+                    periodLabel: _filtering
+                        ? (_dayFilter != 'all'
+                            ? _dayLabel(_dayFilter)
+                            : _monthLabel(_monthFilter))
+                        : null,
+                  ),
                   const SizedBox(height: 16),
                   _PotentialVsVerifiedCard(
                     potential: potentialPending,
@@ -304,17 +402,9 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
                     adminApproved: adminApprovedLoss,
                   ),
                   const SizedBox(height: 16),
-                  _BreakdownCard(title: 'Counted Asset Loss by State', amounts: byState),
+                  _BreakdownExplorerCard(dimensions: dimensions),
                   const SizedBox(height: 16),
-                  _BreakdownCard(title: 'Counted Asset Loss by District', amounts: byDistrict),
-                  const SizedBox(height: 16),
-                  _BreakdownCard(title: 'Counted Asset Loss by Asset Category', amounts: byCategory),
-                  if (byIncident.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _BreakdownCard(title: 'Counted Asset Loss by Flood Incident', amounts: byIncident),
-                  ],
-                  const SizedBox(height: 16),
-                  _buildResourceCostCard(resourceCostTotal),
+                  _buildResourceCostCard(resourceCostAllTime),
                 ],
               ),
             ),
@@ -346,11 +436,20 @@ class _Card extends StatelessWidget {
 }
 
 class _TotalCard extends StatelessWidget {
-  const _TotalCard({required this.total, required this.assetLoss, required this.resourceCost});
+  const _TotalCard({
+    required this.total,
+    required this.assetLoss,
+    required this.resourceCost,
+    this.periodLabel,
+  });
 
   final double total;
   final double assetLoss;
   final double resourceCost;
+
+  /// Non-null when the dashboard is filtered to a month/date — shown next to
+  /// the heading so the figure isn't mistaken for the all-time total.
+  final String? periodLabel;
 
   String _rm(double v) => formatRinggit(v);
 
@@ -360,7 +459,12 @@ class _TotalCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Total Estimated Economic Loss', style: TextStyle(color: Colors.grey, fontSize: 13)),
+          Text(
+            periodLabel == null
+                ? 'Total Estimated Economic Loss'
+                : 'Estimated Economic Loss · $periodLabel',
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
+          ),
           const SizedBox(height: 6),
           Text(_rm(total), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blue)),
           const Divider(height: 28),
@@ -535,67 +639,219 @@ class _DateCostTile extends StatelessWidget {
   }
 }
 
-class _BreakdownCard extends StatelessWidget {
-  const _BreakdownCard({required this.title, required this.amounts});
+enum _ChartKind { bar, pie }
 
-  final String title;
-  final Map<String, double> amounts;
+/// The main visual breakdown: the admin picks a dimension (state, district,
+/// category, incident, date, shelter) and a chart type (bar or pie); the
+/// chart plus a ranked legend below both come from the same amounts map.
+class _BreakdownExplorerCard extends StatefulWidget {
+  const _BreakdownExplorerCard({required this.dimensions});
+
+  final Map<String, Map<String, double>> dimensions;
+
+  @override
+  State<_BreakdownExplorerCard> createState() => _BreakdownExplorerCardState();
+}
+
+class _BreakdownExplorerCardState extends State<_BreakdownExplorerCard> {
+  late String _dimension = widget.dimensions.keys.first;
+  _ChartKind _kind = _ChartKind.bar;
+
+  static const _palette = <Color>[
+    Color(0xFF4E79A7), Color(0xFFF28E2B), Color(0xFFE15759), Color(0xFF76B7B2),
+    Color(0xFF59A14F), Color(0xFFEDC948), Color(0xFFB07AA1), Color(0xFFFF9DA7),
+    Color(0xFF9C755F), Color(0xFFBAB0AC), Color(0xFF86BCB6), Color(0xFFD37295),
+  ];
+
+  /// Top 11 entries by value, with the remainder folded into "Other".
+  List<MapEntry<String, double>> _rows(Map<String, double> amounts) {
+    final sorted = amounts.entries.where((e) => e.value > 0).toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    if (sorted.length <= 12) return sorted;
+    final head = sorted.take(11).toList();
+    final rest = sorted.skip(11).fold<double>(0, (s, e) => s + e.value);
+    return [...head, MapEntry('Other (${sorted.length - 11})', rest)];
+  }
 
   @override
   Widget build(BuildContext context) {
-    final sorted = amounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-    final maxValue = sorted.isNotEmpty ? sorted.first.value : 1;
+    if (!widget.dimensions.containsKey(_dimension)) {
+      _dimension = widget.dimensions.keys.first;
+    }
+    final rows = _rows(widget.dimensions[_dimension] ?? const {});
+    final total = rows.fold<double>(0, (s, e) => s + e.value);
 
     return _Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          Row(
+            children: [
+              const Expanded(
+                child: Text('Economic Loss Breakdown',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              ),
+              SegmentedButton<_ChartKind>(
+                showSelectedIcon: false,
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                segments: const [
+                  ButtonSegment(value: _ChartKind.bar, icon: Icon(Icons.bar_chart)),
+                  ButtonSegment(value: _ChartKind.pie, icon: Icon(Icons.pie_chart_outline)),
+                ],
+                selected: {_kind},
+                onSelectionChanged: (s) => setState(() => _kind = s.first),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 34,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: widget.dimensions.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, i) {
+                final key = widget.dimensions.keys.elementAt(i);
+                return ChoiceChip(
+                  label: Text(key),
+                  selected: _dimension == key,
+                  onSelected: (_) => setState(() => _dimension = key),
+                  selectedColor: Colors.blue.shade100,
+                  labelStyle: TextStyle(
+                    fontSize: 12,
+                    color: _dimension == key ? Colors.blue.shade900 : Colors.black87,
+                  ),
+                );
+              },
+            ),
+          ),
           const SizedBox(height: 16),
-          if (sorted.isEmpty)
-            const Text('No counted losses yet.', style: TextStyle(color: Colors.grey))
-          else
-            ...sorted.map((entry) {
-              final fraction = maxValue == 0 ? 0.0 : entry.value / maxValue;
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
+          if (rows.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text('No data for this breakdown yet.',
+                    style: TextStyle(color: Colors.grey)),
+              ),
+            )
+          else ...[
+            SizedBox(
+              height: 220,
+              child: _kind == _ChartKind.pie
+                  ? _pie(rows, total)
+                  : _bar(rows),
+            ),
+            const SizedBox(height: 16),
+            for (var i = 0; i < rows.length; i++)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
                 child: Row(
                   children: [
-                    SizedBox(
-                      width: 140,
-                      child: Text(entry.key, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis),
+                    Container(
+                      width: 12, height: 12,
+                      decoration: BoxDecoration(
+                        color: _palette[i % _palette.length],
+                        borderRadius: BorderRadius.circular(3),
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) => Stack(
-                          children: [
-                            Container(
-                              height: 18,
-                              decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(6)),
-                            ),
-                            Container(
-                              height: 18,
-                              width: constraints.maxWidth * fraction,
-                              decoration: BoxDecoration(color: Colors.blue, borderRadius: BorderRadius.circular(6)),
-                            ),
-                          ],
-                        ),
-                      ),
+                      child: Text(rows[i].key,
+                          style: const TextStyle(fontSize: 12),
+                          overflow: TextOverflow.ellipsis),
                     ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 90,
-                      child: Text(
-                        'RM ${groupThousands(entry.value.toStringAsFixed(0))}',
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
+                    Text(
+                      total == 0 ? '' : '${(rows[i].value / total * 100).toStringAsFixed(0)}%',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                     ),
+                    const SizedBox(width: 10),
+                    Text(formatRinggit(rows[i].value),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   ],
                 ),
-              );
-            }),
+              ),
+            const Divider(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Total', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                Text(formatRinggit(total),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _pie(List<MapEntry<String, double>> rows, double total) {
+    return PieChart(
+      PieChartData(
+        sectionsSpace: 2,
+        centerSpaceRadius: 44,
+        sections: [
+          for (var i = 0; i < rows.length; i++)
+            PieChartSectionData(
+              value: rows[i].value,
+              color: _palette[i % _palette.length],
+              radius: 58,
+              title: (total > 0 && rows[i].value / total >= 0.06)
+                  ? '${(rows[i].value / total * 100).toStringAsFixed(0)}%'
+                  : '',
+              titleStyle: const TextStyle(
+                fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bar(List<MapEntry<String, double>> rows) {
+    final maxV = rows.map((e) => e.value).fold<double>(0, (m, v) => v > m ? v : m);
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: maxV == 0 ? 1 : maxV * 1.15,
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipItem: (group, _, rod, _) => BarTooltipItem(
+              '${rows[group.x].key}\n${formatRinggit(rod.toY)}',
+              const TextStyle(color: Colors.white, fontSize: 11),
+            ),
+          ),
+        ),
+        titlesData: FlTitlesData(
+          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 18,
+              getTitlesWidget: (value, meta) => Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('${value.toInt() + 1}',
+                    style: const TextStyle(fontSize: 10, color: Colors.grey)),
+              ),
+            ),
+          ),
+        ),
+        gridData: const FlGridData(show: false),
+        borderData: FlBorderData(show: false),
+        barGroups: [
+          for (var i = 0; i < rows.length; i++)
+            BarChartGroupData(x: i, barRods: [
+              BarChartRodData(
+                toY: rows[i].value,
+                color: _palette[i % _palette.length],
+                width: 16,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ]),
         ],
       ),
     );

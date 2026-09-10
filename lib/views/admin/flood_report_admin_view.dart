@@ -299,6 +299,7 @@ class _FloodReportAdminViewState extends State<FloodReportAdminView> {
                                     builder: (_) => ReportDetailView(
                                       report: report,
                                       reporterName: reporterName,
+                                      isAdminView: true,
                                     ),
                                   ),
                                 );
@@ -406,13 +407,35 @@ class _AdminReportSummaryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              report.floodType,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-              ),
-              overflow: TextOverflow.ellipsis,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    report.floodType,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(
+                  report.isVerified ? Icons.verified : Icons.schedule_outlined,
+                  size: 16,
+                  color: report.isVerified ? Colors.teal : Colors.orange,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  report.isVerified ? 'Verified' : 'Unverified',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: report.isVerified
+                        ? Colors.teal
+                        : Colors.orange.shade800,
+                  ),
+                ),
+              ],
             ),
             if (reporterName != null && reporterName!.isNotEmpty) ...[
               const SizedBox(height: 4),

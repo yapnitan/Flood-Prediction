@@ -655,16 +655,18 @@ class _RecentReportRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final verified = report.status == 'verified';
+    // Every nearby report is weighted the same in the risk score (by water
+    // level, regardless of admin verification), so they all show identically
+    // here.
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            verified ? Icons.verified : Icons.report_gmailerrorred_outlined,
+          const Icon(
+            Icons.report_gmailerrorred_outlined,
             size: 16,
-            color: verified ? Colors.teal : Colors.orange,
+            color: Colors.orange,
           ),
           const SizedBox(width: 8),
           Expanded(

@@ -8,8 +8,7 @@ import '../../utils/responsive.dart';
 import '../../widgets/offline_banner.dart';
 
 /// Module 3 entry point (CLAUDE.md Task 8) — preparation progress plus
-/// cards into Checklist, Inventory, Emergency Contacts, and the Nearby PPS
-/// map.
+/// cards into the Emergency Checklist and the Nearby PPS map.
 class PlannerDashboardView extends StatefulWidget {
   const PlannerDashboardView({super.key});
 
@@ -134,22 +133,6 @@ class _PlannerDashboardViewState extends State<PlannerDashboardView> {
                     title: 'Emergency Checklist',
                     subtitle: 'Track what you\'ve packed and prepared',
                     onTap: () => _openAndRefresh(AppRoutes.checklist),
-                  ),
-                  const SizedBox(height: 12),
-                  _PlannerCard(
-                    icon: Icons.inventory_2_outlined,
-                    color: Colors.teal,
-                    title: 'Inventory',
-                    subtitle: 'Emergency supplies on hand, by category',
-                    onTap: () => _openAndRefresh(AppRoutes.inventory),
-                  ),
-                  const SizedBox(height: 12),
-                  _PlannerCard(
-                    icon: Icons.contact_phone_outlined,
-                    color: Colors.purple,
-                    title: 'Emergency Contacts',
-                    subtitle: 'Family, neighbors, and emergency services',
-                    onTap: () => _openAndRefresh(AppRoutes.contacts),
                   ),
                   const SizedBox(height: 12),
                   _PlannerCard(

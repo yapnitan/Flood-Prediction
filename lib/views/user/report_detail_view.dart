@@ -15,15 +15,23 @@ import 'submit_report.dart';
 /// evidence photos, but also hosts edit/delete for the report's own
 /// reporter (while still `submitted`) and verify/unverify for admins.
 class ReportDetailView extends StatefulWidget {
-  const ReportDetailView({super.key, required this.report, this.reporterName});
+  const ReportDetailView({
+    super.key,
+    required this.report,
+    this.reporterName,
+    this.isAdminView = false,
+  });
 
   final FloodReport report;
 
   /// Only passed by the admin view, which already has it from the
   /// reporter-account join — the reporting user obviously knows it's their
-  /// own report, so [ReportHistoryView] never needs to pass this. Doubles
-  /// as the "am I looking at this as an admin" flag.
+  /// own report, so [ReportHistoryView] never needs to pass this.
   final String? reporterName;
+
+  /// Set by the admin flood-report list — enables the verify / unverify
+  /// control. RLS still enforces admin-only regardless.
+  final bool isAdminView;
 
   @override
   State<ReportDetailView> createState() => _ReportDetailViewState();
@@ -59,6 +67,30 @@ class _ReportDetailViewState extends State<ReportDetailView> {
       _isBusy = false;
       if (fresh != null) _report = fresh;
     });
+  }
+
+  Future<void> _toggleVerified() async {
+    final makeVerified = !_report.isVerified;
+    setState(() => _isBusy = true);
+    final ok = await _controller.setVerified(_report.id!, makeVerified);
+    if (!mounted) return;
+    setState(() {
+      _isBusy = false;
+      if (ok) {
+        _report = _report.copyWith(status: makeVerified ? 'verified' : 'submitted');
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? (makeVerified
+                  ? 'Report marked as verified.'
+                  : 'Verification removed.')
+              : 'Could not update the report. Please try again.',
+        ),
+      ),
+    );
   }
 
   Future<void> _delete() async {
@@ -103,6 +135,21 @@ class _ReportDetailViewState extends State<ReportDetailView> {
         title: const Text('Report Details'),
         centerTitle: true,
         actions: [
+          if (widget.isAdminView)
+            TextButton.icon(
+              onPressed: _isBusy ? null : _toggleVerified,
+              icon: Icon(
+                _report.isVerified ? Icons.undo : Icons.verified_outlined,
+                size: 18,
+                color: _report.isVerified ? Colors.grey : Colors.teal,
+              ),
+              label: Text(
+                _report.isVerified ? 'Unverify' : 'Verify',
+                style: TextStyle(
+                  color: _report.isVerified ? Colors.grey : Colors.teal,
+                ),
+              ),
+            ),
           if (_canEditOrDelete) ...[
             IconButton(
               tooltip: 'Edit report',
@@ -143,7 +190,32 @@ class _ReportDetailViewState extends State<ReportDetailView> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Icon(
+                        report.isVerified
+                            ? Icons.verified
+                            : Icons.schedule_outlined,
+                        size: 16,
+                        color: report.isVerified ? Colors.teal : Colors.orange,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        report.isVerified
+                            ? 'Verified by an admin'
+                            : 'Awaiting admin verification',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: report.isVerified
+                              ? Colors.teal
+                              : Colors.orange.shade800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                   if (widget.reporterName != null && widget.reporterName!.isNotEmpty)
                     ReviewCard(title: 'Reported by', value: widget.reporterName!),
                   ReviewCard(title: 'Location', value: report.locationName),

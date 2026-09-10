@@ -37,6 +37,11 @@ class FloodReport {
   final String status;
   final DateTime? createdAt;
 
+  /// An admin has confirmed this report (migration 0018 allows only
+  /// 'submitted' / 'verified'). Verified reports are locked from further
+  /// reporter edits and shown with a ✓ instead of a ⚠.
+  bool get isVerified => status == 'verified';
+
   factory FloodReport.fromJson(Map<String, dynamic> json) => FloodReport(
     id: json['id'] as String?,
     reporterId: json['reporter_id'] as String?,
