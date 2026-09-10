@@ -182,6 +182,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                   initialValue: assignableHelpers.any((h) => h.id == helperId)
                       ? helperId
                       : null,
+                  isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Helper'),
                   items: assignableHelpers
                       .map(
@@ -194,8 +195,9 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                   onChanged: (value) => setDialogState(() => helperId = value),
                   hint: Text(
                     assignableHelpers.isEmpty
-                        ? 'Every active helper already has a place'
+                        ? 'No unassigned helpers'
                         : 'Select a helper',
+                    overflow: TextOverflow.ellipsis,
                   ),
                 )
               else
@@ -217,6 +219,7 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                 initialValue: MalaysiaGeocoder.states.contains(state)
                     ? state
                     : null,
+                isExpanded: true,
                 decoration: const InputDecoration(labelText: 'State'),
                 items: MalaysiaGeocoder.states
                     .map((s) => DropdownMenuItem(value: s, child: Text(s)))
@@ -246,8 +249,9 @@ class _HelperAssignmentAdminViewState extends State<HelperAssignmentAdminView> {
                         setDialogState(() => districtValue = value),
                     hint: Text(
                       districts.isEmpty
-                          ? 'No saved address or shelter in this state yet'
+                          ? 'No districts in this state yet'
                           : 'Select a district',
+                      overflow: TextOverflow.ellipsis,
                     ),
                   );
                 },
