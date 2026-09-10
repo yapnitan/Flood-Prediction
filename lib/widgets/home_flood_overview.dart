@@ -25,6 +25,7 @@ import '../services/notification_service.dart';
 import '../services/realtime_alert_service.dart';
 import '../services/terrain_service.dart';
 import '../services/weather_service.dart';
+import '../utils/currency_input.dart';
 import '../utils/geo_utils.dart';
 import '../utils/maps_launcher.dart';
 import 'info_box.dart';
@@ -884,7 +885,7 @@ class HomeFloodOverviewState extends State<HomeFloodOverview> {
               const SizedBox(height: 4),
             ],
             if (center.capacity != null) ...[
-              Text('Capacity: ${center.capacity}'),
+              Text('Capacity: ${groupThousands('${center.capacity}')}'),
               const SizedBox(height: 4),
             ],
             if (center.contactNumber != null)

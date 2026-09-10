@@ -8,6 +8,7 @@ import '../../services/facility_service.dart';
 import '../../services/location_service.dart';
 import '../../utils/geo_utils.dart';
 import '../../utils/maps_launcher.dart';
+import '../../utils/currency_input.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/mini_map.dart';
 
@@ -119,7 +120,7 @@ class _PpsMapViewState extends State<PpsMapView> {
                           if (distanceKm != null)
                             Text(
                               '${distanceKm.toStringAsFixed(1)} km away'
-                              '${shelter.capacity != null ? ' · capacity ${shelter.capacity}' : ''}',
+                              '${shelter.capacity != null ? ' · capacity ${groupThousands('${shelter.capacity}')}' : ''}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(color: Colors.grey, fontSize: 12),

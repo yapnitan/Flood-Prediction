@@ -17,6 +17,9 @@ String _formatDate(DateTime date) =>
     '${date.day.toString().padLeft(2, '0')}/'
     '${date.month.toString().padLeft(2, '0')}/${date.year}';
 
+/// Whole number with a thousands separator, e.g. 5000 -> "5,000".
+String _n(int value) => groupThousands(value.toString());
+
 /// Resource Consumption Cost entry point (Task/asset report §23/§39): a
 /// helper picks an active shelter and logs the demographic headcount for a
 /// chosen date; the app calculates a resource cost from a fixed per-person
@@ -176,7 +179,7 @@ class _ShelterCard extends StatelessWidget {
             if (latest == null) ...[
               Text(
                 shelter.capacity != null
-                    ? 'No occupancy logged yet · capacity ${shelter.capacity}'
+                    ? 'No occupancy logged yet · capacity ${_n(shelter.capacity!)}'
                     : 'No occupancy logged yet',
                 style: const TextStyle(color: Colors.grey, fontSize: 13),
               ),
@@ -211,8 +214,8 @@ class _OccupancySummary extends StatelessWidget {
           children: [
             Text(
               capacity != null
-                  ? 'Occupancy: $occupancy / $capacity'
-                  : 'Occupancy: $occupancy people',
+                  ? 'Occupancy: ${_n(occupancy)} / ${_n(capacity)}'
+                  : 'Occupancy: ${_n(occupancy)} people',
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
             if (over) ...[
@@ -224,7 +227,7 @@ class _OccupancySummary extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  'Over by ${occupancy - capacity}',
+                  'Over by ${_n(occupancy - capacity)}',
                   style: TextStyle(
                     fontSize: 11,
                     color: Colors.red.shade700,
@@ -278,7 +281,7 @@ class _CapacityIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     if (capacity == null) {
       return Text(
-        'Total: $headcount people (no capacity set for this shelter)',
+        'Total: ${_n(headcount)} people (no capacity set for this shelter)',
         style: const TextStyle(fontSize: 12, color: Colors.grey),
       );
     }
@@ -293,13 +296,13 @@ class _CapacityIndicator extends StatelessWidget {
         Row(
           children: [
             Text(
-              'Total: $headcount / $capacity',
+              'Total: ${_n(headcount)} / ${_n(capacity!)}',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color),
             ),
             if (over) ...[
               const SizedBox(width: 8),
               Text(
-                'over capacity by ${headcount - capacity!}',
+                'over capacity by ${_n(headcount - capacity!)}',
                 style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.bold),
               ),
             ],
@@ -419,8 +422,8 @@ class _OccupancyEntrySheetState extends State<_OccupancyEntrySheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Total headcount ($_headcount) is over this shelter\'s capacity '
-            '(${widget.shelter.capacity}). Reduce the numbers before saving.',
+            'Total headcount (${_n(_headcount)}) is over this shelter\'s capacity '
+            '(${_n(widget.shelter.capacity!)}). Reduce the numbers before saving.',
           ),
         ),
       );

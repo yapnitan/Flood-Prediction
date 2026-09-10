@@ -192,6 +192,7 @@ class _EconomicLossDashboardViewState extends State<EconomicLossDashboardView> {
           else
             for (final date in orderedDates)
               _DateCostTile(
+                key: ValueKey(date),
                 date: date,
                 label: _dayLabel(date),
                 reports: byDate[date]!,
@@ -459,6 +460,7 @@ class _PotentialVsVerifiedCard extends StatelessWidget {
 /// shelter in the title, expanding to the per-shelter figures.
 class _DateCostTile extends StatelessWidget {
   const _DateCostTile({
+    super.key,
     required this.date,
     required this.label,
     required this.reports,
@@ -475,12 +477,17 @@ class _DateCostTile extends StatelessWidget {
     final dayTotal = reports.fold<double>(0, (s, r) => s + r.cost);
     final sorted = [...reports]..sort((a, b) => b.cost.compareTo(a.cost));
 
-    return Theme(
-      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
-        tilePadding: EdgeInsets.zero,
-        childrenPadding: const EdgeInsets.only(left: 8, bottom: 8),
-        title: Row(
+    // `shape`/`collapsedShape` kill the ExpansionTile divider lines without a
+    // Theme(dividerColor: transparent) wrapper — wrapping each tile in its
+    // own Theme element can trip the framework's `_dependents.isEmpty`
+    // assertion when the list rebuilds on a filter change mid-animation.
+    return ExpansionTile(
+      key: PageStorageKey(date),
+      shape: const Border(),
+      collapsedShape: const Border(),
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: const EdgeInsets.only(left: 8, bottom: 8),
+      title: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
@@ -524,8 +531,7 @@ class _DateCostTile extends StatelessWidget {
               ),
             ),
         ],
-      ),
-    );
+      );
   }
 }
 
